@@ -32,17 +32,37 @@ type Measure = {
 };
 
 /**
- * The chart draws to a canvas, so it needs resolved color strings rather than
- * Tailwind classes. Reading the CSS custom properties keeps the one palette in
- * globals.css authoritative; the fallbacks only matter before styles resolve.
+ * Chart colors are literal hex/rgba, NOT read from the CSS tokens.
+ *
+ * lightweight-charts parses colors with its own parser that only understands
+ * hex, rgb() and hsl(). Tailwind v4 registers the theme tokens as typed custom
+ * properties, so getComputedStyle returns a computed `lab(...)` string, which
+ * that parser throws on — taking down every chart in the app. Keep these in
+ * step with --gain / --loss in globals.css by hand; a crash is a far worse
+ * outcome than the two palettes drifting slightly.
  */
-function token(name: string, fallback: string) {
-  if (typeof window === "undefined") return fallback;
-  const value = getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim();
-  return value || fallback;
-}
+const CHART_THEME = {
+  light: {
+    gain: "#059669",
+    loss: "#dc2626",
+    gainFill: "rgba(5, 150, 105, 0.22)",
+    lossFill: "rgba(220, 38, 38, 0.22)",
+    text: "#71717a",
+    grid: "rgba(113, 113, 122, 0.12)",
+  },
+  dark: {
+    gain: "#34d399",
+    loss: "#f87171",
+    gainFill: "rgba(52, 211, 153, 0.22)",
+    lossFill: "rgba(248, 113, 113, 0.22)",
+    text: "#a1a1aa",
+    grid: "rgba(161, 161, 170, 0.16)",
+  },
+} as const;
+
+// Canvas cannot resolve `var(--font-mono)`, so name the faces outright.
+const CHART_FONT =
+  'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
 
 function formatStamp(time: number, spanSeconds: number) {
   const date = new Date(time * 1000);
@@ -210,23 +230,20 @@ export function PriceChart({
     if (!container || points.length === 0) return;
 
     pointsRef.current = points;
-    const color = positive
-      ? token("--gain", "#059669")
-      : token("--loss", "#dc2626");
-    const fill = positive
-      ? token("--gain-fill", "rgba(5,150,105,0.22)")
-      : token("--loss-fill", "rgba(220,38,38,0.22)");
-    const textColor = token("--muted-foreground", "#71717a");
+    const palette =
+      resolvedTheme === "dark" ? CHART_THEME.dark : CHART_THEME.light;
+    const color = positive ? palette.gain : palette.loss;
+    const fill = positive ? palette.gainFill : palette.lossFill;
 
     const chart = createChart(container, {
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor,
-        fontFamily: "var(--font-mono)",
+        textColor: palette.text,
+        fontFamily: CHART_FONT,
       },
       grid: {
-        horzLines: { color: token("--border", "rgba(113,113,122,0.12)") },
+        horzLines: { color: palette.grid },
         vertLines: { visible: false },
       },
       rightPriceScale: { borderVisible: false },
