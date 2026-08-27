@@ -84,6 +84,7 @@ export default function AnalyticsPage() {
   const [usage, setUsage] = useState<UsageStatus | null>(null);
   const [limitReached, setLimitReached] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -137,8 +138,21 @@ export default function AnalyticsPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    setFormError(null);
+
+    if (!symbolInput.trim()) {
+      setFormError("Enter a stock symbol first.");
+      return;
+    }
     const amount = parseFloat(amountInput);
-    if (!symbolInput.trim() || !amount || amount <= 0 || !dateInput) return;
+    if (!amount || amount <= 0) {
+      setFormError("Enter an amount greater than $0.");
+      return;
+    }
+    if (!dateInput) {
+      setFormError("Pick a date.");
+      return;
+    }
 
     setSubmitting(true);
     setLimitReached(false);
@@ -172,6 +186,12 @@ export default function AnalyticsPage() {
         amount,
         date: dateInput,
       });
+    } catch {
+      // Fetch can throw outright (offline, flaky mobile signal, etc.) rather
+      // than resolving — without this, the button would silently do nothing.
+      setFormError(
+        "Couldn't reach the server. Check your connection and try again.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -263,6 +283,8 @@ export default function AnalyticsPage() {
           </div>
         </form>
 
+        {formError && <p className="text-sm text-red-500">{formError}</p>}
+
         {items.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">Quick pick:</span>
@@ -270,7 +292,10 @@ export default function AnalyticsPage() {
               <button
                 key={item.symbol}
                 type="button"
-                onClick={() => setSymbolInput(item.symbol)}
+                onClick={() => {
+                  setSymbolInput(item.symbol);
+                  setFormError(null);
+                }}
                 className="rounded-full border border-border px-3 py-1 text-xs font-medium hover:bg-accent"
               >
                 {item.symbol}
