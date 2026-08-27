@@ -114,7 +114,7 @@ export function AuthForm({
           />
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button type="submit" className="rounded-full" disabled={loading}>
           {loading

@@ -196,7 +196,7 @@ export function CommunityView() {
                       <p className="text-sm font-semibold">@{person.username}</p>
                     </div>
                     {isFriend ? (
-                      <span className="text-xs font-medium text-emerald-600">
+                      <span className="text-xs font-medium text-gain">
                         Friends
                       </span>
                     ) : isOutgoing ? (

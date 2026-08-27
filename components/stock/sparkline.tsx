@@ -33,28 +33,30 @@ export function Sparkline({
 
   const areaPath = `${linePath} L${width},${height} L0,${height} Z`;
 
-  const color = positive ? "#10b981" : "#ef4444";
   const gradientId = `spark-${positive ? "up" : "down"}`;
 
   return (
+    // `currentColor` inherits the gain/loss token, so the sparkline follows the
+    // theme instead of carrying its own hardcoded green and red.
     <svg
       width={width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
       aria-hidden
+      className={positive ? "text-gain" : "text-loss"}
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={areaPath} fill={`url(#${gradientId})`} />
       <path
         d={linePath}
         fill="none"
-        stroke={color}
+        stroke="currentColor"
         strokeWidth="1.5"
         strokeLinejoin="round"
         strokeLinecap="round"

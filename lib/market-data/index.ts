@@ -26,7 +26,7 @@ export function getMarketDataProvider(): MarketDataProvider {
         getQuote: (symbol) => finnhub.getQuote(symbol),
         getCandles: (symbol, range) => yahoo.getCandles(symbol, range),
         searchSymbols: (query) => finnhub.searchSymbols(query),
-        getNews: (symbol) => finnhub.getNews(symbol),
+        getNews: (symbol, companyName) => finnhub.getNews(symbol, companyName),
         getProfile: (symbol) => finnhub.getProfile(symbol),
       };
       return cachedProvider;

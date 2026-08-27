@@ -37,6 +37,8 @@ export type NewsItem = {
   url: string;
   datetime: number;
   summary: string;
+  /** One-line explanation of why this story is worth reading. */
+  reason?: string;
 };
 
 export type CompanyProfile = {
@@ -52,6 +54,6 @@ export interface MarketDataProvider {
   getQuote(symbol: string): Promise<Quote>;
   getCandles(symbol: string, range: CandleRange): Promise<CandleSeries>;
   searchSymbols(query: string): Promise<SymbolSearchResult[]>;
-  getNews(symbol: string): Promise<NewsItem[]>;
+  getNews(symbol: string, companyName?: string): Promise<NewsItem[]>;
   getProfile(symbol: string): Promise<CompanyProfile>;
 }

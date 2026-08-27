@@ -1,3 +1,4 @@
+import { curateNews } from "./news-curation";
 import type {
   CompanyProfile,
   NewsItem,
@@ -97,9 +98,11 @@ export class FinnhubProvider {
     }));
   }
 
-  async getNews(symbol: string): Promise<NewsItem[]> {
+  async getNews(symbol: string, companyName?: string): Promise<NewsItem[]> {
     const to = new Date();
-    const from = new Date(to.getTime() - 14 * 24 * 60 * 60 * 1000);
+    // Finnhub's window is date-based, so pull three calendar days to be sure
+    // the full trailing 48 hours is covered whatever the current UTC time is.
+    const from = new Date(to.getTime() - 3 * 24 * 60 * 60 * 1000);
     const format = (date: Date) => date.toISOString().slice(0, 10);
 
     const data = await this.fetchJson<FinnhubNewsItem[]>(
@@ -108,7 +111,7 @@ export class FinnhubProvider {
       900,
     );
 
-    return data.slice(0, 10).map((item) => ({
+    const items: NewsItem[] = data.map((item) => ({
       id: item.id,
       headline: item.headline,
       source: item.source,
@@ -116,6 +119,8 @@ export class FinnhubProvider {
       datetime: item.datetime,
       summary: item.summary,
     }));
+
+    return curateNews(items, { symbol, companyName });
   }
 
   async getProfile(symbol: string): Promise<CompanyProfile> {

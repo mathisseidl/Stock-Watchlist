@@ -4,13 +4,21 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { TrendingUp, Lock } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { PriceChart } from "@/components/stock/price-chart";
+import { RangeSelector } from "@/components/stock/range-selector";
+import { SymbolCombobox } from "@/components/search/symbol-combobox";
 import { useCandles } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
+import { RANGES, RANGE_SECONDS } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
-import type { CandleRange, CandlePoint } from "@/lib/market-data/types";
+import type {
+  CandleRange,
+  CandlePoint,
+  SymbolSearchResult,
+} from "@/lib/market-data/types";
 
 type UsageStatus = {
   isPaid: boolean;
@@ -75,11 +83,19 @@ export default function AnalyticsPage() {
   const [amountInput, setAmountInput] = useState("1000");
   const [dateInput, setDateInput] = useState(oneYearAgo());
 
+  // What the user actually picked from the dropdown, and the best match for
+  // whatever is typed — so "Apple" resolves to AAPL without an extra click.
+  const [picked, setPicked] = useState<SymbolSearchResult | null>(null);
+  const [topResult, setTopResult] = useState<SymbolSearchResult | null>(null);
+
   const [applied, setApplied] = useState<{
     symbol: string;
+    name: string;
     amount: number;
     date: string;
   } | null>(null);
+
+  const [chartRange, setChartRange] = useState<CandleRange>("ALL");
 
   const [usage, setUsage] = useState<UsageStatus | null>(null);
   const [limitReached, setLimitReached] = useState(false);
@@ -136,12 +152,58 @@ export default function AnalyticsPage() {
     };
   }, [applied, series]);
 
+  /** Ranges shorter than the holding period would draw fewer than two points. */
+  const disabledRanges = useMemo(() => {
+    if (!result) return RANGES.map((range) => range.key);
+    const latest = result.growth[result.growth.length - 1].time;
+    return RANGES.filter((range) => {
+      const seconds = RANGE_SECONDS[range.key];
+      if (seconds === null) return false;
+      const cutoff = latest - seconds;
+      return result.growth.filter((point) => point.time >= cutoff).length < 2;
+    }).map((range) => range.key);
+  }, [result]);
+
+  const visibleGrowth = useMemo(() => {
+    if (!result) return [];
+    const seconds = RANGE_SECONDS[chartRange];
+    if (seconds === null) return result.growth;
+    const latest = result.growth[result.growth.length - 1].time;
+    const windowed = result.growth.filter(
+      (point) => point.time >= latest - seconds,
+    );
+    return windowed.length > 1 ? windowed : result.growth;
+  }, [result, chartRange]);
+
+  const windowChangePercent = useMemo(() => {
+    if (visibleGrowth.length < 2) return 0;
+    const first = visibleGrowth[0].value;
+    const last = visibleGrowth[visibleGrowth.length - 1].value;
+    return first === 0 ? 0 : ((last - first) / first) * 100;
+  }, [visibleGrowth]);
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setFormError(null);
 
-    if (!symbolInput.trim()) {
-      setFormError("Enter a stock symbol first.");
+    // Prefer an explicit pick, then the best match for what was typed, then
+    // the raw text (so a bare ticker still works if search is unavailable).
+    const typed = symbolInput.trim();
+    const resolved =
+      picked?.symbol.toUpperCase() ??
+      (topResult && typed.toLowerCase() !== topResult.symbol.toLowerCase()
+        ? topResult.symbol.toUpperCase()
+        : null) ??
+      typed.toUpperCase();
+    const resolvedName =
+      (picked?.symbol.toUpperCase() === resolved ? picked?.description : null) ??
+      (topResult?.symbol.toUpperCase() === resolved
+        ? topResult?.description
+        : null) ??
+      resolved;
+
+    if (!resolved) {
+      setFormError("Search for a company or ticker first.");
       return;
     }
     const amount = parseFloat(amountInput);
@@ -181,8 +243,10 @@ export default function AnalyticsPage() {
         return;
       }
       setUsage({ isPaid, remaining });
+      setChartRange("ALL");
       setApplied({
-        symbol: symbolInput.trim().toUpperCase(),
+        symbol: resolved,
+        name: resolvedName,
         amount,
         date: dateInput,
       });
@@ -208,7 +272,7 @@ export default function AnalyticsPage() {
         </div>
         {usage &&
           (usage.isPaid ? (
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600">
+            <span className="rounded-full bg-gain-soft px-3 py-1 text-xs font-medium text-gain">
               Unlimited plan
             </span>
           ) : (
@@ -246,11 +310,22 @@ export default function AnalyticsPage() {
           className="grid grid-cols-1 gap-4 sm:grid-cols-4"
         >
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Stock symbol</label>
-            <Input
+            <label htmlFor="analytics-symbol" className="text-sm font-medium">
+              Company or symbol
+            </label>
+            <SymbolCombobox
+              id="analytics-symbol"
               value={symbolInput}
-              onChange={(event) => setSymbolInput(event.target.value)}
-              placeholder="AAPL"
+              onValueChange={(next) => {
+                setSymbolInput(next);
+                setPicked(null);
+                setFormError(null);
+              }}
+              onSelect={(result) => {
+                setPicked(result);
+                setFormError(null);
+              }}
+              onTopResultChange={setTopResult}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -283,7 +358,7 @@ export default function AnalyticsPage() {
           </div>
         </form>
 
-        {formError && <p className="text-sm text-red-500">{formError}</p>}
+        {formError && <p className="text-sm text-destructive">{formError}</p>}
 
         {items.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
@@ -294,6 +369,11 @@ export default function AnalyticsPage() {
                 type="button"
                 onClick={() => {
                   setSymbolInput(item.symbol);
+                  setPicked({
+                    symbol: item.symbol,
+                    description: item.name,
+                    type: "Common Stock",
+                  });
                   setFormError(null);
                 }}
                 className="rounded-full border border-border px-3 py-1 text-xs font-medium hover:bg-accent"
@@ -308,7 +388,16 @@ export default function AnalyticsPage() {
       {applied && (
         <Card className="gap-4 p-6">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Crunching the numbers…</p>
+            <div className="flex flex-col gap-4">
+              <Skeleton className="h-4 w-64" />
+              <Skeleton className="h-10 w-52" />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[0, 1, 2, 3].map((index) => (
+                  <Skeleton key={index} className="h-20 rounded-xl" />
+                ))}
+              </div>
+              <Skeleton className="h-64 w-full rounded-xl" />
+            </div>
           ) : isError || !result ? (
             <p className="text-sm text-muted-foreground">
               Couldn&apos;t load enough price history for {applied.symbol}. Try a
@@ -318,8 +407,12 @@ export default function AnalyticsPage() {
             <>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <TrendingUp className="size-4" />
-                If you invested $
-                {applied.amount.toLocaleString()} in {applied.symbol} on{" "}
+                If you invested ${applied.amount.toLocaleString()} in{" "}
+                {applied.symbol}
+                {applied.name && applied.name !== applied.symbol
+                  ? ` (${applied.name})`
+                  : ""}{" "}
+                on{" "}
                 {new Date(applied.date).toLocaleDateString("en-US", {
                   year: "numeric",
                   month: "long",
@@ -332,7 +425,7 @@ export default function AnalyticsPage() {
               <div className="flex flex-wrap items-end gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Worth today</p>
-                  <p className="text-4xl font-semibold tracking-tight">
+                  <p className="num text-4xl font-semibold tracking-tight">
                     $
                     {result.currentValue.toLocaleString(undefined, {
                       minimumFractionDigits: 2,
@@ -342,8 +435,8 @@ export default function AnalyticsPage() {
                 </div>
                 <p
                   className={
-                    "mb-1 text-lg font-semibold " +
-                    (result.profit >= 0 ? "text-emerald-600" : "text-red-500")
+                    "num mb-1 text-lg font-semibold " +
+                    (result.profit >= 0 ? "text-gain" : "text-loss")
                   }
                 >
                   {result.profit >= 0 ? "+" : "−"}$
@@ -359,25 +452,25 @@ export default function AnalyticsPage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-foreground">Entry price</p>
-                  <p className="mt-1 text-lg font-semibold">
+                  <p className="num mt-1 text-lg font-semibold">
                     ${result.entryPrice.toFixed(2)}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-foreground">Price today</p>
-                  <p className="mt-1 text-lg font-semibold">
+                  <p className="num mt-1 text-lg font-semibold">
                     ${result.currentPrice.toFixed(2)}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-foreground">Shares bought</p>
-                  <p className="mt-1 text-lg font-semibold">
+                  <p className="num mt-1 text-lg font-semibold">
                     {result.shares.toFixed(3)}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-foreground">Invested</p>
-                  <p className="mt-1 text-lg font-semibold">
+                  <p className="num mt-1 text-lg font-semibold">
                     ${applied.amount.toLocaleString()}
                   </p>
                 </div>
@@ -385,12 +478,35 @@ export default function AnalyticsPage() {
 
               {result.growth.length > 1 && (
                 <div>
-                  <p className="mb-2 text-sm font-medium">
-                    Value of your investment over time
-                  </p>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        Value of your investment over time
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {windowChangePercent >= 0 ? "Up" : "Down"}{" "}
+                        <span
+                          className={
+                            windowChangePercent >= 0
+                              ? "text-gain"
+                              : "text-loss"
+                          }
+                        >
+                          {Math.abs(windowChangePercent).toFixed(2)}%
+                        </span>{" "}
+                        over the selected period
+                      </p>
+                    </div>
+                    <RangeSelector
+                      value={chartRange}
+                      onChange={setChartRange}
+                      size="sm"
+                      disabledKeys={disabledRanges}
+                    />
+                  </div>
                   <PriceChart
-                    points={result.growth}
-                    positive={result.profit >= 0}
+                    points={visibleGrowth}
+                    positive={windowChangePercent >= 0}
                     height={260}
                   />
                 </div>

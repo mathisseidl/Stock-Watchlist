@@ -23,6 +23,11 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  /* Direction of money. The only saturated colors that carry meaning. */
+  --color-gain: var(--gain);
+  --color-gain-soft: var(--gain-soft);
+  --color-loss: var(--loss);
+  --color-loss-soft: var(--loss-soft);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -73,6 +78,14 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 1rem;
+  /* Gain/loss are the app's data colors: purple stays for actions, these two
+     carry meaning and are the only saturated colors allowed on a number. */
+  --gain: oklch(0.55 0.13 158);
+  --gain-soft: oklch(0.95 0.035 158);
+  --gain-fill: oklch(0.55 0.13 158 / 0.22);
+  --loss: oklch(0.55 0.19 25);
+  --loss-soft: oklch(0.95 0.03 25);
+  --loss-fill: oklch(0.55 0.19 25 / 0.22);
   --sidebar: oklch(0.98 0.003 264);
   --sidebar-foreground: oklch(0.22 0.02 264);
   --sidebar-primary: oklch(0.541 0.223 292.717);
@@ -107,6 +120,13 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  /* Lifted for contrast on the dark ground, same hues. */
+  --gain: oklch(0.76 0.15 158);
+  --gain-soft: oklch(0.3 0.06 158);
+  --gain-fill: oklch(0.76 0.15 158 / 0.22);
+  --loss: oklch(0.7 0.18 25);
+  --loss-soft: oklch(0.3 0.08 25);
+  --loss-fill: oklch(0.7 0.18 25 / 0.22);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -126,5 +146,27 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/**
+ * Every figure the user reads as data — prices, percentages, deltas, counts.
+ * Tabular figures keep columns aligned and stop digits jittering as live
+ * quotes refresh, which is most of what makes a finance UI feel solid.
+ */
+@utility num {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

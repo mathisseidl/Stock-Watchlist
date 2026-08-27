@@ -2,33 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
 import { Search, Loader2, Plus, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CompanyLogo } from "@/components/stock/company-logo";
+import { useSymbolSearch } from "@/hooks/use-symbol-search";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
-import type { SymbolSearchResult } from "@/lib/market-data/types";
-
-async function fetchSearch(query: string): Promise<SymbolSearchResult[]> {
-  const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-  if (!res.ok) {
-    throw new Error("Search failed");
-  }
-  return res.json();
-}
 
 export function StockSearch() {
   const router = useRouter();
   const { has, add } = useWatchlist();
   const containerRef = useRef<HTMLDivElement>(null);
   const [term, setTerm] = useState("");
-  const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(term.trim()), 250);
-    return () => clearTimeout(timer);
-  }, [term]);
+  const { results, isFetching, debounced } = useSymbolSearch(term);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -43,22 +29,9 @@ export function StockSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const { data, isFetching } = useQuery({
-    queryKey: ["search", debounced],
-    queryFn: () => fetchSearch(debounced),
-    enabled: debounced.length > 0,
-    staleTime: 60_000,
-    refetchInterval: false,
-  });
-
-  const results = (data ?? [])
-    .filter((item) => item.type === "Common Stock")
-    .slice(0, 8);
-
   function goToSymbol(symbol: string) {
     setOpen(false);
     setTerm("");
-    setDebounced("");
     router.push(`/stock/${symbol}`);
   }
 
@@ -128,7 +101,7 @@ export function StockSearch() {
                       className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground hover:text-primary disabled:opacity-50"
                     >
                       {added ? (
-                        <Check className="size-4 text-emerald-600" />
+                        <Check className="size-4 text-gain" />
                       ) : (
                         <Plus className="size-4" />
                       )}

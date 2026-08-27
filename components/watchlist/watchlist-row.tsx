@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChevronUp, ChevronDown, Trash2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CompanyLogo } from "@/components/stock/company-logo";
 import { ChangeBadge } from "@/components/stock/change-badge";
 import { Sparkline } from "@/components/stock/sparkline";
@@ -70,12 +71,12 @@ export function WatchlistRow({
 
       <div className="flex w-28 flex-col items-end">
         {isLoading ? (
-          <span className="text-sm text-muted-foreground">…</span>
+          <Skeleton className="h-4 w-16" />
         ) : isError || price === 0 ? (
           <span className="text-xs text-muted-foreground">No data</span>
         ) : (
           <>
-            <p className="text-sm font-semibold">${price.toFixed(2)}</p>
+            <p className="num text-sm font-semibold">${price.toFixed(2)}</p>
             <ChangeBadge changePercent={changePercent} />
           </>
         )}
@@ -85,7 +86,7 @@ export function WatchlistRow({
         type="button"
         aria-label={`Remove ${item.symbol}`}
         onClick={() => remove(item.symbol)}
-        className="text-muted-foreground hover:text-red-500"
+        className="text-muted-foreground hover:text-destructive"
       >
         <Trash2 className="size-4" />
       </button>

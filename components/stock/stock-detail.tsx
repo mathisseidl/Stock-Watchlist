@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowLeft, Star, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { CompanyLogo } from "@/components/stock/company-logo";
 import { ChangeBadge } from "@/components/stock/change-badge";
+import { MarketStatus } from "@/components/stock/market-status";
 import { NewsList } from "@/components/stock/news-list";
 import { PriceChart } from "@/components/stock/price-chart";
 import { RangeSelector } from "@/components/stock/range-selector";
@@ -20,7 +22,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
+      <p className="num mt-1 text-lg font-semibold">{value}</p>
     </div>
   );
 }
@@ -66,7 +68,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
             className="rounded-full"
             onClick={() => remove(symbol)}
           >
-            <Check className="size-4 text-emerald-600" />
+            <Check className="size-4 text-gain" />
             In watchlist
           </Button>
         ) : (
@@ -82,24 +84,30 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
       <Card className="gap-4 p-6">
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading live quote…</p>
-        ) : hasQuote ? (
           <div className="flex items-end gap-3">
-            <p className="text-4xl font-semibold tracking-tight">
-              ${quote!.currentPrice.toFixed(2)}
-            </p>
-            <div className="mb-1">
-              <ChangeBadge changePercent={quote!.changePercent} />
+            <Skeleton className="h-10 w-40" />
+            <Skeleton className="mb-1 h-5 w-20 rounded-full" />
+          </div>
+        ) : hasQuote ? (
+          <div>
+            <div className="flex flex-wrap items-end gap-3">
+              <p className="num text-4xl font-semibold tracking-tight">
+                ${quote!.currentPrice.toFixed(2)}
+              </p>
+              <div className="mb-1">
+                <ChangeBadge changePercent={quote!.changePercent} />
+              </div>
+              <span
+                className={
+                  "num mb-1 text-sm " +
+                  (quote!.change >= 0 ? "text-gain" : "text-loss")
+                }
+              >
+                {quote!.change >= 0 ? "+" : ""}
+                {quote!.change.toFixed(2)} today
+              </span>
             </div>
-            <span
-              className={
-                "mb-1 text-sm " +
-                (quote!.change >= 0 ? "text-emerald-600" : "text-red-500")
-              }
-            >
-              {quote!.change >= 0 ? "+" : ""}
-              {quote!.change.toFixed(2)} today
-            </span>
+            <MarketStatus className="mt-1.5" />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -110,7 +118,9 @@ export function StockDetail({ symbol }: { symbol: string }) {
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             {rangePositive ? "Up" : "Down"}{" "}
-            <span className={rangePositive ? "text-emerald-600" : "text-red-500"}>
+            <span
+              className={"num " + (rangePositive ? "text-gain" : "text-loss")}
+            >
               {Math.abs(rangeChange).toFixed(2)}%
             </span>{" "}
             over this period
@@ -119,9 +129,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
         </div>
 
         {chartLoading ? (
-          <div className="flex h-80 items-center justify-center text-sm text-muted-foreground">
-            Loading chart…
-          </div>
+          <Skeleton className="h-80 w-full rounded-xl" />
         ) : series && series.points.length > 1 ? (
           <PriceChart points={series.points} positive={rangePositive} />
         ) : (
@@ -144,7 +152,12 @@ export function StockDetail({ symbol }: { symbol: string }) {
       )}
 
       <Card className="gap-3 p-6">
-        <h3 className="text-base font-semibold">Latest News</h3>
+        <div>
+          <h3 className="text-base font-semibold">Worth reading now</h3>
+          <p className="text-xs text-muted-foreground">
+            The three most credible free stories published in the last 48 hours.
+          </p>
+        </div>
         <NewsList symbol={symbol} />
       </Card>
     </div>

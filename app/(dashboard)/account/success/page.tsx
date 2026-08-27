@@ -47,7 +47,7 @@ export default async function CheckoutSuccessPage({
       <Card className="w-full max-w-md items-center gap-4 p-8 text-center">
         {paid ? (
           <>
-            <CheckCircle2 className="size-12 text-emerald-500" />
+            <CheckCircle2 className="size-12 text-gain" />
             <h1 className="text-xl font-semibold">You&apos;re all set!</h1>
             <p className="text-sm text-muted-foreground">
               Your payment was successful. Analytics is now unlimited on your
@@ -62,7 +62,7 @@ export default async function CheckoutSuccessPage({
           </>
         ) : (
           <>
-            <XCircle className="size-12 text-red-500" />
+            <XCircle className="size-12 text-loss" />
             <h1 className="text-xl font-semibold">
               We couldn&apos;t confirm your payment
             </h1>

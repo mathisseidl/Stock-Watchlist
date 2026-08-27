@@ -6,10 +6,20 @@ export async function GET(
   { params }: { params: Promise<{ symbol: string }> },
 ) {
   const { symbol } = await params;
+  const ticker = symbol.toUpperCase();
 
   try {
     const provider = getMarketDataProvider();
-    const news = await provider.getNews(symbol.toUpperCase());
+
+    // The company name sharpens relevance scoring ("Apple unveils…" has no
+    // ticker in it). It is cached for a day upstream, and a failure here should
+    // never cost us the news itself.
+    const companyName = await provider
+      .getProfile(ticker)
+      .then((profile) => profile.name)
+      .catch(() => undefined);
+
+    const news = await provider.getNews(ticker, companyName);
     return NextResponse.json(news);
   } catch (error) {
     console.error(`Failed to fetch news for ${symbol}`, error);

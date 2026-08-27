@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { StockSearch } from "@/components/search/stock-search";
+import { MarketStatus } from "@/components/stock/market-status";
 import { createClient } from "@/lib/supabase/client";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -48,13 +49,23 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               </span>
             )}
           </div>
+          <MarketStatus className="hidden md:inline-flex" />
           <div className="flex min-w-0 flex-1 justify-end">
             <StockSearch />
           </div>
         </header>
         <main className="min-w-0 flex-1 overflow-x-hidden p-4 md:p-8">
+          <MarketStatus className="mb-4 md:hidden" />
           {children}
         </main>
+        <footer className="border-t border-border px-4 py-4 md:px-8">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Prices and company data from Finnhub and Yahoo Finance, and may be
+            delayed by up to 15 minutes. MATMAX is an information tool, not
+            investment advice — it does not recommend buying or selling
+            anything. Past performance says nothing about future returns.
+          </p>
+        </footer>
       </div>
     </div>
   );

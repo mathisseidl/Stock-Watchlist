@@ -13,9 +13,7 @@ export function ChangeBadge({
     <span
       className={cn(
         "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium",
-        isPositive
-          ? "bg-emerald-50 text-emerald-600"
-          : "bg-red-50 text-red-500",
+        isPositive ? "bg-gain-soft text-gain" : "bg-loss-soft text-loss",
         className,
       )}
     >
@@ -24,7 +22,7 @@ export function ChangeBadge({
       ) : (
         <ArrowDown className="size-3" />
       )}
-      {Math.abs(changePercent).toFixed(2)}%
+      <span className="num">{Math.abs(changePercent).toFixed(2)}%</span>
     </span>
   );
 }

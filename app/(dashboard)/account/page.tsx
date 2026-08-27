@@ -68,7 +68,7 @@ export default async function AccountPage() {
           <ul className="flex flex-col gap-2">
             {freeFeatures.map((feature) => (
               <li key={feature} className="flex items-start gap-2 text-sm">
-                <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                <Check className="mt-0.5 size-4 shrink-0 text-gain" />
                 {feature}
               </li>
             ))}
@@ -92,14 +92,14 @@ export default async function AccountPage() {
           <ul className="flex flex-col gap-2">
             {proFeatures.map((feature) => (
               <li key={feature} className="flex items-start gap-2 text-sm">
-                <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                <Check className="mt-0.5 size-4 shrink-0 text-gain" />
                 {feature}
               </li>
             ))}
           </ul>
           <div className="mt-auto">
             {isPaid ? (
-              <p className="rounded-full bg-emerald-50 py-2 text-center text-sm font-medium text-emerald-600">
+              <p className="rounded-full bg-gain-soft py-2 text-center text-sm font-medium text-gain">
                 ✓ You&apos;re on Pro
               </p>
             ) : (
