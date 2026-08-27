@@ -10,6 +10,10 @@ import type { SymbolSearchResult } from "@/lib/market-data/types";
 /**
  * Type a company name or a ticker and pick the match. Same lookup the top-bar
  * search uses, but it hands the choice back to a form instead of navigating.
+ *
+ * The dropdown is absolutely positioned, so any ancestor that clips (Card sets
+ * `overflow-hidden` by default) will cut it off — give that ancestor
+ * `overflow-visible`.
  */
 export function SymbolCombobox({
   value,

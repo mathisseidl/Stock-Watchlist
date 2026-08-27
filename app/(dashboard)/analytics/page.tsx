@@ -304,7 +304,9 @@ export default function AnalyticsPage() {
         </Card>
       )}
 
-      <Card className="gap-5 p-6">
+      {/* overflow-visible: Card clips by default, which cut the symbol
+          picker's dropdown off at the card's bottom edge. */}
+      <Card className="gap-5 overflow-visible p-6">
         <form
           onSubmit={handleSubmit}
           className="grid grid-cols-1 gap-4 sm:grid-cols-4"
