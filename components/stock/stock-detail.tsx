@@ -153,9 +153,10 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
       <Card className="gap-3 p-6">
         <div>
-          <h3 className="text-base font-semibold">Worth reading now</h3>
-          <p className="text-xs text-muted-foreground">
-            The three most credible free stories published in the last 48 hours.
+          <h3 className="text-base font-semibold">Worth reading</h3>
+          <p className="text-sm text-muted-foreground">
+            Three free-to-read stories from the last two days, and why each one
+            matters.
           </p>
         </div>
         <NewsList symbol={symbol} />

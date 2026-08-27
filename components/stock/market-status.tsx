@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import {
   marketSession,
   exchangeTime,
+  isEarlyClose,
   SESSION_LABELS,
   type Session,
 } from "@/lib/market-session";
@@ -16,6 +17,7 @@ const DOTS: Record<Session, string> = {
   open: "bg-gain",
   after: "bg-amber-500",
   closed: "bg-muted-foreground/50",
+  holiday: "bg-muted-foreground/50",
 };
 
 function subscribe(onChange: () => void) {
@@ -59,6 +61,7 @@ export function MarketStatus({ className }: { className?: string }) {
       />
       <span className="font-medium text-foreground/80">
         {SESSION_LABELS[session]}
+        {session === "open" && isEarlyClose(now) ? " · closes 1pm" : ""}
       </span>
       <span className="num hidden sm:inline">{exchangeTime(now)} ET</span>
     </span>

@@ -170,54 +170,45 @@ function recencyScore(datetimeSeconds: number, nowSeconds: number): number {
 const REASON_RULES: { test: RegExp; reason: (symbol: string) => string }[] = [
   {
     test: /\bearnings\b|quarterly results|\bq[1-4]\b|\brevenues?\b|\bprofits?\b|\beps\b|\bguidance\b|\bforecasts?\b|\boutlook\b/,
-    reason: (symbol) =>
-      `Earnings and guidance re-price ${symbol} faster than anything else — this is the number the market is trading on.`,
+    reason: (symbol) => `Earnings and guidance move ${symbol} more than anything else.`,
   },
   {
     test: /\bupgrades?\b|\bdowngrades?\b|price target|\banalysts?\b|\bratings?\b|initiated coverage|\boverweight\b|\bunderweight\b/,
-    reason: (symbol) =>
-      `Shows how Wall Street just repriced ${symbol}, which often leads the next move.`,
+    reason: (symbol) => `Analysts have just changed their price targets on ${symbol}.`,
   },
   {
     test: /\bacquisitions?\b|\bacquires?\b|\bmergers?\b|\bbuyout\b|\btakeover\b|\bstake\b|\bdivest\w*|\bspin-?offs?\b/,
-    reason: () =>
-      `A deal like this changes what you actually own as a shareholder.`,
+    reason: () => `A deal like this changes what you own as a shareholder.`,
   },
   {
     test: /\blawsuits?\b|\bsued\b|\binvestigation\b|\bprobe\b|\bantitrust\b|\bregulators?\b|\bfines?\b|\bsettlement\b|\brecall\b/,
-    reason: () =>
-      `Flags a legal or regulatory risk that can cap the upside for months.`,
+    reason: () => `A legal or regulatory risk that can hang over the stock.`,
   },
   {
     test: /\blaunch\w*|\bunveil\w*|new product|\bpartnerships?\b|\bcontracts?\b|\bchips?\b|data center|\bexpansion\b|\bevent\b/,
-    reason: () =>
-      `Product and partnership news is the clearest read on the next growth leg.`,
+    reason: () => `Product news is the clearest sign of where growth comes from next.`,
   },
   {
     // Only an actual transition counts — a quote from the sitting CEO is not
     // a leadership change.
     test: /\b(new|incoming|outgoing|former|next|interim) (ceo|cfo|chief executive)\b|\b(ceo|cfo|chief executive)\b[^.]{0,40}\b(steps? down|resign\w*|depart\w*|succeed\w*|appointed|to retire)\b|\bnames?\b[^.]{0,30}\b(ceo|cfo)\b/,
-    reason: () =>
-      `Leadership changes reset strategy — worth knowing who steers the company next.`,
+    reason: () => `A change at the top usually means a change in strategy.`,
   },
   {
     test: /\bdividends?\b|\bbuybacks?\b|\brepurchase\w*|stock split|\bpayouts?\b/,
-    reason: () => `Directly affects shareholder returns, not just sentiment.`,
+    reason: () => `This affects what shareholders actually get paid.`,
   },
   {
     test: /\blayoffs?\b|job cuts|restructur\w*|cost cutting|plant closure/,
-    reason: () =>
-      `Cost cuts reshape margins, which feeds straight into future earnings.`,
+    reason: () => `Cost cuts feed straight into future profit margins.`,
   },
   {
     test: /\bsurge\w*|\bsoar\w*|\bplunge\w*|\btumbl\w*|\bslides?\b|\brall(y|ies|ied)\b|\bjumps?\b|\bsinks?\b|\bslump\w*|record high|\bsell-?off\b/,
-    reason: () =>
-      `Explains the story behind the recent price swing instead of just the number.`,
+    reason: () => `Explains the story behind the recent price swing.`,
   },
   {
     test: /\binflation\b|\bfed\b|interest rates?|\btariffs?\b|\brecession\b|jobs report|\btreasury\b/,
-    reason: (symbol) =>
-      `Macro backdrop that moves the whole sector ${symbol} trades in.`,
+    reason: (symbol) => `Wider market forces that move the whole sector ${symbol} trades in.`,
   },
 ];
 
@@ -237,7 +228,7 @@ export function reasonForNews(item: NewsItem, symbol: string): string {
     matchRule(headline) ??
     matchRule(`${headline} ${(item.summary ?? "").toLowerCase()}`);
   if (hit) return hit.reason(symbol);
-  return `Fresh ${item.source} coverage that fills in where ${symbol} stands right now.`;
+  return `Recent background on where ${symbol} stands right now.`;
 }
 
 /**
