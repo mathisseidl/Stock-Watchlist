@@ -24,7 +24,13 @@ const nav = [
   { href: "/account", label: "Account", icon: UserRound },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  mobileOpen = false,
+  onClose,
+}: {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -53,7 +59,21 @@ export function Sidebar() {
   const isDark = mounted && theme === "dark";
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6">
+    <>
+      {/* Mobile backdrop */}
+      <div
+        onClick={onClose}
+        className={cn(
+          "fixed inset-0 z-40 bg-black/40 md:hidden",
+          mobileOpen ? "block" : "hidden",
+        )}
+      />
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6 transition-transform md:static md:z-auto md:translate-x-0",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
       <div className="flex items-center gap-2 px-2">
         <div className="flex size-9 items-center justify-center rounded-full bg-neutral-900 text-sm font-bold text-white">
           MS
@@ -70,6 +90,7 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              onClick={onClose}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
                 active && "bg-sidebar-accent text-sidebar-foreground",
@@ -111,6 +132,7 @@ export function Sidebar() {
           Dark
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

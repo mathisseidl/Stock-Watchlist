@@ -48,3 +48,14 @@ Deploy on [Vercel](https://vercel.com/): import the repo, set the same
 environment variables in the project settings (keep the service-role and Stripe
 secret keys server-only — no `NEXT_PUBLIC_` prefix), and deploy. Supabase is
 already cloud-hosted.
+
+## External services
+
+These are the third-party websites this project relies on to work:
+
+- **[GitHub](https://github.com/)** — hosts the source code repository.
+- **[Vercel](https://vercel.com/)** — builds and hosts the live website.
+- **[Supabase](https://supabase.com/)** — provides the database, user accounts/login, and per-user data security.
+- **[Stripe](https://stripe.com/)** — processes the one-time payment for the Unlimited plan.
+- **[Finnhub](https://finnhub.io/)** — supplies live stock quotes, ticker search, company logos, and news.
+- **[Yahoo Finance](https://finance.yahoo.com/)** — supplies the historical price data used to draw the charts.
