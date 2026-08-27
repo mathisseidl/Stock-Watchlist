@@ -39,8 +39,8 @@ export async function POST(request: Request) {
           },
         },
       ],
-      success_url: `${siteUrl}/pricing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/pricing`,
+      success_url: `${siteUrl}/account/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl}/account`,
     });
 
     return NextResponse.json({ url: session.url });

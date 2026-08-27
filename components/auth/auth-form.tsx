@@ -8,7 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
-export function AuthForm({ mode }: { mode: "login" | "signup" }) {
+export function AuthForm({
+  mode,
+  subtitle,
+}: {
+  mode: "login" | "signup";
+  subtitle?: string;
+}) {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState("");
@@ -43,7 +49,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       });
       if (signInError) throw new Error(signInError.message);
 
-      router.push("/my-stock");
+      // New sign-ups land on Account to pick Free vs. the paid plan; returning
+      // sign-ins go straight into the app.
+      router.push(isSignup ? "/account" : "/my-stock");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -61,9 +69,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           {isSignup ? "Create your account" : "Welcome back"}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {isSignup
-            ? "Start tracking your watchlist on MATMAX."
-            : "Sign in to your MATMAX watchlist."}
+          {subtitle ??
+            (isSignup
+              ? "Start tracking your watchlist on MATMAX."
+              : "Sign in to your MATMAX watchlist.")}
         </p>
       </div>
 

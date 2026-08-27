@@ -1,149 +1,119 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { LogOut, Sun, Moon } from "lucide-react";
+import { Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { UpgradeButton } from "@/components/pricing/upgrade-button";
+import { AuthForm } from "@/components/auth/auth-form";
+import { createClient } from "@/lib/supabase/server";
 
-export default function AccountPage() {
-  const router = useRouter();
-  const { theme, setTheme } = useTheme();
-  const [supabase] = useState(() => createClient());
-  const [email, setEmail] = useState("");
-  const [isPaid, setIsPaid] = useState<boolean | null>(null);
-  const [mounted, setMounted] = useState(false);
+const freeFeatures = [
+  "Save your watchlist to your account",
+  "Live prices, charts & news",
+  "Day / Week / Month / Year / 5Y / All ranges",
+  "Analytics: 3 what-if searches per day",
+];
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration flag
-    setMounted(true);
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email) setEmail(data.user.email);
-    });
-    fetch("/api/analytics")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setIsPaid(Boolean(data.isPaid));
-      })
-      .catch(() => {});
-  }, [supabase]);
+const proFeatures = [
+  "Everything in Free",
+  "Unlimited Analytics what-if searches",
+  "Pro badge next to your name",
+];
 
-  const isDark = mounted && theme === "dark";
-  const initials = email ? email.slice(0, 2).toUpperCase() : "MS";
+export default async function AccountPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+  // Guests see the sign-up form here.
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-4">
+        <AuthForm
+          mode="signup"
+          subtitle="To save your watchlist or to use the Analytics section unlimited, sign up."
+        />
+        <p className="text-sm text-muted-foreground">
+          After signing up you can stay on Free or upgrade to Pro.
+        </p>
+      </div>
+    );
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_paid")
+    .eq("id", user.id)
+    .maybeSingle();
+  const isPaid = Boolean(profile?.is_paid);
+
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Account</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your profile and preferences.
+          You&apos;re signed in as {user.email}. Choose the plan that fits you.
         </p>
       </div>
 
-      <Card className="gap-5 p-6">
-        <div className="flex items-center gap-4">
-          <Avatar className="size-16">
-            <AvatarFallback className="bg-neutral-900 text-lg font-semibold text-white">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="gap-5 p-6">
           <div>
-            <p className="text-base font-semibold">{email || "—"}</p>
-            <p className="text-sm text-muted-foreground">
-              {isPaid === null
-                ? "Loading plan…"
-                : isPaid
-                  ? "Unlimited plan"
-                  : "Free plan"}
+            <h2 className="text-lg font-semibold">Free</h2>
+            <p className="mt-1 text-3xl font-semibold">
+              $0
+              <span className="text-base font-normal text-muted-foreground">
+                {" "}
+                / forever
+              </span>
             </p>
           </div>
-        </div>
-
-        {isPaid === false && (
-          <>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">Upgrade to Unlimited</p>
-                <p className="text-xs text-muted-foreground">
-                  Remove the 3/day limit on Analytics — one-time $3.99.
-                </p>
-              </div>
-              <Link
-                href="/pricing"
-                className={cn(buttonVariants(), "rounded-full")}
-              >
-                View plans
-              </Link>
-            </div>
-          </>
-        )}
-      </Card>
-
-      <Card className="gap-4 p-6">
-        <h3 className="text-base font-semibold">Preferences</h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Appearance</p>
-            <p className="text-xs text-muted-foreground">
-              Switch between light and dark mode.
-            </p>
-          </div>
-          <div className="flex items-center gap-1 rounded-xl bg-muted p-1">
-            <button
-              type="button"
-              onClick={() => setTheme("light")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground",
-                !isDark && "bg-card text-foreground shadow-sm",
-              )}
-            >
-              <Sun className="size-3.5" />
-              Light
-            </button>
-            <button
-              type="button"
-              onClick={() => setTheme("dark")}
-              className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground",
-                isDark && "bg-card text-foreground shadow-sm",
-              )}
-            >
-              <Moon className="size-3.5" />
-              Dark
-            </button>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="gap-4 p-6">
-        <h3 className="text-base font-semibold">Session</h3>
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Signed in as {email || "—"}
+          <ul className="flex flex-col gap-2">
+            {freeFeatures.map((feature) => (
+              <li key={feature} className="flex items-start gap-2 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                {feature}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-auto rounded-full border border-border py-2 text-center text-sm font-medium text-muted-foreground">
+            {isPaid ? "Included" : "Your current plan"}
           </p>
-          <Button
-            variant="outline"
-            className="rounded-full"
-            onClick={handleSignOut}
-          >
-            <LogOut className="size-4" />
-            Sign Out
-          </Button>
-        </div>
-      </Card>
+        </Card>
+
+        <Card className="gap-5 border-primary p-6 ring-1 ring-primary/30">
+          <div>
+            <h2 className="text-lg font-semibold">Pro</h2>
+            <p className="mt-1 text-3xl font-semibold">
+              $3.99
+              <span className="text-base font-normal text-muted-foreground">
+                {" "}
+                / year
+              </span>
+            </p>
+          </div>
+          <ul className="flex flex-col gap-2">
+            {proFeatures.map((feature) => (
+              <li key={feature} className="flex items-start gap-2 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                {feature}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-auto">
+            {isPaid ? (
+              <p className="rounded-full bg-emerald-50 py-2 text-center text-sm font-medium text-emerald-600">
+                ✓ You&apos;re on Pro
+              </p>
+            ) : (
+              <UpgradeButton />
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Payments run in Stripe test mode. Use card 4242 4242 4242 4242, any
+        future expiry, any CVC and ZIP.
+      </p>
     </div>
   );
 }

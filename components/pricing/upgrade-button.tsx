@@ -30,7 +30,7 @@ export function UpgradeButton() {
         onClick={handleUpgrade}
         disabled={loading}
       >
-        {loading ? "Redirecting…" : "Upgrade — $3.99"}
+        {loading ? "Redirecting…" : "Upgrade to Pro — $3.99 / year"}
       </Button>
       {error && <p className="text-sm text-red-500">{error}</p>}
     </div>

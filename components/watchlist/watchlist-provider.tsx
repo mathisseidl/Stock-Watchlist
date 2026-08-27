@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { WatchlistItem } from "@/lib/mock-data";
+import { defaultWatchlist, type WatchlistItem } from "@/lib/mock-data";
 
 type WatchlistContextValue = {
   items: WatchlistItem[];
@@ -17,6 +17,7 @@ type WatchlistContextValue = {
   remove: (symbol: string) => void;
   move: (symbol: string, direction: "up" | "down") => void;
   ready: boolean;
+  isGuest: boolean;
 };
 
 const WatchlistContext = createContext<WatchlistContextValue | null>(null);
@@ -24,10 +25,10 @@ const WatchlistContext = createContext<WatchlistContextValue | null>(null);
 export function WatchlistProvider({ children }: { children: React.ReactNode }) {
   const [supabase] = useState(() => createClient());
   const [userId, setUserId] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [ready, setReady] = useState(false);
 
-  // Load the signed-in user's watchlist from Supabase (RLS scopes it to them).
   useEffect(() => {
     let active = true;
     async function load() {
@@ -35,10 +36,16 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
         data: { user },
       } = await supabase.auth.getUser();
       if (!active) return;
+
       if (!user) {
+        // Guest: seed an in-memory watchlist that is never persisted. It resets
+        // when the app is reloaded/closed — nothing is saved.
+        setIsGuest(true);
+        setItems(defaultWatchlist);
         setReady(true);
         return;
       }
+
       setUserId(user.id);
       const { data } = await supabase
         .from("watchlist_items")
@@ -64,35 +71,37 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
 
   const add = useCallback(
     (item: WatchlistItem) => {
-      if (!userId || items.some((e) => e.symbol === item.symbol)) return;
+      if (items.some((e) => e.symbol === item.symbol)) return;
       const position = items.length;
       setItems((prev) => [...prev, item]);
-      void supabase.from("watchlist_items").insert({
-        user_id: userId,
-        symbol: item.symbol,
-        name: item.name,
-        position,
-      });
+      if (userId) {
+        void supabase.from("watchlist_items").insert({
+          user_id: userId,
+          symbol: item.symbol,
+          name: item.name,
+          position,
+        });
+      }
     },
     [items, supabase, userId],
   );
 
   const remove = useCallback(
     (symbol: string) => {
-      if (!userId) return;
       setItems((prev) => prev.filter((item) => item.symbol !== symbol));
-      void supabase
-        .from("watchlist_items")
-        .delete()
-        .eq("user_id", userId)
-        .eq("symbol", symbol);
+      if (userId) {
+        void supabase
+          .from("watchlist_items")
+          .delete()
+          .eq("user_id", userId)
+          .eq("symbol", symbol);
+      }
     },
     [supabase, userId],
   );
 
   const move = useCallback(
     (symbol: string, direction: "up" | "down") => {
-      if (!userId) return;
       const index = items.findIndex((item) => item.symbol === symbol);
       if (index === -1) return;
       const target = direction === "up" ? index - 1 : index + 1;
@@ -102,25 +111,28 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
       [next[index], next[target]] = [next[target], next[index]];
       setItems(next);
 
-      // Persist the new positions for the two swapped rows.
-      void supabase
-        .from("watchlist_items")
-        .update({ position: index })
-        .eq("user_id", userId)
-        .eq("symbol", next[index].symbol)
-        .then(() =>
-          supabase
-            .from("watchlist_items")
-            .update({ position: target })
-            .eq("user_id", userId)
-            .eq("symbol", next[target].symbol),
-        );
+      if (userId) {
+        void supabase
+          .from("watchlist_items")
+          .update({ position: index })
+          .eq("user_id", userId)
+          .eq("symbol", next[index].symbol)
+          .then(() =>
+            supabase
+              .from("watchlist_items")
+              .update({ position: target })
+              .eq("user_id", userId)
+              .eq("symbol", next[target].symbol),
+          );
+      }
     },
     [items, supabase, userId],
   );
 
   return (
-    <WatchlistContext.Provider value={{ items, has, add, remove, move, ready }}>
+    <WatchlistContext.Provider
+      value={{ items, has, add, remove, move, ready, isGuest }}
+    >
       {children}
     </WatchlistContext.Provider>
   );

@@ -31,20 +31,13 @@ export async function middleware(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isAuthRoute = path.startsWith("/login") || path.startsWith("/signup");
-  const isApiRoute = path.startsWith("/api");
 
-  // Signed-in users should not sit on the auth screens.
+  // Guests can browse the whole app (with an unsaved, in-memory watchlist), so
+  // there's no login gate. Signed-in users just shouldn't sit on the auth
+  // screens. API routes do their own auth checks rather than redirecting.
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/my-stock";
-    return NextResponse.redirect(url);
-  }
-
-  // Everything except the auth screens requires a session. API routes do their
-  // own auth checks (returning 401) rather than redirecting.
-  if (!user && !isAuthRoute && !isApiRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 

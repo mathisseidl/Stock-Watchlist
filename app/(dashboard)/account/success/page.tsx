@@ -68,16 +68,16 @@ export default async function CheckoutSuccessPage({
             </h1>
             <p className="text-sm text-muted-foreground">
               If you completed checkout, give it a moment and refresh. Otherwise
-              you can try again from the pricing page.
+              you can try again from the Account page.
             </p>
             <Link
-              href="/pricing"
+              href="/account"
               className={cn(
                 buttonVariants({ variant: "outline" }),
                 "rounded-full",
               )}
             >
-              Back to Pricing
+              Back to Account
             </Link>
           </>
         )}

@@ -9,7 +9,7 @@ import {
   LineChart,
   Users,
   UserRound,
-  Sparkles,
+  Settings,
   Sun,
   Moon,
 } from "lucide-react";
@@ -19,9 +19,9 @@ import { createClient } from "@/lib/supabase/client";
 const nav = [
   { href: "/my-stock", label: "My Stock", icon: LayoutGrid },
   { href: "/analytics", label: "Analytics", icon: LineChart },
-  { href: "/pricing", label: "Pricing", icon: Sparkles },
   { href: "/community", label: "Community", icon: Users },
   { href: "/account", label: "Account", icon: UserRound },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar({
@@ -35,25 +35,37 @@ export function Sidebar({
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
+  const [isPaid, setIsPaid] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- next-themes hydration-safe mount check
     setMounted(true);
 
     const supabase = createClient();
-    async function loadPending() {
+    async function loadStatus() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setPendingRequests(0);
+        setIsPaid(false);
+        return;
+      }
       const { count } = await supabase
         .from("friend_requests")
         .select("id", { count: "exact", head: true })
         .eq("recipient_id", user.id)
         .eq("status", "pending");
       setPendingRequests(count ?? 0);
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_paid")
+        .eq("id", user.id)
+        .maybeSingle();
+      setIsPaid(Boolean(profile?.is_paid));
     }
-    loadPending();
+    loadStatus();
   }, [pathname]);
 
   const isDark = mounted && theme === "dark";
@@ -81,6 +93,11 @@ export function Sidebar({
         <span className="text-lg font-semibold text-sidebar-foreground">
           MATMAX
         </span>
+        {isPaid && (
+          <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+            Pro
+          </span>
+        )}
       </div>
 
       <nav className="mt-8 flex flex-col gap-1">

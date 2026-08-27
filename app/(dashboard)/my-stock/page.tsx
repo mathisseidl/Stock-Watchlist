@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Star } from "lucide-react";
 import { RangeSelector } from "@/components/stock/range-selector";
 import { WatchlistRow } from "@/components/watchlist/watchlist-row";
@@ -8,7 +9,7 @@ import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import type { CandleRange } from "@/lib/market-data/types";
 
 export default function MyStockPage() {
-  const { items, ready } = useWatchlist();
+  const { items, ready, isGuest } = useWatchlist();
   const [range, setRange] = useState<CandleRange>("1D");
 
   return (
@@ -22,6 +23,17 @@ export default function MyStockPage() {
         </div>
         <RangeSelector value={range} onChange={setRange} />
       </div>
+
+      {isGuest && (
+        <div className="flex flex-col gap-2 rounded-xl border border-primary/30 bg-accent px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-accent-foreground">
+            You&apos;re browsing as a guest — this watchlist won&apos;t be saved.
+          </span>
+          <Link href="/account" className="font-semibold text-primary hover:underline">
+            Sign up to save it →
+          </Link>
+        </div>
+      )}
 
       {ready && items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">

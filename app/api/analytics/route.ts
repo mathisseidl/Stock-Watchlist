@@ -16,7 +16,7 @@ async function getContext() {
     .from("profiles")
     .select("is_paid")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   const today = new Date().toISOString().slice(0, 10);
   const { data: usage } = await admin

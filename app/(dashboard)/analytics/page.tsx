@@ -17,6 +17,42 @@ type UsageStatus = {
   remaining: number | null;
 };
 
+// Guests aren't tracked server-side, so their 3/day limit is kept in
+// localStorage. It resets daily and is intentionally lightweight.
+const GUEST_KEY = "matmax-guest-analytics";
+const FREE_LIMIT = 3;
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function guestUsedToday(): number {
+  try {
+    const raw = localStorage.getItem(GUEST_KEY);
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw) as { date: string; count: number };
+    return parsed.date === today() ? parsed.count : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function guestRemaining(): number {
+  return Math.max(0, FREE_LIMIT - guestUsedToday());
+}
+
+function guestConsume(): { allowed: boolean; remaining: number } {
+  const used = guestUsedToday();
+  if (used >= FREE_LIMIT) return { allowed: false, remaining: 0 };
+  const next = used + 1;
+  try {
+    localStorage.setItem(GUEST_KEY, JSON.stringify({ date: today(), count: next }));
+  } catch {
+    // Ignore storage failures — worst case the guest gets a few extra runs.
+  }
+  return { allowed: true, remaining: Math.max(0, FREE_LIMIT - next) };
+}
+
 function oneYearAgo() {
   const date = new Date();
   date.setFullYear(date.getFullYear() - 1);
@@ -50,12 +86,20 @@ export default function AnalyticsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch("/api/analytics")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setUsage({ isPaid: data.isPaid, remaining: data.remaining });
-      })
-      .catch(() => {});
+    (async () => {
+      try {
+        const res = await fetch("/api/analytics");
+        if (res.ok) {
+          const data = await res.json();
+          setUsage({ isPaid: data.isPaid, remaining: data.remaining });
+        } else {
+          // 401 = guest: fall back to the local daily counter.
+          setUsage({ isPaid: false, remaining: guestRemaining() });
+        }
+      } catch {
+        setUsage({ isPaid: false, remaining: guestRemaining() });
+      }
+    })();
   }, []);
 
   const range = applied ? rangeForDate(applied.date) : "1Y";
@@ -99,15 +143,30 @@ export default function AnalyticsPage() {
     setSubmitting(true);
     setLimitReached(false);
     try {
-      // Enforce the free-plan daily limit server-side before running.
+      let allowed = false;
+      let isPaid = false;
+      let remaining: number | null = 0;
+
+      // Members are limited/tracked server-side; guests (401) use the local
+      // daily counter instead.
       const res = await fetch("/api/analytics", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || !data.allowed) {
+      if (res.status === 401) {
+        const guest = guestConsume();
+        allowed = guest.allowed;
+        remaining = guest.remaining;
+      } else {
+        const data = await res.json();
+        allowed = res.ok && data.allowed;
+        isPaid = Boolean(data.isPaid);
+        remaining = data.remaining;
+      }
+
+      if (!allowed) {
         setLimitReached(true);
-        setUsage({ isPaid: Boolean(data.isPaid), remaining: 0 });
+        setUsage({ isPaid, remaining: 0 });
         return;
       }
-      setUsage({ isPaid: Boolean(data.isPaid), remaining: data.remaining });
+      setUsage({ isPaid, remaining });
       setApplied({
         symbol: symbolInput.trim().toUpperCase(),
         amount,
@@ -153,10 +212,10 @@ export default function AnalyticsPage() {
             </div>
           </div>
           <Link
-            href="/pricing"
+            href="/account"
             className={cn(buttonVariants(), "rounded-full")}
           >
-            Upgrade — $3.99
+            Upgrade — $3.99 / year
           </Link>
         </Card>
       )}
