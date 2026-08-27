@@ -13,4 +13,4 @@ export function getStripe(): Stripe {
 }
 
 /** One-time unlock price for unlimited Analytics, in cents. */
-export const UPGRADE_PRICE_CENTS = 399;
+export const UPGRADE_PRICE_CENTS = 499;

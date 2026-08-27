@@ -99,7 +99,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="text-sm font-medium">Upgrade to Pro</p>
                   <p className="text-xs text-muted-foreground">
-                    Remove the 3/day limit on Analytics — $3.99 / year.
+                    Remove the 3/day limit on Analytics — $4.99 / year.
                   </p>
                 </div>
                 <Link

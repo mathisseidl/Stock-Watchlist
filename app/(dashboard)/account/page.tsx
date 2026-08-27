@@ -5,16 +5,15 @@ import { AuthForm } from "@/components/auth/auth-form";
 import { createClient } from "@/lib/supabase/server";
 
 const freeFeatures = [
-  "Save your watchlist to your account",
+  "Search any stock",
+  "Save stocks to your watchlist",
   "Live prices, charts & news",
-  "Day / Week / Month / Year / 5Y / All ranges",
-  "Analytics: 3 what-if searches per day",
+  "Analyse stock: 3 searches per day",
 ];
 
 const proFeatures = [
   "Everything in Free",
-  "Unlimited Analytics what-if searches",
-  "Pro badge next to your name",
+  "Unlimited Analytics searches",
 ];
 
 export default async function AccountPage() {
@@ -83,7 +82,7 @@ export default async function AccountPage() {
           <div>
             <h2 className="text-lg font-semibold">Pro</h2>
             <p className="mt-1 text-3xl font-semibold">
-              $3.99
+              $4.99
               <span className="text-base font-normal text-muted-foreground">
                 {" "}
                 / year
@@ -109,11 +108,6 @@ export default async function AccountPage() {
           </div>
         </Card>
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        Payments run in Stripe test mode. Use card 4242 4242 4242 4242, any
-        future expiry, any CVC and ZIP.
-      </p>
     </div>
   );
 }
