@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import {
@@ -10,7 +10,6 @@ import {
   Users,
   UserRound,
   Sparkles,
-  LogOut,
   Sun,
   Moon,
 } from "lucide-react";
@@ -27,17 +26,9 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
-
-  async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- next-themes hydration-safe mount check
@@ -96,16 +87,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <button
-        type="button"
-        onClick={handleSignOut}
-        className="mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-      >
-        <LogOut className="size-4" />
-        Sign out
-      </button>
-
-      <div className="mt-3 flex items-center gap-1 rounded-xl bg-sidebar-accent p-1">
+      <div className="mt-auto flex items-center gap-1 rounded-xl bg-sidebar-accent p-1">
         <button
           type="button"
           onClick={() => setTheme("light")}
