@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MATMAX Portfolio — Stock Watchlist
 
-## Getting Started
+A stock-watching web app inspired by Google Finance. Track stocks on a personal
+watchlist with live prices, interactive charts and news, run "what-if"
+investment calculations, and connect with friends to share watchlists.
 
-First, run the development server:
+## Features
+
+- **Auth** — email/password accounts (Supabase), each user sees only their own data
+- **Watchlist** — add/remove/reorder stocks; live price, sparkline and % change per row, with Day / Week / Month / Year / 5Y / All ranges
+- **Stock detail** — live quote, interactive price chart, key stats and company news
+- **Analytics** — "what if you'd invested $X on date Y" calculator (free plan: 3/day; Unlimited plan: no limit)
+- **Community** — find friends by username, send/accept friend requests, view each other's watchlists
+- **Payments** — one-time $3.99 Stripe upgrade unlocks unlimited Analytics
+
+## Tech stack
+
+- [Next.js 16](https://nextjs.org/) (App Router) + TypeScript + React
+- Tailwind CSS + shadcn/ui
+- [Supabase](https://supabase.com/) — Postgres, Auth, Row-Level Security
+- [Stripe](https://stripe.com/) — one-time checkout
+- Market data: [Finnhub](https://finnhub.io/) (quotes, search, logos, news) + Yahoo Finance (historical candles)
+- Charts: [lightweight-charts](https://github.com/tradingview/lightweight-charts)
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local   # then fill in your keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+See [`.env.example`](.env.example). You'll need a Finnhub API key, a Supabase
+project (URL + anon + service-role keys), and Stripe keys (use test keys for
+sandbox). Never commit `.env.local` — it's gitignored.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+- `npm run dev` — start the dev server
+- `npm run build` — production build
+- `npm run lint` — lint
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy on [Vercel](https://vercel.com/): import the repo, set the same
+environment variables in the project settings (keep the service-role and Stripe
+secret keys server-only — no `NEXT_PUBLIC_` prefix), and deploy. Supabase is
+already cloud-hosted.
