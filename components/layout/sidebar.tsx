@@ -149,29 +149,34 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="mt-auto flex items-center gap-1 rounded-xl bg-sidebar-accent p-1">
-        <button
-          type="button"
-          onClick={() => setTheme("light")}
-          className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-sidebar-foreground/60",
-            !isDark && "bg-card text-sidebar-foreground shadow-sm",
-          )}
-        >
-          <Sun className="size-3.5" />
-          Light
-        </button>
-        <button
-          type="button"
-          onClick={() => setTheme("dark")}
-          className={cn(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-sidebar-foreground/60",
-            isDark && "bg-card text-sidebar-foreground shadow-sm",
-          )}
-        >
-          <Moon className="size-3.5" />
-          Dark
-        </button>
+      {/* mt-auto pins this to the bottom; pt-8 keeps a gap from the nav even
+          when that margin collapses on a short viewport, so the pills never
+          crowd the Settings row. */}
+      <div className="mt-auto pt-8">
+        <div className="flex items-center gap-1 rounded-xl bg-sidebar-accent p-1">
+          <button
+            type="button"
+            onClick={() => setTheme("light")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-sidebar-foreground/60",
+              !isDark && "bg-card text-sidebar-foreground shadow-sm",
+            )}
+          >
+            <Sun className="size-3.5" />
+            Light
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme("dark")}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-sidebar-foreground/60",
+              isDark && "bg-card text-sidebar-foreground shadow-sm",
+            )}
+          >
+            <Moon className="size-3.5" />
+            Dark
+          </button>
+        </div>
       </div>
       </aside>
     </>

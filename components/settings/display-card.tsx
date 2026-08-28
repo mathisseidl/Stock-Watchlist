@@ -7,9 +7,8 @@ import { RANGES } from "@/lib/ranges";
 import type { CandleRange } from "@/lib/market-data/types";
 
 /**
- * Number and chart display preferences. Lives on the Account page, above the
- * invite card. Appearance (light/dark) is not here — that switch is in the
- * sidebar.
+ * Number and chart display preferences, shown in Settings under Notifications.
+ * Appearance (light/dark) is not here — that switch is in the sidebar.
  */
 export function DisplayCard() {
   const { settings, update } = useUserSettings();

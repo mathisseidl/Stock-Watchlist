@@ -5,7 +5,6 @@ import { UpgradeButton } from "@/components/pricing/upgrade-button";
 import { AuthForm } from "@/components/auth/auth-form";
 import { SubscriptionCard } from "@/components/account/subscription-card";
 import { InviteCard } from "@/components/account/invite-card";
-import { DisplayCard } from "@/components/settings/display-card";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountSubscription } from "@/lib/subscription";
 import { proDaysRemaining } from "@/lib/pro";
@@ -263,8 +262,6 @@ export default async function AccountPage() {
           </Card>
         </div>
       </div>
-
-      <DisplayCard />
 
       <InviteCard username={username} />
     </div>

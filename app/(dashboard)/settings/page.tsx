@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { SecurityCard } from "@/components/settings/security-card";
 import { SessionsCard } from "@/components/settings/sessions-card";
+import { DisplayCard } from "@/components/settings/display-card";
 import {
   SettingRow,
   Toggle,
@@ -160,7 +161,7 @@ export default function SettingsPage() {
 
         <SettingRow
           label="Earnings news"
-          description="Earnings results and guidance are what move a price most, so these are flagged separately."
+          description="Earnings results and guidance on stocks you follow."
           control={
             <Toggle
               label="Earnings alerts"
@@ -184,6 +185,8 @@ export default function SettingsPage() {
           }
         />
       </Card>
+
+      <DisplayCard />
 
       {!isGuest && <SessionsCard />}
 
