@@ -17,8 +17,11 @@ import type { NewsItem } from "@/lib/market-data/types";
  * feature works on a fresh checkout rather than erroring.
  */
 
-/** Upper bound on how many lines the brief runs to. */
-export const BRIEF_LINES = 6;
+/** Sentences to lift from each story — enough to actually understand it. */
+const SENTENCES_PER_STORY = 3;
+
+/** Hard ceiling, so a wordy wire summary can't turn the brief into a wall. */
+export const BRIEF_LINES = 12;
 
 /** Preferred window. Falls back to everything curated (48h) if nothing is newer. */
 const RECENT_HOURS = 24;
@@ -117,14 +120,14 @@ function ageLabel(datetime: number): string {
  * from a story that was actually published — nothing here invents a fact, which
  * is the one property a financial summary cannot compromise on.
  *
- * The lines fill toward six: with three stories that is roughly two sentences
- * each, with one it is up to six from that single article. A story's first
- * line carries its source and age ("Reuters, 3 hours ago: …"); any follow-on
- * sentence is a bare line the UI attaches to the same block.
+ * Each story gets a few sentences — three normally, more when it is the only
+ * story and carries the whole brief. A story's first line holds its source and
+ * age ("Reuters, 3 hours ago: …"); every follow-on sentence is a bare line the
+ * UI attaches to the same block.
  */
 function compose(items: NewsItem[]): string[] {
   const lines: string[] = [];
-  const perStory = Math.max(1, Math.ceil(BRIEF_LINES / items.length));
+  const perStory = items.length === 1 ? 6 : SENTENCES_PER_STORY;
 
   for (const item of items) {
     if (lines.length >= BRIEF_LINES) break;
@@ -155,11 +158,11 @@ function compose(items: NewsItem[]): string[] {
 
 const SYSTEM_PROMPT = `You write a short news briefing for a stock-watching app.
 
-You will be given the two or three most credible news stories about one company from the last day, each with its source, age and summary. Write a briefing a busy investor can read in fifteen seconds: only what actually happened to this company and its stock.
+You will be given the two or three most credible news stories about one company from the last day, each with its source, age and summary. Write a briefing a busy investor can read in half a minute: only what actually happened to this company and its stock.
 
 Rules:
-- Up to ${BRIEF_LINES} lines, one sentence per line. No bullets, numbering, markdown, headings or preamble.
-- Give the concrete substance of each story, most important first. Begin each story's first line with its source and age, e.g. "Reuters, 3 hours ago: ...". Any further detail on that same story goes on the next line with no prefix.
+- Cover each story in two to four short sentences — enough to understand it, no more — most important story first. One sentence per line. No bullets, numbering, markdown, headings or preamble.
+- Begin each story's first line with its source and age, e.g. "Reuters, 3 hours ago: ...". Continue that same story on the next lines with no prefix.
 - Every fact must come from the supplied stories. Never add a number, name, date or event that is not in them.
 - No "what the news is about" opener, no "why it matters" line, no closing summary, no advice to buy or sell, no invented price targets. Just the news.
 - Plain English, active voice.`;
@@ -187,8 +190,8 @@ async function writeWithClaude(
     const response = await client.messages.create({
       model: "claude-opus-5",
       max_tokens: 1200,
-      // A grounded six-line summary is not a reasoning problem; low effort
-      // keeps the click-to-brief wait short and the cost per view sensible.
+      // A grounded summary of three articles is not a reasoning problem; low
+      // effort keeps the click-to-brief wait short and the cost per view sane.
       output_config: { effort: "low" },
       system: SYSTEM_PROMPT,
       messages: [

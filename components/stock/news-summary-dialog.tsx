@@ -23,7 +23,7 @@ import type { NewsBrief } from "@/lib/news-summary";
 
 /** Why the brief is worth the $4.99, in the reader's own terms. */
 const SELLING_POINTS = [
-  "Three trusted articles in six lines — the day's news in fifteen seconds.",
+  "Every story on your stock in a few sentences — the day's news in half a minute.",
   "Credible desks only. Nothing over 24 hours, nothing paywalled, nothing off-topic.",
   "Every line sourced, so you can check it in one click.",
   "Works on every stock in your watchlist.",
