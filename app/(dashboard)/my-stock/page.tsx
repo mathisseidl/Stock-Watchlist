@@ -9,7 +9,7 @@ import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import type { CandleRange } from "@/lib/market-data/types";
 
 export default function MyStockPage() {
-  const { items, ready, isGuest } = useWatchlist();
+  const { items, ready, isGuest, error } = useWatchlist();
   const [range, setRange] = useState<CandleRange>("1D");
 
   return (
@@ -24,13 +24,23 @@ export default function MyStockPage() {
         <RangeSelector value={range} onChange={setRange} />
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
       {isGuest && (
         <div className="flex flex-col gap-2 rounded-xl border border-primary/30 bg-accent px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
           <span className="text-accent-foreground">
-            You&apos;re browsing as a guest — this watchlist won&apos;t be saved.
+            You&apos;re not signed in. This watchlist is saved on this device
+            only, so it won&apos;t follow you to your phone.
           </span>
-          <Link href="/account" className="font-semibold text-primary hover:underline">
-            Sign up to save it →
+          <Link
+            href="/account"
+            className="font-semibold text-primary hover:underline"
+          >
+            Sign in to sync it →
           </Link>
         </div>
       )}

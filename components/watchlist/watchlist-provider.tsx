@@ -18,9 +18,44 @@ type WatchlistContextValue = {
   move: (symbol: string, direction: "up" | "down") => void;
   ready: boolean;
   isGuest: boolean;
+  /** Set when a change could not be saved, so the UI can say so. */
+  error: string | null;
 };
 
 const WatchlistContext = createContext<WatchlistContextValue | null>(null);
+
+/**
+ * Signed-out watchlists live here rather than in memory. Without it, adding a
+ * stock and reloading silently lost the change — and because the guest seed is
+ * the same five tickers a new account gets, there was no way to tell the two
+ * states apart.
+ */
+const GUEST_KEY = "matmax-guest-watchlist";
+
+function readGuestWatchlist(): WatchlistItem[] | null {
+  try {
+    const raw = localStorage.getItem(GUEST_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter(
+      (entry): entry is WatchlistItem =>
+        Boolean(entry) &&
+        typeof entry.symbol === "string" &&
+        typeof entry.name === "string",
+    );
+  } catch {
+    return null;
+  }
+}
+
+function writeGuestWatchlist(items: WatchlistItem[]) {
+  try {
+    localStorage.setItem(GUEST_KEY, JSON.stringify(items));
+  } catch {
+    // Private browsing or a full quota — the list still works for this session.
+  }
+}
 
 export function WatchlistProvider({ children }: { children: React.ReactNode }) {
   const [supabase] = useState(() => createClient());
@@ -28,9 +63,11 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
   const [isGuest, setIsGuest] = useState(false);
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
+
     async function load() {
       const {
         data: { user },
@@ -38,29 +75,48 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
       if (!active) return;
 
       if (!user) {
-        // Guest: seed an in-memory watchlist that is never persisted. It resets
-        // when the app is reloaded/closed — nothing is saved.
+        // Guests keep their list on this device. Only seed the defaults the
+        // first time, so a guest who cleared theirs doesn't get it back.
+        setUserId(null);
         setIsGuest(true);
-        setItems(defaultWatchlist);
+        setItems(readGuestWatchlist() ?? defaultWatchlist);
         setReady(true);
         return;
       }
 
       setUserId(user.id);
-      const { data } = await supabase
+      setIsGuest(false);
+      const { data, error: loadError } = await supabase
         .from("watchlist_items")
         .select("symbol, name, position")
         .eq("user_id", user.id)
         .order("position", { ascending: true });
       if (!active) return;
-      setItems(
-        (data ?? []).map((row) => ({ symbol: row.symbol, name: row.name })),
-      );
+
+      if (loadError) {
+        setError("Couldn't load your watchlist. Try reloading the page.");
+      } else {
+        setItems(
+          (data ?? []).map((row) => ({ symbol: row.symbol, name: row.name })),
+        );
+      }
       setReady(true);
     }
+
     load();
+
+    // A session that restores late, or a sign-in/sign-out in another tab,
+    // has to swap the watchlist over — otherwise the app keeps showing the
+    // guest list to a signed-in user.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      load();
+    });
+
     return () => {
       active = false;
+      subscription.unsubscribe();
     };
   }, [supabase]);
 
@@ -69,35 +125,60 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
     [items],
   );
 
+  /** Apply a change locally, then save it wherever this user's list lives. */
+  const commit = useCallback(
+    async (
+      next: WatchlistItem[],
+      previous: WatchlistItem[],
+      save: () => PromiseLike<{ error: unknown }>,
+    ) => {
+      setError(null);
+      setItems(next);
+
+      if (!userId) {
+        writeGuestWatchlist(next);
+        return;
+      }
+
+      const { error: writeError } = await save();
+      if (writeError) {
+        // Put the list back rather than showing a change that wasn't saved.
+        setItems(previous);
+        setError("That change couldn't be saved. Check your connection.");
+      }
+    },
+    [userId],
+  );
+
   const add = useCallback(
     (item: WatchlistItem) => {
-      if (items.some((e) => e.symbol === item.symbol)) return;
+      if (items.some((entry) => entry.symbol === item.symbol)) return;
       const position = items.length;
-      setItems((prev) => [...prev, item]);
-      if (userId) {
-        void supabase.from("watchlist_items").insert({
+      const next = [...items, item];
+      void commit(next, items, () =>
+        supabase.from("watchlist_items").insert({
           user_id: userId,
           symbol: item.symbol,
           name: item.name,
           position,
-        });
-      }
+        }),
+      );
     },
-    [items, supabase, userId],
+    [commit, items, supabase, userId],
   );
 
   const remove = useCallback(
     (symbol: string) => {
-      setItems((prev) => prev.filter((item) => item.symbol !== symbol));
-      if (userId) {
-        void supabase
+      const next = items.filter((item) => item.symbol !== symbol);
+      void commit(next, items, () =>
+        supabase
           .from("watchlist_items")
           .delete()
           .eq("user_id", userId)
-          .eq("symbol", symbol);
-      }
+          .eq("symbol", symbol),
+      );
     },
-    [supabase, userId],
+    [commit, items, supabase, userId],
   );
 
   const move = useCallback(
@@ -109,29 +190,27 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
 
       const next = [...items];
       [next[index], next[target]] = [next[target], next[index]];
-      setItems(next);
 
-      if (userId) {
-        void supabase
+      void commit(next, items, async () => {
+        const first = await supabase
           .from("watchlist_items")
           .update({ position: index })
           .eq("user_id", userId)
-          .eq("symbol", next[index].symbol)
-          .then(() =>
-            supabase
-              .from("watchlist_items")
-              .update({ position: target })
-              .eq("user_id", userId)
-              .eq("symbol", next[target].symbol),
-          );
-      }
+          .eq("symbol", next[index].symbol);
+        if (first.error) return first;
+        return supabase
+          .from("watchlist_items")
+          .update({ position: target })
+          .eq("user_id", userId)
+          .eq("symbol", next[target].symbol);
+      });
     },
-    [items, supabase, userId],
+    [commit, items, supabase, userId],
   );
 
   return (
     <WatchlistContext.Provider
-      value={{ items, has, add, remove, move, ready, isGuest }}
+      value={{ items, has, add, remove, move, ready, isGuest, error }}
     >
       {children}
     </WatchlistContext.Provider>
