@@ -162,22 +162,35 @@ export default async function AccountPage() {
               <p className="num mt-1 text-3xl font-semibold">
                 $4.99
                 <span className="text-base font-normal text-muted-foreground">
-                  {" "}
-                  for a year
+                  /year
                 </span>
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                A single payment covering {PRO_TERM_MONTHS} months. Not a
-                subscription — nothing renews and no card is kept on file.
+                Not a subscription — nothing renews and no card is kept on
+                file.
               </p>
             </div>
             <FeatureList features={proFeatures} />
             <div className="mt-auto">
               {isPaid ? (
                 <div className="flex flex-col gap-2">
-                  <p className="rounded-full bg-gain-soft py-2 text-center text-sm font-medium text-gain">
-                    ✓ Active{daysLeft !== null ? ` · ${daysLeft} days left` : ""}
-                  </p>
+                  <div className="rounded-xl bg-gain-soft py-2 text-center">
+                    <p className="text-sm font-medium text-gain">
+                      ✓ Active until{" "}
+                      {proExpiresAt
+                        ? new Date(proExpiresAt).toLocaleDateString("en-US", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })
+                        : "—"}
+                    </p>
+                    {daysLeft !== null && (
+                      <p className="num text-xs text-gain/80">
+                        {daysLeft} days left
+                      </p>
+                    )}
+                  </div>
                   {daysLeft !== null && daysLeft <= 30 && <UpgradeButton />}
                 </div>
               ) : (
