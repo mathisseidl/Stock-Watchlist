@@ -71,8 +71,8 @@ export function AuthForm({
         <p className="text-sm text-muted-foreground">
           {subtitle ??
             (isSignup
-              ? "Start tracking your watchlist on MATMAX."
-              : "Sign in to your MATMAX watchlist.")}
+              ? "Start tracking your watchlist on MATMAX Stock."
+              : "Sign in to your MATMAX Stock watchlist.")}
         </p>
       </div>
 
@@ -135,7 +135,7 @@ export function AuthForm({
           </>
         ) : (
           <>
-            New to MATMAX?{" "}
+            New to MATMAX Stock?{" "}
             <Link href="/signup" className="font-medium text-primary">
               Create an account
             </Link>

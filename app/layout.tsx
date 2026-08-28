@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MATMAX Portfolio",
+  title: "MATMAX Stock",
   description: "Track your stock portfolio, watchlist, and market news.",
 };
 

@@ -115,7 +115,7 @@ export function Sidebar({
           MS
         </div>
         <span className="text-lg font-semibold text-sidebar-foreground">
-          MATMAX
+          MATMAX Stock
         </span>
         {isPaid && (
           <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">

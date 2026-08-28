@@ -1,4 +1,4 @@
-# MATMAX Portfolio — Stock Watchlist
+# MATMAX Stock — Watchlist
 
 A stock-watching web app inspired by Google Finance. Track stocks on a personal
 watchlist with live prices, interactive charts and news, run "what-if"

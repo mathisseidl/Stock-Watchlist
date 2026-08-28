@@ -103,7 +103,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <div className="flex size-8 items-center justify-center rounded-full bg-neutral-900 text-xs font-bold text-white">
               MS
             </div>
-            <span className="text-base font-semibold">MATMAX</span>
+            <span className="text-base font-semibold">MATMAX Stock</span>
             {isPaid && (
               <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
                 Pro

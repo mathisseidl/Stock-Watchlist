@@ -122,7 +122,7 @@ export function SubscriptionCard({
       <div>
         <h3 className="text-base font-semibold">Your subscription</h3>
         <p className="text-sm text-muted-foreground">
-          MATMAX Pro · <span className="num">$4.99</span> a month.
+          MATMAX Stock Pro · <span className="num">$4.99</span> a month.
         </p>
       </div>
 
