@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { UpgradeButton } from "@/components/pricing/upgrade-button";
@@ -8,37 +8,65 @@ import { InviteCard } from "@/components/account/invite-card";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountSubscription } from "@/lib/subscription";
 import { proDaysRemaining } from "@/lib/pro";
+import { cn } from "@/lib/utils";
 
 /**
- * Eight lines, and no more. A plan card people actually read is a plan card
- * that fits on the screen.
+ * Eight lines, and no more. Written for someone who has never used the app:
+ * short, plain, and about what they get rather than how it works.
  */
 const freeFeatures = [
-  "Search any listed company by name or ticker",
-  "Your own watchlist, saved to your account and synced across devices",
-  "Live prices, interactive charts and Day → All-time ranges",
-  "The 3 most trustworthy stories on every stock, none older than 48 hours",
-  "A short daily digest of what actually moved on your list",
-  "What-if investment analysis on any past date — 3 runs a day",
-  "One free S&P 500 forecast, run on the full analysis engine",
-  "Add friends by username and compare watchlists",
+  "Search any stock by name or ticker",
+  "Your own watchlist, saved across your devices",
+  "Live prices and charts, from one day to all time",
+  "The 3 best news stories on every stock",
+  "A daily digest of what moved on your list",
+  "Test a past investment — 3 times a day",
+  "A free S&P 500 forecast",
+  "Add friends and compare watchlists",
+];
+
+/**
+ * What Free does not get. Only claims that are actually true of Free belongs
+ * here — a cross against something a free reader already has would be worse
+ * than saying nothing.
+ */
+const freeMissing = [
+  "Forecasts on any stock, not just the S&P 500",
+  "News summary for every stock in 6 lines",
+  "Unlimited investment analysis",
 ];
 
 const proFeatures = [
   "Everything in Free",
   "Forecast any stock: best case, likely case and worst case on a date you pick",
-  "AI news briefings, with sources",
+  "News summary for every stock in 6 lines",
   "Unlimited what-if investment analysis",
   "Every forecast shows the 14 named methods behind it",
   "Cancel any time — right up to the day before the next payment",
 ];
 
-function FeatureList({ features }: { features: string[] }) {
+function FeatureList({
+  features,
+  missing = false,
+}: {
+  features: string[];
+  missing?: boolean;
+}) {
   return (
     <ul className="flex flex-col gap-2.5">
       {features.map((feature) => (
-        <li key={feature} className="flex items-start gap-2.5 text-sm">
-          <Check className="mt-0.5 size-4 shrink-0 text-gain" />
+        <li
+          key={feature}
+          className={cn(
+            "flex items-start gap-2.5 text-sm",
+            missing && "text-muted-foreground",
+          )}
+        >
+          {missing ? (
+            <X className="mt-0.5 size-4 shrink-0 text-loss" />
+          ) : (
+            <Check className="mt-0.5 size-4 shrink-0 text-gain" />
+          )}
           {feature}
         </li>
       ))}
@@ -61,7 +89,7 @@ export default async function AccountPage() {
           subtitle="Create an account to keep your watchlist saved across devices."
         />
         <p className="text-sm text-muted-foreground">
-          Signing up is free. Forecasting any stock, the AI news briefings and
+          Signing up is free. Forecasting any stock, the news summaries and
           unlimited investment analysis are on Pro.
         </p>
       </div>
@@ -146,6 +174,14 @@ export default async function AccountPage() {
               </p>
             </div>
             <FeatureList features={freeFeatures} />
+
+            <div className="border-t border-border pt-4">
+              <p className="mb-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                Not on Free
+              </p>
+              <FeatureList features={freeMissing} missing />
+            </div>
+
             <p className="mt-auto rounded-full border border-border py-2 text-center text-sm font-medium text-muted-foreground">
               {isPaid ? "Included" : "Your current plan"}
             </p>
