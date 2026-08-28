@@ -6,6 +6,7 @@ import { CompanyLogo } from "@/components/stock/company-logo";
 import { ChangeBadge } from "@/components/stock/change-badge";
 import { Sparkline } from "@/components/stock/sparkline";
 import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
+import { useUserSettings } from "@/components/settings/user-settings-provider";
 import type { CandleRange } from "@/lib/market-data/types";
 import type { WatchlistItem } from "@/lib/mock-data";
 
@@ -17,6 +18,7 @@ export function ReadOnlyWatchlistRow({
   range: CandleRange;
 }) {
   const { data: series, isLoading, isError } = useCandles(item.symbol, range);
+  const { money } = useUserSettings();
 
   const changePercent = seriesChangePercent(series);
   const positive = changePercent >= 0;
@@ -48,7 +50,7 @@ export function ReadOnlyWatchlistRow({
           <span className="text-xs text-muted-foreground">No data</span>
         ) : (
           <>
-            <p className="num text-sm font-semibold">${price.toFixed(2)}</p>
+            <p className="num text-sm font-semibold">{money(price)}</p>
             <ChangeBadge changePercent={changePercent} />
           </>
         )}

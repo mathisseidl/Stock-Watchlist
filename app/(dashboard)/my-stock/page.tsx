@@ -5,12 +5,18 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import { RangeSelector } from "@/components/stock/range-selector";
 import { WatchlistRow } from "@/components/watchlist/watchlist-row";
+import { AlertList } from "@/components/stock/alert-list";
+import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import type { CandleRange } from "@/lib/market-data/types";
 
 export default function MyStockPage() {
   const { items, ready, isGuest, error } = useWatchlist();
-  const [range, setRange] = useState<CandleRange>("1D");
+  const { settings, ready: settingsReady } = useUserSettings();
+  const [range, setRange] = useState<CandleRange | null>(null);
+
+  // Falls back to the user's preferred range until they pick one by hand.
+  const activeRange = range ?? (settingsReady ? settings.defaultRange : "1D");
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,8 +27,10 @@ export default function MyStockPage() {
             Your watchlist — search any stock and add it here.
           </p>
         </div>
-        <RangeSelector value={range} onChange={setRange} />
+        <RangeSelector value={activeRange} onChange={setRange} />
       </div>
+
+      <AlertList />
 
       {error && (
         <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -59,7 +67,7 @@ export default function MyStockPage() {
             <WatchlistRow
               key={item.symbol}
               item={item}
-              range={range}
+              range={activeRange}
               isFirst={index === 0}
               isLast={index === items.length - 1}
             />

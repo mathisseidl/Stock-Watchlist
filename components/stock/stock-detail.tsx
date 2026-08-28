@@ -16,6 +16,7 @@ import { useQuotes } from "@/hooks/use-quotes";
 import { useProfile } from "@/hooks/use-profile";
 import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
+import { useUserSettings } from "@/components/settings/user-settings-provider";
 import type { CandleRange } from "@/lib/market-data/types";
 
 function StatTile({ label, value }: { label: string; value: string }) {
@@ -28,10 +29,14 @@ function StatTile({ label, value }: { label: string; value: string }) {
 }
 
 export function StockDetail({ symbol }: { symbol: string }) {
-  const [range, setRange] = useState<CandleRange>("1D");
+  const { settings, ready: settingsReady, money, percent } = useUserSettings();
+  const signedMoney = (value: number) =>
+    `${value >= 0 ? "+" : "−"}${money(Math.abs(value))}`;
+  const [range, setRange] = useState<CandleRange | null>(null);
+  const activeRange = range ?? (settingsReady ? settings.defaultRange : "1D");
   const { data: profile } = useProfile(symbol);
   const { quotes, isLoading } = useQuotes([symbol]);
-  const { data: series, isLoading: chartLoading } = useCandles(symbol, range);
+  const { data: series, isLoading: chartLoading } = useCandles(symbol, activeRange);
   const { has, add, remove } = useWatchlist();
 
   const quote = quotes[symbol];
@@ -92,7 +97,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
           <div>
             <div className="flex flex-wrap items-end gap-3">
               <p className="num text-4xl font-semibold tracking-tight">
-                ${quote!.currentPrice.toFixed(2)}
+                {money(quote!.currentPrice)}
               </p>
               <div className="mb-1">
                 <ChangeBadge changePercent={quote!.changePercent} />
@@ -103,8 +108,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
                   (quote!.change >= 0 ? "text-gain" : "text-loss")
                 }
               >
-                {quote!.change >= 0 ? "+" : ""}
-                {quote!.change.toFixed(2)} today
+                {signedMoney(quote!.change)} today
               </span>
             </div>
             <MarketStatus className="mt-1.5" />
@@ -121,11 +125,11 @@ export function StockDetail({ symbol }: { symbol: string }) {
             <span
               className={"num " + (rangePositive ? "text-gain" : "text-loss")}
             >
-              {Math.abs(rangeChange).toFixed(2)}%
+              {percent(rangeChange)}
             </span>{" "}
             over this period
           </p>
-          <RangeSelector value={range} onChange={setRange} size="sm" />
+          <RangeSelector value={activeRange} onChange={setRange} size="sm" />
         </div>
 
         {chartLoading ? (
@@ -141,12 +145,12 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
       {hasQuote && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatTile label="Open" value={`$${quote!.open.toFixed(2)}`} />
-          <StatTile label="Day High" value={`$${quote!.high.toFixed(2)}`} />
-          <StatTile label="Day Low" value={`$${quote!.low.toFixed(2)}`} />
+          <StatTile label="Open" value={money(quote!.open)} />
+          <StatTile label="Day High" value={money(quote!.high)} />
+          <StatTile label="Day Low" value={money(quote!.low)} />
           <StatTile
             label="Prev Close"
-            value={`$${quote!.previousClose.toFixed(2)}`}
+            value={money(quote!.previousClose)}
           />
         </div>
       )}

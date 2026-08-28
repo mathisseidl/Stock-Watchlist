@@ -8,6 +8,7 @@ import { ChangeBadge } from "@/components/stock/change-badge";
 import { Sparkline } from "@/components/stock/sparkline";
 import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
+import { useUserSettings } from "@/components/settings/user-settings-provider";
 import type { CandleRange } from "@/lib/market-data/types";
 import type { WatchlistItem } from "@/lib/mock-data";
 
@@ -23,6 +24,7 @@ export function WatchlistRow({
   isLast: boolean;
 }) {
   const { remove, move } = useWatchlist();
+  const { money } = useUserSettings();
   const { data: series, isLoading, isError } = useCandles(item.symbol, range);
 
   const changePercent = seriesChangePercent(series);
@@ -76,7 +78,7 @@ export function WatchlistRow({
           <span className="text-xs text-muted-foreground">No data</span>
         ) : (
           <>
-            <p className="num text-sm font-semibold">${price.toFixed(2)}</p>
+            <p className="num text-sm font-semibold">{money(price)}</p>
             <ChangeBadge changePercent={changePercent} />
           </>
         )}

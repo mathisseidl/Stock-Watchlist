@@ -1,5 +1,8 @@
+"use client";
+
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUserSettings } from "@/components/settings/user-settings-provider";
 
 export function ChangeBadge({
   changePercent,
@@ -8,6 +11,7 @@ export function ChangeBadge({
   changePercent: number;
   className?: string;
 }) {
+  const { percent } = useUserSettings();
   const isPositive = changePercent >= 0;
   return (
     <span
@@ -22,7 +26,7 @@ export function ChangeBadge({
       ) : (
         <ArrowDown className="size-3" />
       )}
-      <span className="num">{Math.abs(changePercent).toFixed(2)}%</span>
+      <span className="num">{percent(changePercent)}</span>
     </span>
   );
 }

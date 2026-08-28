@@ -12,6 +12,7 @@ import { RangeSelector } from "@/components/stock/range-selector";
 import { SymbolCombobox } from "@/components/search/symbol-combobox";
 import { useCandles } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
+import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { RANGES, RANGE_SECONDS } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
 import type {
@@ -78,6 +79,7 @@ function rangeForDate(dateString: string): CandleRange {
 
 export default function AnalyticsPage() {
   const { items } = useWatchlist();
+  const { money, number, percent } = useUserSettings();
 
   const [symbolInput, setSymbolInput] = useState("");
   const [amountInput, setAmountInput] = useState("1000");
@@ -409,7 +411,7 @@ export default function AnalyticsPage() {
             <>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <TrendingUp className="size-4" />
-                If you invested ${applied.amount.toLocaleString()} in{" "}
+                If you invested {money(applied.amount, 0)} in{" "}
                 {applied.symbol}
                 {applied.name && applied.name !== applied.symbol
                   ? ` (${applied.name})`
@@ -429,10 +431,7 @@ export default function AnalyticsPage() {
                   <p className="text-xs text-muted-foreground">Worth today</p>
                   <p className="num text-4xl font-semibold tracking-tight">
                     $
-                    {result.currentValue.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    {money(result.currentValue)}
                   </p>
                 </div>
                 <p
@@ -442,12 +441,9 @@ export default function AnalyticsPage() {
                   }
                 >
                   {result.profit >= 0 ? "+" : "−"}$
-                  {Math.abs(result.profit).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{" "}
+                  {money(Math.abs(result.profit))}{" "}
                   ({result.profit >= 0 ? "+" : ""}
-                  {result.returnPercent.toFixed(1)}%)
+                  {number(result.returnPercent, 1)}%)
                 </p>
               </div>
 
@@ -455,25 +451,25 @@ export default function AnalyticsPage() {
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-foreground">Entry price</p>
                   <p className="num mt-1 text-lg font-semibold">
-                    ${result.entryPrice.toFixed(2)}
+                    {money(result.entryPrice)}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-foreground">Price today</p>
                   <p className="num mt-1 text-lg font-semibold">
-                    ${result.currentPrice.toFixed(2)}
+                    {money(result.currentPrice)}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-foreground">Shares bought</p>
                   <p className="num mt-1 text-lg font-semibold">
-                    {result.shares.toFixed(3)}
+                    {number(result.shares, 3)}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border p-4">
                   <p className="text-xs text-muted-foreground">Invested</p>
                   <p className="num mt-1 text-lg font-semibold">
-                    ${applied.amount.toLocaleString()}
+                    {money(applied.amount, 0)}
                   </p>
                 </div>
               </div>
@@ -494,7 +490,7 @@ export default function AnalyticsPage() {
                               : "text-loss"
                           }
                         >
-                          {Math.abs(windowChangePercent).toFixed(2)}%
+                          {percent(windowChangePercent)}
                         </span>{" "}
                         over the selected period
                       </p>
