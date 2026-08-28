@@ -46,6 +46,24 @@ export const MAX_HORIZON_DAYS = 3653; // ~10 years
 export const MIN_HORIZON_DAYS = 7;
 
 /**
+ * How much daily history every forecast is built from. Exported because the
+ * page advertises it, and a number the UI types in for itself is a number that
+ * drifts the first time this changes.
+ */
+export const HISTORY_RANGE = "5y" as const;
+export const HISTORY_YEARS = 5;
+export const HISTORY_TRADING_DAYS = HISTORY_YEARS * TRADING_DAYS_PER_YEAR;
+
+/**
+ * Paths per run. Long horizons get fewer, because each one costs proportionally
+ * more steps and the extra precision buys nothing a reader can see.
+ */
+export const SIMULATIONS_PER_RUN = 20_000;
+const SIMULATIONS_LONG_HORIZON = 12_000;
+/** Above this many trading days a run counts as long. */
+const LONG_HORIZON_TRADING_DAYS = 1260;
+
+/**
  * The prior every stock's own measured drift is pulled towards, built the way
  * CAPM builds an expected return: a risk-free anchor plus a premium for how
  * much market risk the stock carries.
@@ -276,7 +294,7 @@ export async function buildForecast(
   );
   const amount = Math.max(1, request.amount);
 
-  const history = await fetchDailyHistory(symbol, "5y");
+  const history = await fetchDailyHistory(symbol, HISTORY_RANGE);
   // Under a year of daily closes there is no volatility estimate worth
   // simulating, and a made-up band is worse than no band.
   if (history.length < 200) throw new NotEnoughHistoryError(symbol);
@@ -360,7 +378,10 @@ export async function buildForecast(
 
   /* --- Simulation -------------------------------------------------- */
 
-  const paths = tradingDays > 1260 ? 12_000 : 20_000;
+  const paths =
+    tradingDays > LONG_HORIZON_TRADING_DAYS
+      ? SIMULATIONS_LONG_HORIZON
+      : SIMULATIONS_PER_RUN;
   const halfPaths = paths / 2;
 
   // Simulation is seeded from the inputs plus the calendar day, so the answer

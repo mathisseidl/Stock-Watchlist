@@ -15,7 +15,13 @@ import { useProStatus } from "@/hooks/use-pro";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { SAMPLE_FORECAST } from "@/lib/forecast/sample";
-import { MAX_HORIZON_DAYS, MIN_HORIZON_DAYS } from "@/lib/forecast/engine";
+import { FORECAST_METHODS } from "@/lib/forecast/methods";
+import {
+  HISTORY_TRADING_DAYS,
+  MAX_HORIZON_DAYS,
+  MIN_HORIZON_DAYS,
+  SIMULATIONS_PER_RUN,
+} from "@/lib/forecast/engine";
 import { cn } from "@/lib/utils";
 import type { ForecastResult } from "@/lib/forecast/engine";
 import type { SymbolSearchResult } from "@/lib/market-data/types";
@@ -164,16 +170,10 @@ function ForecastPageBody() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        {/* The promise lives here rather than in a card under the form. A
-            "here is what you will get" panel only ever gets read once, and it
-            went stale the moment a feature it advertised was removed. */}
-        <div className="max-w-2xl">
+        <div>
           <h1 className="text-2xl font-semibold">Forecast</h1>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Nobody can predict a price. This plays the next stretch out twenty
-            thousand times, using how a stock has actually behaved, and shows
-            you the range those runs landed in — the good side, the bad side
-            and the middle, in dollars, with every method named underneath.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Nobody can predict a price. This shows you the range instead.
           </p>
         </div>
         {planReady &&
@@ -187,6 +187,8 @@ function ForecastPageBody() {
             </span>
           ))}
       </div>
+
+      <EngineFacts />
 
       {/* overflow-visible: the Card clips by default, which would cut the
           symbol picker's dropdown off at the card's bottom edge. */}
@@ -372,6 +374,51 @@ function ForecastPageBody() {
       )}
 
       <DataDisclaimer className="border-t border-border pt-4" />
+    </div>
+  );
+}
+
+/**
+ * What is behind the button, in four numbers.
+ *
+ * A newcomer looking at three form fields has no reason to believe the answer
+ * will be worth reading. These are the facts that make it credible, and every
+ * one is derived from the engine's own constants rather than typed in, so the
+ * strip cannot quietly start lying the way the old preview card did.
+ */
+function EngineFacts() {
+  const facts = [
+    {
+      value: SIMULATIONS_PER_RUN.toLocaleString(),
+      label: "simulated futures, every time you press the button",
+    },
+    {
+      value: HISTORY_TRADING_DAYS.toLocaleString(),
+      label: "real trading days of price history behind each one",
+    },
+    {
+      value: String(FORECAST_METHODS.length),
+      label: "named methods, all printed under the result",
+    },
+    {
+      value: `${Math.round(MAX_HORIZON_DAYS / 365.25)} yrs`,
+      label: "the furthest ahead you can look, to any date you pick",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {facts.map((fact) => (
+        <div
+          key={fact.label}
+          className="rounded-xl border border-border bg-card p-3.5"
+        >
+          <p className="num-display text-2xl">{fact.value}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            {fact.label}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }
