@@ -170,10 +170,7 @@ function ForecastPageBody() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        {/* pl-3.5 matches the padding inside the fact boxes below, so the
-            heading sits on the same vertical line as their text rather than
-            on their outer border. */}
-        <div className="pl-3.5">
+        <div>
           <h1 className="text-2xl font-semibold">Forecast</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             See the future of any stock with actual stock analysis methods.
