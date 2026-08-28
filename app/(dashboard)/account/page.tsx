@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 const freeFeatures = [
   "Search any stock by name or ticker",
   "Your own watchlist, saved across your devices",
-  "Live prices and charts, from one day to all time",
+  "Live prices and charts",
   "The 3 best news stories on every stock",
   "A daily digest of what moved on your list",
   "Test a past investment — 3 times a day",
@@ -33,15 +33,17 @@ const freeFeatures = [
 const freeMissing = [
   "Forecasts on any stock, not just the S&P 500",
   "News summary for every stock in 6 lines",
-  "Unlimited investment analysis",
+  "Test a past investment — Unlimited",
 ];
 
 const proFeatures = [
   "Everything in Free",
   "Forecast any stock: best case, likely case and worst case on a date you pick",
-  "News summary for every stock in 6 lines",
-  "Unlimited what-if investment analysis",
+  // Sits directly under the forecast line: it describes that feature, not a
+  // separate one.
   "Every forecast shows the 14 named methods behind it",
+  "News summary for every stock in 6 lines",
+  "Test a past investment — Unlimited",
   "Cancel any time — right up to the day before the next payment",
 ];
 
