@@ -417,10 +417,12 @@ function EngineFacts() {
           key={fact.label}
           className="rounded-xl border border-border bg-card p-3.5"
         >
-          <span aria-hidden className="text-lg leading-none">
-            {fact.emoji}
-          </span>
-          <p className="num-display mt-1.5 text-2xl">{fact.value}</p>
+          <p className="num-display flex items-center gap-2 text-2xl">
+            <span aria-hidden className="text-lg leading-none">
+              {fact.emoji}
+            </span>
+            {fact.value}
+          </p>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
             {fact.label}
           </p>
