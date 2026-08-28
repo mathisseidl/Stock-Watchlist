@@ -33,6 +33,9 @@ export function useProStatus() {
       return { ...data, isGuest: false };
     },
     staleTime: 60_000,
+    // Settle fast: callers block their UI until this resolves, and the default
+    // three retries would hold a Pro user on a spinner for seconds.
+    retry: 1,
   });
 
   const plan = query.data ?? GUEST;
@@ -41,7 +44,13 @@ export function useProStatus() {
     plan,
     isPaid: plan.isPaid,
     isGuest: plan.isGuest,
-    ready: !query.isLoading,
+    /**
+     * False until the plan is actually known. Callers must wait on this before
+     * showing an upsell — `plan` falls back to GUEST while loading, so acting
+     * on `isPaid` early tells a paying user they haven't paid.
+     */
+    ready: !query.isPending,
+    failed: query.isError,
     refetch: query.refetch,
   };
 }

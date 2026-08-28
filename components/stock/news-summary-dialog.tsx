@@ -24,10 +24,10 @@ import type { NewsBrief } from "@/lib/news-summary";
 
 /** Why the brief is worth the $4.99, in the reader's own terms. */
 const SELLING_POINTS = [
-  "Three trusted articles, distilled to six lines. The last 24 hours on this stock, read in fifteen seconds instead of ten minutes.",
-  "Only credible financial desks, nothing older than a day, nothing behind a paywall, and nothing that isn't genuinely about this company.",
-  "Every briefing lists its sources, so you can check any line in one click rather than taking it on faith.",
-  "It works on every stock on your watchlist — your whole list turns into a single morning read.",
+  "Three trusted articles in six lines — the day's news in fifteen seconds.",
+  "Credible desks only. Nothing over 24 hours, nothing paywalled, nothing off-topic.",
+  "Every line sourced, so you can check it in one click.",
+  "Works on every stock in your watchlist.",
 ];
 
 function timeAgo(unixSeconds: number) {
@@ -144,11 +144,10 @@ function ProPitch({ symbol }: { symbol: string }) {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        The briefing for {symbol} is written and waiting. Here is what you get
-        when you unlock it:
+        The {symbol} briefing is ready. What you get:
       </p>
 
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-2.5">
         {SELLING_POINTS.map((point) => (
           <li key={point} className="flex gap-2.5 text-sm leading-relaxed">
             <MoveRight className="mt-1 size-3.5 shrink-0 text-primary" />
@@ -158,9 +157,8 @@ function ProPitch({ symbol }: { symbol: string }) {
       </ul>
 
       <p className="rounded-xl border border-border px-4 py-3 text-sm">
-        Pro is <span className="num font-semibold">$4.99/month</span> and also
-        unlocks stock forecasts and unlimited investment analysis. Cancel any
-        time — right up to the day before the next payment.
+        <span className="num font-semibold">$4.99/month</span>, also unlocking
+        forecasts and unlimited analysis. Cancel any time.
       </p>
 
       <Link
@@ -190,7 +188,7 @@ export function NewsSummaryLink({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const { isPaid } = useProStatus();
+  const { isPaid, ready } = useProStatus();
 
   return (
     <>
@@ -215,12 +213,28 @@ export function NewsSummaryLink({
             </DialogTitle>
             <DialogDescription className="mt-1">
               {name && name !== symbol ? `${name} · ` : ""}
-              An AI briefing built from the three most trusted stories about
-              this stock.
+              Built from the three most trusted stories on this stock.
             </DialogDescription>
           </div>
 
-          {isPaid ? <BriefBody symbol={symbol} /> : <ProPitch symbol={symbol} />}
+          {/* Never show the upsell until the plan is actually known — the hook
+              reads as "guest" while loading, which would tell a Pro user they
+              haven't paid. */}
+          {!ready ? (
+            <div className="flex flex-col gap-3">
+              {[0, 1, 2, 3].map((index) => (
+                <Skeleton
+                  key={index}
+                  className="h-3.5 rounded-full"
+                  style={{ width: `${95 - index * 8}%` }}
+                />
+              ))}
+            </div>
+          ) : isPaid ? (
+            <BriefBody symbol={symbol} />
+          ) : (
+            <ProPitch symbol={symbol} />
+          )}
         </DialogContent>
       </Dialog>
     </>

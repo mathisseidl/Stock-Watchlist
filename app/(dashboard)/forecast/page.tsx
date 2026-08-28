@@ -20,10 +20,10 @@ import type { SymbolSearchResult } from "@/lib/market-data/types";
 
 /** Why the forecast is worth paying for, in the reader's own terms. */
 const SELLING_POINTS = [
-  "Point it at anything you actually own, not just the index — any listed company with a year of history.",
-  "Both sides of the trade in one screen: what a good run pays you, and what a bad one costs you, in dollars.",
-  "Fourteen named methods, from Monte Carlo over Geometric Brownian Motion to fat-tailed shocks and expected shortfall — every one listed under the result so you can check the work.",
-  "Any horizon you like, from a week to ten years, on a date you pick.",
+  "Any listed company with a year of history, not just the index.",
+  "Both sides in dollars: what a good run pays, what a bad one costs.",
+  "All 14 methods named under every result, so you can check the work.",
+  "Any horizon from a week to ten years, on a date you pick.",
 ];
 
 const QUICK_HORIZONS = [
@@ -188,7 +188,12 @@ function ForecastPageBody() {
             <label htmlFor="forecast-symbol" className="text-sm font-medium">
               Stock
             </label>
-            {isPaid ? (
+            {/* Wait for the plan before locking the field — the hook reads as
+                "guest" while loading, which would show a Pro user the sample
+                lock for a beat. */}
+            {!planReady ? (
+              <div className="h-9 rounded-lg border border-border bg-muted/40" />
+            ) : isPaid ? (
               <SymbolCombobox
                 id="forecast-symbol"
                 value={symbolInput}
@@ -334,8 +339,7 @@ function ForecastUpsell({ hasRun }: { hasRun: boolean }) {
               : "Forecasting any stock is a Pro feature"}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            You just watched the full engine work on the S&amp;P 500. It is the
-            same engine either way — Pro only changes what you can point it at.
+            Same engine either way. Pro only changes what you can point it at.
           </p>
         </div>
       </div>
@@ -350,9 +354,8 @@ function ForecastUpsell({ hasRun }: { hasRun: boolean }) {
       </ul>
 
       <p className="rounded-xl border border-border px-4 py-3 text-sm">
-        Pro is <span className="num font-semibold">$4.99/month</span> and also
-        unlocks the AI news briefings on your watchlist and unlimited investment
-        analysis. Cancel any time — right up to the day before the next payment.
+        <span className="num font-semibold">$4.99/month</span>, also unlocking
+        the AI news briefings and unlimited analysis. Cancel any time.
       </p>
 
       <Link
