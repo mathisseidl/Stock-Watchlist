@@ -170,10 +170,13 @@ function ForecastPageBody() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        {/* pl-3.5 matches the padding inside the fact boxes below, so the
+            heading sits on the same vertical line as their text rather than
+            on their outer border. */}
+        <div className="pl-3.5">
           <h1 className="text-2xl font-semibold">Forecast</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Nobody can predict a price. This shows you the range instead.
+            See the future of any stock with actual stock analysis methods.
           </p>
         </div>
         {planReady &&
@@ -389,18 +392,22 @@ function ForecastPageBody() {
 function EngineFacts() {
   const facts = [
     {
+      emoji: "🎲",
       value: SIMULATIONS_PER_RUN.toLocaleString(),
       label: "simulated futures, every time you press the button",
     },
     {
+      emoji: "📈",
       value: HISTORY_TRADING_DAYS.toLocaleString(),
       label: "real trading days of price history behind each one",
     },
     {
+      emoji: "🧮",
       value: String(FORECAST_METHODS.length),
       label: "named methods, all printed under the result",
     },
     {
+      emoji: "⏳",
       value: `${Math.round(MAX_HORIZON_DAYS / 365.25)} yrs`,
       label: "the furthest ahead you can look, to any date you pick",
     },
@@ -413,7 +420,10 @@ function EngineFacts() {
           key={fact.label}
           className="rounded-xl border border-border bg-card p-3.5"
         >
-          <p className="num-display text-2xl">{fact.value}</p>
+          <span aria-hidden className="text-lg leading-none">
+            {fact.emoji}
+          </span>
+          <p className="num-display mt-1.5 text-2xl">{fact.value}</p>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
             {fact.label}
           </p>
