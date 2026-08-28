@@ -153,8 +153,6 @@ export type ForecastResult = {
   likely: ForecastOutcome;
   /** 10th percentile — a bad run that is entirely normal. */
   worst: ForecastOutcome;
-  /** 5th percentile — the one-in-twenty stress case. */
-  stress: ForecastOutcome;
   /** The mean of every run. Sits above the median; the gap is volatility drag. */
   expected: ForecastOutcome;
   /** Share of simulations that finish above the money you put in. */
@@ -430,7 +428,6 @@ export async function buildForecast(
   terminal.sort();
   pathDrawdown.sort();
 
-  const p05 = percentileSorted(terminal, 0.05);
   const p10 = percentileSorted(terminal, 0.1);
   const p50 = percentileSorted(terminal, 0.5);
   const p90 = percentileSorted(terminal, 0.9);
@@ -500,7 +497,6 @@ export async function buildForecast(
     best: outcome(p90, entryPrice, amount, years),
     likely: outcome(p50, entryPrice, amount, years),
     worst: outcome(p10, entryPrice, amount, years),
-    stress: outcome(p05, entryPrice, amount, years),
     expected: outcome(meanPrice, entryPrice, amount, years),
     probabilityOfProfit: (winners / paths) * 100,
     percentiles,

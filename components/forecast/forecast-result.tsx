@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Activity,
-  CircleHelp,
-  Landmark,
-  ShieldAlert,
-  Target,
-} from "lucide-react";
+import { Activity, CircleHelp, Landmark, Target } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ForecastDistribution } from "@/components/forecast/forecast-distribution";
 import { ForecastDetails } from "@/components/forecast/forecast-details";
@@ -184,49 +178,6 @@ function KeyStat({
   );
 }
 
-/**
- * One of the three downside answers.
- *
- * Labelled with the question it answers rather than a noun. "The ride down"
- * told the reader nothing; "How rough does it get on the way?" tells them
- * what they are about to find out.
- */
-function DownsideTile({
-  question,
-  value,
-  tone,
-  children,
-}: {
-  question: string;
-  value: string;
-  tone: "loss" | "neutral";
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col rounded-xl border p-4",
-        tone === "loss"
-          ? "border-loss/25 bg-loss-soft/30"
-          : "border-border",
-      )}
-    >
-      <p className="text-xs font-medium">{question}</p>
-      <p
-        className={cn(
-          "num-display mt-1.5 text-2xl",
-          tone === "loss" && "text-loss",
-        )}
-      >
-        {value}
-      </p>
-      <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-        {children}
-      </p>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* The page                                                            */
 /* ------------------------------------------------------------------ */
@@ -252,14 +203,6 @@ export function ForecastResultView({
   const beatsCash = forecast.cash.probabilityOfBeating;
   const runs = forecast.simulations.toLocaleString();
   const longHorizon = forecast.horizonDays >= LONG_HORIZON_DAYS;
-
-  // The dip is measured from each run's *own* peak, not from what you paid —
-  // so it cannot be quoted as "your $1,000 became $X". Walking through the
-  // median outcome instead keeps it concrete without making it wrong.
-  const dipFrom = forecast.likely.value;
-  const dipTo = dipFrom * (1 - forecast.journey.medianDipPercent / 100);
-  const historicalLow =
-    forecast.amount * (1 - forecast.drivers.maxDrawdownPercent / 100);
 
   return (
     <div className="flex flex-col gap-4">
@@ -368,66 +311,7 @@ export function ForecastResultView({
         <ForecastDistribution forecast={forecast} />
       </Card>
 
-      {/* ---- 3. The honest part ----------------------------------------- */}
-      <Card className="gap-4 border-loss/25 p-6">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-loss-soft">
-            <ShieldAlert className="size-4 text-loss" />
-          </span>
-          <div>
-            <h3 className="text-base font-semibold">Before you get excited</h3>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Three ways this could hurt: how badly it could end, how bad it
-              could feel on the way there, and what has already happened for
-                real.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <DownsideTile
-            question="How badly could it end?"
-            value={money(forecast.stress.value)}
-            tone="loss"
-          >
-            1 run in 20 — a 5% chance — finished here or lower. You would be
-            down{" "}
-            <span className="num font-medium text-foreground">
-              {money(Math.abs(forecast.stress.profit))}
-            </span>{" "}
-            of the {money(forecast.amount, 0)} you put in.
-          </DownsideTile>
-
-          <DownsideTile
-            question="How bad does it feel on the way?"
-            value={`−${number(forecast.journey.medianDipPercent, 0)}%`}
-            tone="neutral"
-          >
-            Nothing climbs in a straight line. Half the runs fell at least this
-            far from their own best moment before the end — a position worth{" "}
-            <span className="num text-foreground">{money(dipFrom, 0)}</span>{" "}
-            sliding back to{" "}
-            <span className="num text-foreground">{money(dipTo, 0)}</span>.
-            That is the moment people sell.
-          </DownsideTile>
-
-          <DownsideTile
-            question="Has that really happened?"
-            value={`−${number(forecast.drivers.maxDrawdownPercent, 0)}%`}
-            tone="neutral"
-          >
-            Yes — this is not a simulation. {forecast.symbol} really fell this
-            far from a peak in the last five years. Anyone who bought at that
-            top watched {money(forecast.amount, 0)} show as{" "}
-            <span className="num text-foreground">
-              {money(historicalLow, 0)}
-            </span>{" "}
-            at the bottom.
-          </DownsideTile>
-        </div>
-      </Card>
-
-      {/* ---- 4. The workings -------------------------------------------- */}
+      {/* ---- 3. The workings -------------------------------------------- */}
       <ForecastDetails forecast={forecast} />
     </div>
   );

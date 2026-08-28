@@ -75,6 +75,8 @@ export const GLOSSARY = {
     "Losses hurt more than equal gains help: down 50% then up 50% leaves you down 25%. That is why the middle outcome sits below the average one.",
   drawdown:
     "The worst fall from a high point to a later low. It is what you would have watched happen if you held through it.",
+  simulatedDip:
+    "Across the simulated runs, how far the typical one fell from its own best moment before the end — measured against its peak, not against what you paid.",
   var95:
     "On the worst 1 day in 20, the stock has historically fallen at least this much.",
   expectedShortfall:

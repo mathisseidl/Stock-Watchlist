@@ -258,6 +258,18 @@ export function ForecastDetails({ forecast }: { forecast: ForecastResult }) {
                 hint="Average of the worst 5%"
                 explain={GLOSSARY.expectedShortfall}
               />
+              <Driver
+                label="Typical dip in a run"
+                value={`−${number(forecast.journey.medianDipPercent, 1)}%`}
+                hint={`Rough run: −${number(forecast.journey.roughDipPercent, 1)}%`}
+                explain={GLOSSARY.simulatedDip}
+              />
+              <Driver
+                label="Deepest real fall"
+                value={`−${number(drivers.maxDrawdownPercent, 1)}%`}
+                hint="Last five years, actual"
+                explain={GLOSSARY.drawdown}
+              />
             </div>
           </div>
 
