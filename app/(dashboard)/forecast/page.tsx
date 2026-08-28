@@ -3,15 +3,24 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowUpRight, Lock, MoveRight, Sparkles } from "lucide-react";
+import {
+  ArrowUpRight,
+  BarChart3,
+  Lock,
+  MoveRight,
+  Sparkles,
+  Target,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { SymbolCombobox } from "@/components/search/symbol-combobox";
 import { ForecastLoader, THINK_MS } from "@/components/forecast/forecast-loader";
 import { ForecastResultView } from "@/components/forecast/forecast-result";
+import { DataDisclaimer } from "@/components/layout/data-disclaimer";
 import { useProStatus } from "@/hooks/use-pro";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
+import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { SAMPLE_FORECAST } from "@/lib/forecast/sample";
 import { MAX_HORIZON_DAYS, MIN_HORIZON_DAYS } from "@/lib/forecast/engine";
 import { cn } from "@/lib/utils";
@@ -35,6 +44,9 @@ const QUICK_HORIZONS = [
   { label: "5 years", days: 1826 },
 ];
 
+/** Round numbers people actually invest, so nobody has to type four zeroes. */
+const QUICK_AMOUNTS = [500, 1_000, 5_000, 10_000];
+
 function isoDaysFromNow(days: number) {
   return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 }
@@ -55,6 +67,7 @@ function ForecastPageBody() {
   const searchParams = useSearchParams();
   const { isPaid, ready: planReady } = useProStatus();
   const { items } = useWatchlist();
+  const { money } = useUserSettings();
 
   // Arriving from a stock page pre-fills the ticker.
   const [symbolInput, setSymbolInput] = useState(
@@ -260,6 +273,31 @@ function ForecastPageBody() {
         </form>
 
         <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Amount:</span>
+          {QUICK_AMOUNTS.map((value) => {
+            const active = parseFloat(amountInput) === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setAmountInput(String(value));
+                  setError(null);
+                }}
+                className={cn(
+                  "num rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  active
+                    ? "border-primary bg-accent text-accent-foreground"
+                    : "border-border hover:bg-accent",
+                )}
+              >
+                {money(value, 0)}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground">Horizon:</span>
           {QUICK_HORIZONS.map((option) => {
             const active = Math.abs(horizonDays - option.days) <= 2;
@@ -316,18 +354,92 @@ function ForecastPageBody() {
         {error && <p className="text-sm text-destructive">{error}</p>}
       </Card>
 
+      {phase === "idle" && !result && <ForecastPreview />}
+
       {thinking && pending && <ForecastLoader symbol={pending.symbol} />}
 
       {phase === "done" && result && (
-        <ForecastResultView forecast={result} isSample={isSample} />
+        // Keyed on the run, so the odds slider and the reading-level toggle
+        // start fresh rather than carrying the last stock's target over.
+        <ForecastResultView
+          key={result.generatedAt}
+          forecast={result}
+          isSample={isSample}
+        />
       )}
 
-      {planReady && !isPaid && <ForecastUpsell hasRun={phase === "done"} />}
+      {planReady && !isPaid && (
+        <ForecastUpsell
+          hasRun={phase === "done"}
+          symbols={items.slice(0, 4).map((item) => item.symbol)}
+        />
+      )}
+
+      <DataDisclaimer className="border-t border-border pt-4" />
     </div>
   );
 }
 
-function ForecastUpsell({ hasRun }: { hasRun: boolean }) {
+/**
+ * What the reader is about to get, shown before they have run anything.
+ *
+ * The form on its own gives a newcomer no reason to press the button — three
+ * fields and a verb is not a promise. This is the promise.
+ */
+function ForecastPreview() {
+  const steps = [
+    {
+      icon: BarChart3,
+      title: "A range, not a number",
+      body: "Nobody can predict a price. You get the good side, the bad side and the middle, in dollars.",
+    },
+    {
+      icon: Target,
+      title: "Odds on any target",
+      body: "Drag to any price you care about and see how often the simulation actually got there.",
+    },
+    {
+      icon: Sparkles,
+      title: "The workings, named",
+      body: "Every method, every measured input, printed underneath. Check the work or ignore it.",
+    },
+  ];
+
+  return (
+    <Card className="gap-5 p-6">
+      <div>
+        <h2 className="text-base font-semibold">
+          Pick a stock, an amount and a date
+        </h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Then the engine runs twenty thousand simulated futures and shows you
+          how they fell.
+        </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {steps.map(({ icon: Icon, title, body }) => (
+          <div key={title} className="flex flex-col gap-1.5">
+            <span className="flex size-8 items-center justify-center rounded-full bg-accent">
+              <Icon className="size-4 text-accent-foreground" />
+            </span>
+            <p className="text-sm font-medium">{title}</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {body}
+            </p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function ForecastUpsell({
+  hasRun,
+  symbols,
+}: {
+  hasRun: boolean;
+  symbols: string[];
+}) {
   return (
     <Card className="gap-4 border-primary/40 p-6 ring-1 ring-primary/20">
       <div className="flex items-start gap-3">
@@ -339,7 +451,17 @@ function ForecastUpsell({ hasRun }: { hasRun: boolean }) {
               : "Forecasting any stock is a Pro feature"}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Same engine either way. Pro only changes what you can point it at.
+            {symbols.length > 0 ? (
+              <>
+                Same engine, pointed at the stocks you actually hold —{" "}
+                <span className="font-medium text-foreground">
+                  {symbols.join(", ")}
+                </span>
+                . Pro only changes what you can aim it at.
+              </>
+            ) : (
+              <>Same engine either way. Pro only changes what you can point it at.</>
+            )}
           </p>
         </div>
       </div>

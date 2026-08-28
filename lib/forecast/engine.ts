@@ -104,9 +104,51 @@ export type ForecastDrivers = {
 export type ForecastBandPoint = {
   /** Unix seconds. */
   time: number;
+  /** 10th percentile of prices at this moment. */
   low: number;
+  /** 25th. The inner fan, where half the runs live. */
+  lowMid: number;
   mid: number;
+  /** 75th. */
+  highMid: number;
+  /** 90th. */
   high: number;
+};
+
+/** One column of the outcome histogram. */
+export type ForecastBucket = {
+  /** Price at the left edge of the bucket. */
+  from: number;
+  to: number;
+  /** Share of all runs that landed inside it, 0–1. */
+  share: number;
+};
+
+/**
+ * What the same money does sitting in cash at the risk-free rate — the honest
+ * comparison, because "will it go up" is the wrong question when a savings
+ * account also goes up. The question is whether the risk bought anything.
+ */
+export type ForecastCashComparison = {
+  annualRatePercent: number;
+  /** What the stake grows to in cash over the same horizon. */
+  value: number;
+  /** Share of runs that finished ahead of that, in percent. */
+  probabilityOfBeating: number;
+};
+
+/**
+ * How rough the ride was, not just where it ended.
+ *
+ * A forecast that only reports the destination hides the thing that actually
+ * makes people sell at the bottom: the drop along the way. These are the
+ * deepest peak-to-trough falls *within* each simulated path.
+ */
+export type ForecastJourney = {
+  /** Median path's worst dip, as a positive percent. */
+  medianDipPercent: number;
+  /** The dip a rough run gets — 90th percentile of path drawdowns. */
+  roughDipPercent: number;
 };
 
 export type ForecastResult = {
@@ -127,8 +169,22 @@ export type ForecastResult = {
   worst: ForecastOutcome;
   /** 5th percentile — the one-in-twenty stress case. */
   stress: ForecastOutcome;
+  /** The mean of every run. Sits above the median; the gap is volatility drag. */
+  expected: ForecastOutcome;
   /** Share of simulations that finish above the money you put in. */
   probabilityOfProfit: number;
+  /**
+   * Terminal price at every whole percentile, p0 … p100 (101 entries, rising).
+   *
+   * This is what lets the page answer "what are the odds of at least $X?" for
+   * any X the reader drags to, instantly and without another simulation — the
+   * ladder inverts to a probability by interpolation.
+   */
+  percentiles: number[];
+  /** The shape of the whole outcome distribution, for the histogram. */
+  distribution: ForecastBucket[];
+  cash: ForecastCashComparison;
+  journey: ForecastJourney;
   simulations: number;
   historyDays: number;
   drivers: ForecastDrivers;
@@ -355,10 +411,16 @@ export async function buildForecast(
 
   const terminal = new Float64Array(paths);
   const checkpoints = new Float64Array(paths * checkpointCount);
+  // Deepest peak-to-trough fall inside each path. Tracked in log space, where
+  // the running peak is just a running maximum and the drawdown is a
+  // subtraction — no exp() per step.
+  const pathDrawdown = new Float64Array(paths);
 
   for (let path = 0; path < paths; path += 1) {
     const useGbm = path < halfPaths;
     let logPrice = Math.log(entryPrice);
+    let logPeak = logPrice;
+    let worstLogDrop = 0;
     let cursor = Math.floor(random() * returns.length);
     let nextCheckpoint = 0;
 
@@ -373,6 +435,9 @@ export async function buildForecast(
         }
         logPrice += centred[cursor];
       }
+
+      if (logPrice > logPeak) logPeak = logPrice;
+      else if (logPeak - logPrice > worstLogDrop) worstLogDrop = logPeak - logPrice;
 
       while (
         nextCheckpoint < checkpointCount &&
@@ -391,26 +456,83 @@ export async function buildForecast(
       nextCheckpoint += 1;
     }
     terminal[path] = finalPrice;
+    // exp(−drop) is the trough as a fraction of the peak, so 1 − that is the
+    // fall itself.
+    pathDrawdown[path] = 1 - Math.exp(-worstLogDrop);
   }
 
   terminal.sort();
+  pathDrawdown.sort();
 
   const p05 = percentileSorted(terminal, 0.05);
   const p10 = percentileSorted(terminal, 0.1);
   const p50 = percentileSorted(terminal, 0.5);
   const p90 = percentileSorted(terminal, 0.9);
 
+  // The whole ladder, so the client can invert it into "odds of at least $X"
+  // for any X without asking the server again.
+  const percentiles: number[] = [];
+  for (let index = 0; index <= 100; index += 1) {
+    percentiles.push(percentileSorted(terminal, index / 100));
+  }
+
   let winners = 0;
+  let total = 0;
   for (let index = 0; index < paths; index += 1) {
     if (terminal[index] > entryPrice) winners += 1;
+    total += terminal[index];
   }
+  const meanPrice = total / paths;
+
+  /* --- Cash comparison ---------------------------------------------- */
+
+  // The price the stock would have to reach just to match a savings account,
+  // which is the bar the risk actually has to clear.
+  const cashPrice = entryPrice * Math.pow(1 + RISK_FREE_RATE, years);
+  let beatCash = 0;
+  for (let index = 0; index < paths; index += 1) {
+    if (terminal[index] > cashPrice) beatCash += 1;
+  }
+
+  /* --- Outcome histogram --------------------------------------------- */
+
+  // Trimmed to the 1st–99th percentile: one path that ended at forty times the
+  // starting price would otherwise squash every meaningful bar into the first
+  // column. The tails are reported as numbers elsewhere; this chart is here to
+  // show the *shape*.
+  const BUCKETS = 36;
+  const histogramLow = percentiles[1];
+  const histogramHigh = percentiles[99];
+  const bucketWidth = (histogramHigh - histogramLow) / BUCKETS || 1;
+  const counts = new Array<number>(BUCKETS).fill(0);
+  for (let index = 0; index < paths; index += 1) {
+    const value = terminal[index];
+    if (value < histogramLow || value > histogramHigh) continue;
+    const bucket = Math.min(
+      BUCKETS - 1,
+      Math.floor((value - histogramLow) / bucketWidth),
+    );
+    counts[bucket] += 1;
+  }
+  const distribution = counts.map((count, index) => ({
+    from: histogramLow + index * bucketWidth,
+    to: histogramLow + (index + 1) * bucketWidth,
+    share: count / paths,
+  }));
 
   /* --- Fan chart --------------------------------------------------- */
 
   const now = Math.floor(Date.now() / 1000);
   const horizonSeconds = horizonDays * 86_400;
   const band: ForecastBandPoint[] = [
-    { time: now, low: entryPrice, mid: entryPrice, high: entryPrice },
+    {
+      time: now,
+      low: entryPrice,
+      lowMid: entryPrice,
+      mid: entryPrice,
+      highMid: entryPrice,
+      high: entryPrice,
+    },
   ];
   const column = new Float64Array(paths);
   for (let index = 0; index < checkpointCount; index += 1) {
@@ -421,7 +543,9 @@ export async function buildForecast(
     band.push({
       time: now + Math.round((horizonSeconds * (index + 1)) / checkpointCount),
       low: percentileSorted(column, 0.1),
+      lowMid: percentileSorted(column, 0.25),
       mid: percentileSorted(column, 0.5),
+      highMid: percentileSorted(column, 0.75),
       high: percentileSorted(column, 0.9),
     });
   }
@@ -441,7 +565,19 @@ export async function buildForecast(
     likely: outcome(p50, entryPrice, amount, years),
     worst: outcome(p10, entryPrice, amount, years),
     stress: outcome(p05, entryPrice, amount, years),
+    expected: outcome(meanPrice, entryPrice, amount, years),
     probabilityOfProfit: (winners / paths) * 100,
+    percentiles,
+    distribution,
+    cash: {
+      annualRatePercent: RISK_FREE_RATE * 100,
+      value: amount * Math.pow(1 + RISK_FREE_RATE, years),
+      probabilityOfBeating: (beatCash / paths) * 100,
+    },
+    journey: {
+      medianDipPercent: percentileSorted(pathDrawdown, 0.5) * 100,
+      roughDipPercent: percentileSorted(pathDrawdown, 0.9) * 100,
+    },
     simulations: paths,
     historyDays: closes.length,
     drivers: {

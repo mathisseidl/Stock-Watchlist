@@ -10,6 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { PriceChart } from "@/components/stock/price-chart";
 import { RangeSelector } from "@/components/stock/range-selector";
 import { SymbolCombobox } from "@/components/search/symbol-combobox";
+import { DataDisclaimer } from "@/components/layout/data-disclaimer";
 import { useCandles } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
@@ -513,6 +514,8 @@ export default function AnalyticsPage() {
           )}
         </Card>
       )}
+
+      <DataDisclaimer className="border-t border-border pt-4" />
     </div>
   );
 }

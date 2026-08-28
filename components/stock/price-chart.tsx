@@ -95,9 +95,12 @@ const CHART_THEME = {
   },
 } as const;
 
-// Canvas cannot resolve `var(--font-mono)`, so name the faces outright.
+// Canvas cannot resolve `var(--font-sans)`, so name the faces outright. Sans
+// rather than mono, to match the `num` utility the rest of the app reads its
+// figures in — a monospaced axis next to a proportional price label looks like
+// two different products.
 const CHART_FONT =
-  'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace';
+  '"Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 function formatStamp(time: number, spanSeconds: number) {
   const date = new Date(time * 1000);

@@ -1,22 +1,115 @@
 "use client";
 
-import { ShieldAlert, TrendingDown, TrendingUp, Target } from "lucide-react";
+import { useState } from "react";
+import {
+  Activity,
+  Landmark,
+  Route,
+  ShieldAlert,
+  Target,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { SegmentedControl } from "@/components/settings/setting-row";
 import { ForecastFanChart } from "@/components/forecast/forecast-fan-chart";
+import { ForecastOddsExplorer } from "@/components/forecast/forecast-odds";
+import { ForecastDistribution } from "@/components/forecast/forecast-distribution";
+import { ForecastDetails } from "@/components/forecast/forecast-details";
+import { Explain, GLOSSARY } from "@/components/forecast/explain";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
+import {
+  describeHorizon,
+  describeRisk,
+  describeVerdict,
+  oddsPhrase,
+} from "@/lib/forecast/read";
 import { cn } from "@/lib/utils";
 import type { ForecastOutcome, ForecastResult } from "@/lib/forecast/engine";
 
-/** "45 days" / "8 months" / "3.5 years", whichever reads most naturally. */
-export function describeHorizon(days: number): string {
-  if (days < 60) return `${Math.round(days)} days`;
-  if (days < 730) {
-    const months = Math.round(days / 30.44);
-    return months === 1 ? "1 month" : `${months} months`;
-  }
-  const years = days / 365.25;
-  const rounded = Math.round(years * 10) / 10;
-  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)} years`;
+type Mode = "guided" | "compact";
+
+/* ------------------------------------------------------------------ */
+/* Pieces                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The spread on a single line.
+ *
+ * Three numbers in three boxes make the reader do the comparison themselves.
+ * Laying them on one axis, with the money they put in marked on it, does the
+ * comparison for them — you can see at a glance whether break-even sits near
+ * the middle of the range or out at one end, which is the whole question.
+ */
+function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
+  const { money } = useUserSettings();
+
+  const low = forecast.worst.value;
+  const high = forecast.best.value;
+  const span = high - low || 1;
+  const position = (value: number) =>
+    Math.min(100, Math.max(0, ((value - low) / span) * 100));
+
+  const breakEven = position(forecast.amount);
+  const median = position(forecast.likely.value);
+  const breakEvenVisible = forecast.amount > low && forecast.amount < high;
+
+  return (
+    <div className="pt-7">
+      <div className="relative">
+        {/* Median flag, clamped so it never hangs off either edge. */}
+        <div
+          className="absolute -top-7 -translate-x-1/2 whitespace-nowrap"
+          style={{ left: `${Math.min(88, Math.max(12, median))}%` }}
+        >
+          <span className="num rounded-md bg-foreground px-1.5 py-0.5 text-[10px] font-semibold text-background">
+            {money(forecast.likely.value, 0)}
+          </span>
+        </div>
+
+        <div className="relative h-3 overflow-hidden rounded-full">
+          <div
+            className="absolute inset-y-0 left-0 bg-loss/35"
+            style={{ width: `${breakEven}%` }}
+          />
+          <div
+            className="absolute inset-y-0 right-0 bg-gain/35"
+            style={{ width: `${100 - breakEven}%` }}
+          />
+          {breakEvenVisible && (
+            <div
+              className="absolute inset-y-0 w-px bg-foreground/60"
+              style={{ left: `${breakEven}%` }}
+            />
+          )}
+          <div
+            className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-foreground"
+            style={{ left: `${median}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-2 flex items-start justify-between gap-2 text-[11px] text-muted-foreground">
+        <span className="text-left">
+          Worst 10%
+          <br />
+          <span className="num text-loss">{money(low, 0)}</span>
+        </span>
+        <span className="text-center">
+          Break even
+          <br />
+          <span className="num text-foreground/80">
+            {money(forecast.amount, 0)}
+          </span>
+        </span>
+        <span className="text-right">
+          Best 10%
+          <br />
+          <span className="num text-gain">{money(high, 0)}</span>
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function OutcomeTile({
@@ -25,12 +118,14 @@ function OutcomeTile({
   caption,
   tone,
   icon: Icon,
+  showCaption,
 }: {
   outcome: ForecastOutcome;
   label: string;
   caption: string;
   tone: "gain" | "loss" | "neutral";
   icon: typeof TrendingUp;
+  showCaption: boolean;
 }) {
   const { money, number } = useUserSettings();
   const positive = outcome.profit >= 0;
@@ -56,9 +151,7 @@ function OutcomeTile({
         <p className="text-xs font-semibold tracking-wide uppercase">{label}</p>
       </div>
 
-      <p className="num text-2xl font-semibold tracking-tight">
-        {money(outcome.value)}
-      </p>
+      <p className="num-display text-2xl">{money(outcome.value)}</p>
 
       <p
         className={cn(
@@ -71,35 +164,60 @@ function OutcomeTile({
         {number(Math.abs(outcome.returnPercent), 1)}%)
       </p>
 
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-        {caption}
-      </p>
+      {showCaption && (
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {caption}
+        </p>
+      )}
 
       <p className="num mt-auto pt-2 text-xs text-muted-foreground">
-        Share price {money(outcome.price)} · {outcome.annualizedPercent >= 0 ? "+" : "−"}
+        {money(outcome.price)} a share ·{" "}
+        {outcome.annualizedPercent >= 0 ? "+" : "−"}
         {number(Math.abs(outcome.annualizedPercent), 1)}% a year
       </p>
     </div>
   );
 }
 
-function Driver({
+/** One headline statistic in the hero's stat row. */
+function KeyStat({
   label,
   value,
-  hint,
+  detail,
+  icon: Icon,
+  tone = "neutral",
 }: {
   label: string;
   value: string;
-  hint?: string;
+  detail: React.ReactNode;
+  icon: typeof TrendingUp;
+  tone?: "gain" | "loss" | "neutral";
 }) {
   return (
-    <div className="rounded-xl border border-border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="num mt-0.5 text-sm font-semibold">{value}</p>
-      {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
+    <div className="flex flex-col gap-1 rounded-xl border border-border p-3.5">
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon className="size-3.5" />
+        {label}
+      </p>
+      <p
+        className={cn(
+          "num-display text-xl",
+          tone === "gain" && "text-gain",
+          tone === "loss" && "text-loss",
+        )}
+      >
+        {value}
+      </p>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        {detail}
+      </p>
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* The page                                                            */
+/* ------------------------------------------------------------------ */
 
 export function ForecastResultView({
   forecast,
@@ -109,7 +227,8 @@ export function ForecastResultView({
   isSample: boolean;
 }) {
   const { money, number } = useUserSettings();
-  const { drivers } = forecast;
+  const [mode, setMode] = useState<Mode>("guided");
+  const guided = mode === "guided";
 
   const horizon = describeHorizon(forecast.horizonDays);
   const targetDate = new Date(forecast.targetDate).toLocaleDateString("en-US", {
@@ -118,193 +237,262 @@ export function ForecastResultView({
     year: "numeric",
   });
 
-  const rsiHint =
-    drivers.rsi === null
-      ? undefined
-      : drivers.rsi >= 70
-        ? "Overbought"
-        : drivers.rsi <= 30
-          ? "Oversold"
-          : "Neutral";
+  const risk = describeRisk(forecast.drivers.annualVolatilityPercent);
+  const upside = forecast.likely.profit >= 0;
+  const beatsCash = forecast.cash.probabilityOfBeating;
 
   return (
-    <Card className="gap-6 p-6">
-      {/* ---- What was asked ------------------------------------------ */}
-      <div>
+    <div className="flex flex-col gap-4">
+      {/* ---- Reading level ---------------------------------------------- */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          If you put{" "}
-          <span className="num font-semibold text-foreground">
-            {money(forecast.amount, 0)}
-          </span>{" "}
-          into{" "}
-          <span className="font-semibold text-foreground">
-            {forecast.name}
-            {forecast.name !== forecast.symbol ? ` (${forecast.symbol})` : ""}
-          </span>{" "}
-          today at{" "}
-          <span className="num text-foreground">{money(forecast.price)}</span>{" "}
-          and held it for {horizon}, to {targetDate}:
+          {forecast.simulations.toLocaleString()} simulated futures for{" "}
+          <span className="font-medium text-foreground">{forecast.symbol}</span>
         </p>
-        {isSample && (
-          <p className="mt-2 inline-flex rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
-            Free sample — the same engine runs on any stock with Pro
+        <SegmentedControl
+          label="How much explanation to show"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: "guided", label: "Explain everything" },
+            { value: "compact", label: "Just the numbers" },
+          ]}
+        />
+      </div>
+
+      {/* ---- 1. The answer ---------------------------------------------- */}
+      <Card className="gap-6 p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm text-muted-foreground">
+              <span className="num font-semibold text-foreground">
+                {money(forecast.amount, 0)}
+              </span>{" "}
+              into{" "}
+              <span className="font-semibold text-foreground">
+                {forecast.name}
+                {forecast.name !== forecast.symbol
+                  ? ` (${forecast.symbol})`
+                  : ""}
+              </span>{" "}
+              at{" "}
+              <span className="num text-foreground">
+                {money(forecast.price)}
+              </span>
+              , held {horizon} to {targetDate}
+            </p>
+          </div>
+          {isSample && (
+            <span className="shrink-0 rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
+              Free sample
+            </span>
+          )}
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">
+            {describeVerdict(forecast.probabilityOfProfit)}
+          </p>
+          <div className="mt-1 flex flex-wrap items-end gap-x-4 gap-y-1">
+            <p className="num-display text-5xl">
+              {money(forecast.likely.value)}
+            </p>
+            <p
+              className={cn(
+                "num mb-1.5 text-lg font-semibold",
+                upside ? "text-gain" : "text-loss",
+              )}
+            >
+              {upside ? "+" : "−"}
+              {money(Math.abs(forecast.likely.profit))} ({upside ? "+" : "−"}
+              {number(Math.abs(forecast.likely.returnPercent), 1)}%)
+            </p>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            the <Explain text={GLOSSARY.median}>middle outcome</Explain> — half
+            the runs did better than this, half did worse
+          </p>
+        </div>
+
+        <OutcomeRange forecast={forecast} />
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <KeyStat
+            icon={Target}
+            label="Chance of a profit"
+            value={`${number(forecast.probabilityOfProfit, 0)}%`}
+            tone={forecast.probabilityOfProfit >= 50 ? "gain" : "loss"}
+            detail={`${oddsPhrase(forecast.probabilityOfProfit)} ended above ${money(forecast.amount, 0)}.`}
+          />
+          <KeyStat
+            icon={Landmark}
+            label="Chance of beating cash"
+            value={`${number(beatsCash, 0)}%`}
+            tone={beatsCash >= 50 ? "gain" : "loss"}
+            detail={
+              <>
+                A savings account at{" "}
+                <Explain text={GLOSSARY.riskFree}>
+                  {number(forecast.cash.annualRatePercent, 0)}%
+                </Explain>{" "}
+                would reach {money(forecast.cash.value, 0)}.
+              </>
+            }
+          />
+          <KeyStat
+            icon={Activity}
+            label="How rough a ride"
+            value={risk.label}
+            detail={`${risk.detail} ${number(forecast.drivers.annualVolatilityPercent, 0)}% swing a year.`}
+          />
+        </div>
+
+        {guided && (
+          <p className="rounded-xl bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
+            In {forecast.simulations.toLocaleString()} simulated runs of{" "}
+            {forecast.name} over {horizon},{" "}
+            <span className="num font-medium text-foreground">
+              {number(forecast.probabilityOfProfit, 0)}%
+            </span>{" "}
+            finished with more money than you started with. The middle run turns{" "}
+            {money(forecast.amount, 0)} into{" "}
+            <span className="num font-medium text-foreground">
+              {money(forecast.likely.value, 0)}
+            </span>
+            . One run in ten did better than {money(forecast.best.value, 0)}, and
+            one in ten did worse than {money(forecast.worst.value, 0)}.
           </p>
         )}
-      </div>
 
-      {/* ---- The two sides -------------------------------------------- */}
-      <div className="grid gap-3 md:grid-cols-3">
-        <OutcomeTile
-          outcome={forecast.best}
-          label="Best case"
-          caption="A strong run. One simulation in ten ended at least this high."
-          tone="gain"
-          icon={TrendingUp}
-        />
-        <OutcomeTile
-          outcome={forecast.likely}
-          label="Most likely"
-          caption="The middle of the distribution — half of the runs finished above this, half below."
-          tone="neutral"
-          icon={Target}
-        />
-        <OutcomeTile
-          outcome={forecast.worst}
-          label="Worst case"
-          caption="A bad run, and an entirely ordinary one. One simulation in ten ended at least this low."
-          tone="loss"
-          icon={TrendingDown}
-        />
-      </div>
-
-      {/* ---- Odds ------------------------------------------------------ */}
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-sm font-medium">
-            <span className="num">{number(forecast.probabilityOfProfit, 0)}%</span>{" "}
-            of runs finished with more money than you started with
-          </p>
-          <p className="num text-xs text-muted-foreground">
-            {forecast.simulations.toLocaleString()} simulations ·{" "}
-            {forecast.tradingDays.toLocaleString()} trading days
-          </p>
-        </div>
-        <div
-          className="flex h-2.5 overflow-hidden rounded-full bg-loss-soft"
-          role="img"
-          aria-label={`${Math.round(forecast.probabilityOfProfit)} percent of simulations ended in profit`}
-        >
-          <div
-            className="h-full bg-gain"
-            style={{ width: `${forecast.probabilityOfProfit}%` }}
+        <div className="grid gap-3 md:grid-cols-3">
+          <OutcomeTile
+            outcome={forecast.best}
+            label="Best case"
+            caption="A strong run. One simulation in ten ended at least this high."
+            tone="gain"
+            icon={TrendingUp}
+            showCaption={guided}
+          />
+          <OutcomeTile
+            outcome={forecast.likely}
+            label="Most likely"
+            caption="The middle of the distribution — half the runs finished above this, half below."
+            tone="neutral"
+            icon={Target}
+            showCaption={guided}
+          />
+          <OutcomeTile
+            outcome={forecast.worst}
+            label="Worst case"
+            caption="A bad run, and an entirely ordinary one. One simulation in ten ended at least this low."
+            tone="loss"
+            icon={TrendingDown}
+            showCaption={guided}
           />
         </div>
-      </div>
+      </Card>
 
-      {/* ---- The cone -------------------------------------------------- */}
-      <div>
-        <p className="mb-2 text-sm font-medium">
-          Where the price could go between now and then
-        </p>
-        <ForecastFanChart band={forecast.band} />
-      </div>
+      {/* ---- 2. Play with it -------------------------------------------- */}
+      <ForecastOddsExplorer forecast={forecast} />
 
-      {/* ---- The tail -------------------------------------------------- */}
-      <div className="flex items-start gap-3 rounded-2xl border border-loss/25 bg-loss-soft/30 p-4">
-        <ShieldAlert className="mt-0.5 size-4 shrink-0 text-loss" />
-        <p className="text-sm leading-relaxed">
-          <span className="font-medium">The bad tail.</span> One run in twenty
-          ended at or below{" "}
-          <span className="num font-semibold">{money(forecast.stress.value)}</span>{" "}
-          — a loss of{" "}
-          <span className="num font-semibold text-loss">
-            {money(Math.abs(forecast.stress.profit))}
+      {/* ---- 3. The path ------------------------------------------------ */}
+      <Card className="gap-4 p-6">
+        <div>
+          <h3 className="text-base font-semibold">
+            Where the price could go between now and then
+          </h3>
+          {guided && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Hover or tap anywhere on the cone to read the range on that date.
+            </p>
+          )}
+        </div>
+        <ForecastFanChart band={forecast.band} entryPrice={forecast.price} />
+      </Card>
+
+      {/* ---- 4. The shape ----------------------------------------------- */}
+      <Card className="gap-4 p-6">
+        <div>
+          <h3 className="text-base font-semibold">Where the runs landed</h3>
+          {guided && (
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              The three numbers above are just three points picked out of this.
+            </p>
+          )}
+        </div>
+        <ForecastDistribution forecast={forecast} />
+      </Card>
+
+      {/* ---- 5. The honest part ----------------------------------------- */}
+      <Card className="gap-4 border-loss/25 p-6">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-loss-soft">
+            <ShieldAlert className="size-4 text-loss" />
           </span>
-          . Over the last five years {forecast.symbol} has already fallen{" "}
-          <span className="num">{number(drivers.maxDrawdownPercent, 1)}%</span>{" "}
-          from a peak at its worst.
-        </p>
-      </div>
-
-      {/* ---- What drove it --------------------------------------------- */}
-      <div>
-        <p className="text-sm font-medium">What the numbers were built on</p>
-        <p className="mt-0.5 mb-2 text-xs leading-relaxed text-muted-foreground">
-          Expected return is the <em>average</em> of every run. &ldquo;Most
-          likely&rdquo; is the <em>middle</em> one, and for a volatile stock the
-          middle sits below the average — a handful of enormous winners drag the
-          average up. That gap is volatility drag, and it is real money.
-        </p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Driver
-            label="Expected return"
-            value={`${drivers.annualDriftPercent >= 0 ? "+" : "−"}${number(Math.abs(drivers.annualDriftPercent), 1)}% / yr`}
-            hint="Risk-adjusted, shrunk"
-          />
-          <Driver
-            label="Volatility"
-            value={`${number(drivers.annualVolatilityPercent, 1)}% / yr`}
-            hint="EWMA-weighted"
-          />
-          <Driver
-            label="RSI (14)"
-            value={drivers.rsi === null ? "—" : number(drivers.rsi, 0)}
-            hint={rsiHint}
-          />
-          <Driver
-            label="Momentum 12−1"
-            value={
-              drivers.momentum12m1Percent === null
-                ? "—"
-                : `${drivers.momentum12m1Percent >= 0 ? "+" : "−"}${number(Math.abs(drivers.momentum12m1Percent), 1)}%`
-            }
-            hint="Past year, last month excluded"
-          />
-          <Driver
-            label="Vs 200-day avg"
-            value={
-              drivers.gapToSma200Percent === null
-                ? "—"
-                : `${drivers.gapToSma200Percent >= 0 ? "+" : "−"}${number(Math.abs(drivers.gapToSma200Percent), 1)}%`
-            }
-            hint="Trend anchor"
-          />
-          <Driver
-            label="MACD histogram"
-            value={
-              drivers.macdHistogram === null
-                ? "—"
-                : number(drivers.macdHistogram, 2)
-            }
-            hint="12 / 26 / 9"
-          />
-          <Driver
-            label="Daily VaR 95%"
-            value={`−${number(drivers.dailyVaR95Percent, 2)}%`}
-            hint="Typical bad day"
-          />
-          <Driver
-            label="Expected shortfall"
-            value={`−${number(drivers.dailyCVaR95Percent, 2)}%`}
-            hint="Average of the worst 5%"
-          />
+          <div>
+            <h3 className="text-base font-semibold">Before you get excited</h3>
+            {guided && (
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                The upside is the easy half of a forecast. This is the other
+                one.
+              </p>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* ---- Provenance ------------------------------------------------ */}
-      <div className="border-t border-border pt-4">
-        <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-          <span className="font-medium">Methods used:</span>{" "}
-          {forecast.methods.join(" · ")}. Built from{" "}
-          {forecast.historyDays.toLocaleString()} daily closes.
-        </p>
-        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/70">
-          These are simulated probabilities, not predictions. Nobody can know
-          where a price will go; what the model can say is how wide the range of
-          reasonable outcomes is, given how this stock has actually behaved. Not
-          investment advice.
-        </p>
-      </div>
-    </Card>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-loss/25 bg-loss-soft/30 p-4">
+            <p className="text-xs font-medium text-muted-foreground">
+              The bad tail
+            </p>
+            <p className="num-display mt-1 text-xl text-loss">
+              {money(forecast.stress.value)}
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              One run in twenty ended at or below this — a loss of{" "}
+              <span className="num">
+                {money(Math.abs(forecast.stress.profit))}
+              </span>
+              .
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border p-4">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Route className="size-3.5" />
+              The ride down
+            </p>
+            <p className="num-display mt-1 text-xl">
+              −{number(forecast.journey.medianDipPercent, 0)}%
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              The typical run{" "}
+              <Explain text={GLOSSARY.drawdown}>dipped</Explain> at least this
+              far below its own high along the way. A rough one fell{" "}
+              <span className="num">
+                {number(forecast.journey.roughDipPercent, 0)}%
+              </span>
+              .
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border p-4">
+            <p className="text-xs font-medium text-muted-foreground">
+              Already happened
+            </p>
+            <p className="num-display mt-1 text-xl">
+              −{number(forecast.drivers.maxDrawdownPercent, 0)}%
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              {forecast.symbol}&apos;s deepest real fall from a peak over the
+              last five years. Not a simulation — it happened.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* ---- 6. The workings -------------------------------------------- */}
+      <ForecastDetails forecast={forecast} />
+    </div>
   );
 }

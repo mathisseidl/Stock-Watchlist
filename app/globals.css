@@ -96,30 +96,36 @@
   --sidebar-ring: oklch(0.541 0.223 292.717);
 }
 
+/*
+ * The default theme. Neutral greys were flat and slightly dead next to the
+ * light palette's cool cast, so the whole ramp carries the same 264 hue at a
+ * trace of chroma — enough that the greys read as considered rather than
+ * switched off, not enough to tint a white number.
+ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --background: oklch(0.155 0.008 264);
+  --foreground: oklch(0.97 0.004 264);
+  --card: oklch(0.205 0.01 264);
+  --card-foreground: oklch(0.97 0.004 264);
+  --popover: oklch(0.225 0.011 264);
+  --popover-foreground: oklch(0.97 0.004 264);
   --primary: oklch(0.638 0.223 292.717);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --secondary: oklch(0.27 0.012 264);
+  --secondary-foreground: oklch(0.97 0.004 264);
+  --muted: oklch(0.27 0.012 264);
+  --muted-foreground: oklch(0.715 0.015 264);
   --accent: oklch(0.32 0.08 292);
   --accent-foreground: oklch(0.9 0.05 292);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 11%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --ring: oklch(0.638 0.223 292.717);
+  --chart-1: oklch(0.638 0.223 292.717);
+  --chart-2: oklch(0.72 0.15 320);
+  --chart-3: oklch(0.66 0.12 220);
+  --chart-4: oklch(0.55 0.09 264);
+  --chart-5: oklch(0.42 0.06 264);
   /* Lifted for contrast on the dark ground, same hues. */
   --gain: oklch(0.76 0.15 158);
   --gain-soft: oklch(0.3 0.06 158);
@@ -127,14 +133,14 @@
   --loss: oklch(0.7 0.18 25);
   --loss-soft: oklch(0.3 0.08 25);
   --loss-fill: oklch(0.7 0.18 25 / 0.22);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar: oklch(0.185 0.009 264);
+  --sidebar-foreground: oklch(0.97 0.004 264);
+  --sidebar-primary: oklch(0.638 0.223 292.717);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-accent: oklch(0.27 0.012 264);
+  --sidebar-accent-foreground: oklch(0.97 0.004 264);
+  --sidebar-border: oklch(1 0 0 / 11%);
+  --sidebar-ring: oklch(0.638 0.223 292.717);
 }
 
 @layer base {
@@ -151,13 +157,29 @@
 
 /**
  * Every figure the user reads as data — prices, percentages, deltas, counts.
+ *
  * Tabular figures keep columns aligned and stop digits jittering as live
- * quotes refresh, which is most of what makes a finance UI feel solid.
+ * quotes refresh, which is most of what makes a finance UI feel solid. This
+ * deliberately does NOT switch to the mono face: monospaced digits read as
+ * terminal output, and at display sizes — a $17,580.00 headline — they look
+ * like a log line rather than money. Geist Sans carries a proper tabular set,
+ * so the columns still line up and the number still looks like a number.
  */
 @utility num {
-  font-family: var(--font-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.005em;
+}
+
+/**
+ * A headline figure. Same tabular digits, tightened and given a little optical
+ * weight, for the one number on a card that the eye should land on first.
+ */
+@utility num-display {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.03em;
+  font-weight: 600;
 }
 
 @media (prefers-reduced-motion: reduce) {
