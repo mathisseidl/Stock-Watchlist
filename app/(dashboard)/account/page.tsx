@@ -40,13 +40,20 @@ const freeMissing = [
  * What a guest gets by creating a free account — the case for signing up, shown
  * beside the form. Persistence and Community, not Pro features.
  */
-const guestUnlocks = [
+const guestUnlocks: Feature[] = [
   "Your watchlist saved to your account — on your phone and every device, not just this browser",
   "Your alert, number-format and chart-range preferences saved and synced",
-  "A username, so friends can find you",
   "Add friends and compare watchlists in Community",
-  "Your own link to invite friends to the app",
-  "The option to upgrade to Pro whenever you want",
+  {
+    text: "The option to upgrade to Pro whenever you want",
+    // Named here rather than in a sentence under the card, so the reader can
+    // see what the upgrade actually buys at the moment they read about it.
+    sub: [
+      "Forecast on any stock",
+      "A news summary from the past 24h on any stock in your watchlist",
+      "Unlimited Lookbacks",
+    ],
+  },
 ];
 
 const proFeatures = [
@@ -60,31 +67,52 @@ const proFeatures = [
   "Cancel any time — up to the day before the next payment",
 ];
 
+/** A line in a feature list, optionally with its own nested checklist. */
+type Feature = string | { text: string; sub: string[] };
+
 function FeatureList({
   features,
   missing = false,
 }: {
-  features: string[];
+  features: Feature[];
   missing?: boolean;
 }) {
   return (
     <ul className="flex flex-col gap-2.5">
-      {features.map((feature) => (
-        <li
-          key={feature}
-          className={cn(
-            "flex items-start gap-2.5 text-sm",
-            missing && "text-muted-foreground",
-          )}
-        >
-          {missing ? (
-            <X className="mt-0.5 size-4 shrink-0 text-loss" />
-          ) : (
-            <Check className="mt-0.5 size-4 shrink-0 text-gain" />
-          )}
-          {feature}
-        </li>
-      ))}
+      {features.map((feature) => {
+        const text = typeof feature === "string" ? feature : feature.text;
+        const sub = typeof feature === "string" ? null : feature.sub;
+        return (
+          <li
+            key={text}
+            className={cn("text-sm", missing && "text-muted-foreground")}
+          >
+            <span className="flex items-start gap-2.5">
+              {missing ? (
+                <X className="mt-0.5 size-4 shrink-0 text-loss" />
+              ) : (
+                <Check className="mt-0.5 size-4 shrink-0 text-gain" />
+              )}
+              {text}
+            </span>
+            {sub && (
+              // Muted ticks, not green ones: these come with the upgrade
+              // rather than with the free account this list is describing.
+              <ul className="mt-2 flex flex-col gap-1.5 pl-6.5">
+                {sub.map((item) => (
+                  <li
+                    key={item}
+                    className="flex items-start gap-2 text-xs text-muted-foreground"
+                  >
+                    <Check className="mt-0.5 size-3 shrink-0 text-muted-foreground/60" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -116,10 +144,6 @@ export default async function AccountPage() {
               </p>
             </div>
             <FeatureList features={guestUnlocks} />
-            <p className="mt-auto text-xs leading-relaxed text-muted-foreground">
-              Pro — forecasts on any stock, 6-line news summaries and unlimited
-              Lookback — is an optional upgrade once you have an account.
-            </p>
           </Card>
 
           <div className="flex justify-center md:justify-start">
