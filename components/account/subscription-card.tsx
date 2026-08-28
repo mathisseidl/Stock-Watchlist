@@ -186,16 +186,18 @@ export function SubscriptionCard({
           </p>
         </>
       ) : (
-        // Accounts that bought Pro before it became a monthly subscription.
-        // There is no card on file and nothing to renew, so there is no switch
-        // to offer them either.
+        // Pro that does not run through a subscription: accounts comped by
+        // hand, and the ones that bought Pro before it went monthly. There is
+        // no card on file and nothing to renew, so there is no switch to offer
+        // them either — and no claim made about how they got it, since both
+        // routes land here.
         <p className="text-sm leading-relaxed text-muted-foreground">
-          This access came from a one-off purchase made before Pro became a
-          monthly subscription, so there is no card on file and{" "}
+          Your Pro access doesn&apos;t run through a subscription — there is no
+          card on file and{" "}
           <span className="font-medium text-foreground">
             nothing will ever be charged
           </span>
-          . There is no auto-pay to switch off.
+          . That also means there is no auto-pay to switch off.
         </p>
       )}
     </Card>
