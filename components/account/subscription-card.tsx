@@ -216,12 +216,6 @@ export function SubscriptionCard({
                   </span>
                 </li>
                 <li className="flex gap-2.5">
-                  <span aria-hidden className="text-gain">
-                    ✓
-                  </span>
-                  <span>No refund is needed — you are simply not billed again.</span>
-                </li>
-                <li className="flex gap-2.5">
                   <span aria-hidden className="text-muted-foreground">
                     →
                   </span>
