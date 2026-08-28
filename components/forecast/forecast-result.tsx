@@ -1,23 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, Landmark, Route, ShieldAlert, Target } from "lucide-react";
+import {
+  Activity,
+  CircleHelp,
+  Landmark,
+  ShieldAlert,
+  Target,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { SegmentedControl } from "@/components/settings/setting-row";
 import { ForecastDistribution } from "@/components/forecast/forecast-distribution";
 import { ForecastDetails } from "@/components/forecast/forecast-details";
 import { Explain, GLOSSARY } from "@/components/forecast/explain";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
-import {
-  describeHorizon,
-  describeRisk,
-  describeVerdict,
-  oddsPhrase,
-} from "@/lib/forecast/read";
+import { describeHorizon, describeRisk, describeVerdict, oddsPhrase } from "@/lib/forecast/read";
 import { cn } from "@/lib/utils";
 import type { ForecastResult } from "@/lib/forecast/engine";
-
-type Mode = "guided" | "compact";
 
 /** Past about eighteen months a total return stops being intuitive on its own. */
 const LONG_HORIZON_DAYS = 550;
@@ -33,14 +31,12 @@ function sentenceCase(text: string) {
 
 /**
  * The whole spread on one axis: the unlucky tenth at the left edge, the lucky
- * tenth at the right, the middle outcome marked, and the colour changing where
- * your stake breaks even.
+ * tenth at the right, the middle outcome marked and priced, and the colour
+ * changing where your stake breaks even.
  *
- * Everything on it is labelled where it sits rather than in a caption
- * underneath. A reader asked, reasonably, what the dot was and what "10%" at
- * the ends was 10% *of* — both of which the old version expected them to
- * infer. The dot now carries its own tag on a leader line, and each end says
- * in words what reaching it would mean.
+ * Everything is labelled where it sits rather than in a caption underneath. A
+ * reader asked what the dot was and what "10%" at the ends was 10% *of* — both
+ * of which the old version expected them to infer.
  *
  * There is deliberately no break-even label. An earlier version put one in a
  * three-column row under the bar, which pinned it to dead centre while its
@@ -49,6 +45,7 @@ function sentenceCase(text: string) {
  */
 function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
   const { money } = useUserSettings();
+  const [explaining, setExplaining] = useState(false);
 
   const low = forecast.worst.value;
   const high = forecast.best.value;
@@ -58,9 +55,9 @@ function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
 
   const breakEven = position(forecast.amount);
   const median = position(forecast.likely.value);
-  // Keep the tag and its leader line clear of both edges. The median sits
-  // between the two ends by construction, so this almost never bites.
-  const tagAt = Math.min(82, Math.max(18, median));
+  // Keep the tag, its leader line and the price under it clear of both edges.
+  // The median sits between the two ends by construction, so this rarely bites.
+  const tagAt = Math.min(78, Math.max(22, median));
   const stake = money(forecast.amount, 0);
 
   const caption =
@@ -73,14 +70,26 @@ function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
   return (
     <div className="pt-9">
       <div className="relative">
-        {/* The dot says what it is, on a leader line down to itself. */}
         <div
           className="absolute -top-9 flex -translate-x-1/2 flex-col items-center"
           style={{ left: `${tagAt}%` }}
         >
-          <span className="rounded-md bg-foreground px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-background">
+          {/* Opens upward, over the headline, so it never covers the bar or
+              shifts the layout underneath it. */}
+          {explaining && (
+            <span className="absolute bottom-full left-1/2 mb-2 w-56 -translate-x-1/2 rounded-lg border border-border bg-popover p-2.5 text-[11px] leading-relaxed font-normal text-muted-foreground shadow-lg">
+              Half the runs did better than this midpoint value, half did worse.
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setExplaining((previous) => !previous)}
+            aria-expanded={explaining}
+            className="flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-background"
+          >
             Middle outcome
-          </span>
+            <CircleHelp className="size-3 opacity-70" />
+          </button>
           <span aria-hidden className="h-2.5 w-px bg-foreground/50" />
         </div>
 
@@ -100,7 +109,7 @@ function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
         </div>
       </div>
 
-      <div className="mt-2.5 flex items-start justify-between gap-6 text-[11px] leading-relaxed">
+      <div className="relative mt-2.5 flex items-start justify-between gap-6 text-[11px] leading-relaxed">
         <span className="text-left">
           <span className="block font-medium">If it goes badly</span>
           <span className="num block text-base font-semibold text-loss">
@@ -110,6 +119,17 @@ function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
             1 run in 10 ended below this
           </span>
         </span>
+
+        {/* The midpoint's own price, sitting under its dot. */}
+        <span
+          className="absolute top-0 -translate-x-1/2 text-center"
+          style={{ left: `${tagAt}%` }}
+        >
+          <span className="num block text-base font-semibold">
+            {money(forecast.likely.value, 0)}
+          </span>
+        </span>
+
         <span className="text-right">
           <span className="block font-medium">If it goes well</span>
           <span className="num block text-base font-semibold text-gain">
@@ -164,6 +184,49 @@ function KeyStat({
   );
 }
 
+/**
+ * One of the three downside answers.
+ *
+ * Labelled with the question it answers rather than a noun. "The ride down"
+ * told the reader nothing; "How rough does it get on the way?" tells them
+ * what they are about to find out.
+ */
+function DownsideTile({
+  question,
+  value,
+  tone,
+  children,
+}: {
+  question: string;
+  value: string;
+  tone: "loss" | "neutral";
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col rounded-xl border p-4",
+        tone === "loss"
+          ? "border-loss/25 bg-loss-soft/30"
+          : "border-border",
+      )}
+    >
+      <p className="text-xs font-medium">{question}</p>
+      <p
+        className={cn(
+          "num-display mt-1.5 text-2xl",
+          tone === "loss" && "text-loss",
+        )}
+      >
+        {value}
+      </p>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+        {children}
+      </p>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* The page                                                            */
 /* ------------------------------------------------------------------ */
@@ -176,8 +239,6 @@ export function ForecastResultView({
   isSample: boolean;
 }) {
   const { money, number } = useUserSettings();
-  const [mode, setMode] = useState<Mode>("guided");
-  const guided = mode === "guided";
 
   const horizon = describeHorizon(forecast.horizonDays);
   const targetDate = new Date(forecast.targetDate).toLocaleDateString("en-US", {
@@ -192,20 +253,16 @@ export function ForecastResultView({
   const runs = forecast.simulations.toLocaleString();
   const longHorizon = forecast.horizonDays >= LONG_HORIZON_DAYS;
 
+  // The dip is measured from each run's *own* peak, not from what you paid —
+  // so it cannot be quoted as "your $1,000 became $X". Walking through the
+  // median outcome instead keeps it concrete without making it wrong.
+  const dipFrom = forecast.likely.value;
+  const dipTo = dipFrom * (1 - forecast.journey.medianDipPercent / 100);
+  const historicalLow =
+    forecast.amount * (1 - forecast.drivers.maxDrawdownPercent / 100);
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <SegmentedControl
-          label="How much explanation to show"
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: "guided", label: "Explain everything" },
-            { value: "compact", label: "Just the numbers" },
-          ]}
-        />
-      </div>
-
       {/* ---- 1. The answer ---------------------------------------------- */}
       <Card className="gap-6 p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -227,17 +284,11 @@ export function ForecastResultView({
           )}
         </div>
 
-        {/* Says what a "run" is, once, before the word is used forty times. */}
-        {guided && (
-          <p className="rounded-xl bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
-            We played the next {horizon} out{" "}
-            <span className="font-medium text-foreground">{runs} times</span>,
-            using how {forecast.name} has actually moved over the last five
-            years — different luck each time. Each of those is a{" "}
-            <span className="font-medium text-foreground">run</span>, and every
-            number on this page is counted from how those {runs} runs ended.
-          </p>
-        )}
+        <p className="rounded-xl bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
+          We played the next {horizon} out{" "}
+          <span className="font-medium text-foreground">{runs} times</span>,
+          using how {forecast.name} has actually moved over the last five years.
+        </p>
 
         <div>
           <p className="text-sm font-medium text-muted-foreground">
@@ -258,21 +309,16 @@ export function ForecastResultView({
               {number(Math.abs(forecast.likely.returnPercent), 1)}%)
             </p>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            the <Explain text={GLOSSARY.median}>middle outcome</Explain> — half
-            the runs did better than this, half did worse
-            {longHorizon && (
-              <>
-                {" "}
-                · works out at{" "}
-                <span className="num">
-                  {forecast.likely.annualizedPercent >= 0 ? "+" : "−"}
-                  {number(Math.abs(forecast.likely.annualizedPercent), 1)}%
-                </span>{" "}
-                a year
-              </>
-            )}
-          </p>
+          {longHorizon && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              works out at{" "}
+              <span className="num">
+                {forecast.likely.annualizedPercent >= 0 ? "+" : "−"}
+                {number(Math.abs(forecast.likely.annualizedPercent), 1)}%
+              </span>{" "}
+              a year
+            </p>
+          )}
         </div>
 
         <OutcomeRange forecast={forecast} />
@@ -314,13 +360,10 @@ export function ForecastResultView({
       <Card className="gap-4 p-6">
         <div>
           <h3 className="text-base font-semibold">Where the runs landed</h3>
-          {guided && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              All {runs} endings, sorted into columns by how much you were left
-              with. The bar above picks three points out of this shape; this is
-              the whole of it.
-            </p>
-          )}
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            All {runs} endings, sorted into columns by how much you were left
+            with.
+          </p>
         </div>
         <ForecastDistribution forecast={forecast} />
       </Card>
@@ -333,57 +376,54 @@ export function ForecastResultView({
           </span>
           <div>
             <h3 className="text-base font-semibold">Before you get excited</h3>
-            {guided && (
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                The upside is the easy half of a forecast. This is the other
-                one.
-              </p>
-            )}
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Three ways this could hurt: how badly it could end, how bad it
+              could feel on the way there, and what has already happened for
+                real.
+            </p>
           </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-loss/25 bg-loss-soft/30 p-4">
-            <p className="text-xs font-medium text-muted-foreground">
-              If it goes really badly
-            </p>
-            <p className="num-display mt-1 text-xl text-loss">
-              {money(forecast.stress.value)}
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              1 run in 20 ended at or below this — worse than the bad end of
-              the bar above.
-            </p>
-          </div>
+          <DownsideTile
+            question="How badly could it end?"
+            value={money(forecast.stress.value)}
+            tone="loss"
+          >
+            1 run in 20 — a 5% chance — finished here or lower. You would be
+            down{" "}
+            <span className="num font-medium text-foreground">
+              {money(Math.abs(forecast.stress.profit))}
+            </span>{" "}
+            of the {money(forecast.amount, 0)} you put in.
+          </DownsideTile>
 
-          <div className="rounded-xl border border-border p-4">
-            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Route className="size-3.5" />
-              The ride down
-            </p>
-            <p className="num-display mt-1 text-xl">
-              −{number(forecast.journey.medianDipPercent, 0)}%
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              Half the runs{" "}
-              <Explain text={GLOSSARY.drawdown}>dropped</Explain> at least this
-              far below their own high at some point on the way — including
-              runs that ended up fine. You would have had to sit through it.
-            </p>
-          </div>
+          <DownsideTile
+            question="How bad does it feel on the way?"
+            value={`−${number(forecast.journey.medianDipPercent, 0)}%`}
+            tone="neutral"
+          >
+            Nothing climbs in a straight line. Half the runs fell at least this
+            far from their own best moment before the end — a position worth{" "}
+            <span className="num text-foreground">{money(dipFrom, 0)}</span>{" "}
+            sliding back to{" "}
+            <span className="num text-foreground">{money(dipTo, 0)}</span>.
+            That is the moment people sell.
+          </DownsideTile>
 
-          <div className="rounded-xl border border-border p-4">
-            <p className="text-xs font-medium text-muted-foreground">
-              Already happened
-            </p>
-            <p className="num-display mt-1 text-xl">
-              −{number(forecast.drivers.maxDrawdownPercent, 0)}%
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              {forecast.symbol}&apos;s deepest real fall from a peak in the last
-              five years. Not a simulation — it happened.
-            </p>
-          </div>
+          <DownsideTile
+            question="Has that really happened?"
+            value={`−${number(forecast.drivers.maxDrawdownPercent, 0)}%`}
+            tone="neutral"
+          >
+            Yes — this is not a simulation. {forecast.symbol} really fell this
+            far from a peak in the last five years. Anyone who bought at that
+            top watched {money(forecast.amount, 0)} show as{" "}
+            <span className="num text-foreground">
+              {money(historicalLow, 0)}
+            </span>{" "}
+            at the bottom.
+          </DownsideTile>
         </div>
       </Card>
 

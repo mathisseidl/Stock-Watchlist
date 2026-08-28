@@ -56,15 +56,7 @@ export function ForecastDistribution({ forecast }: { forecast: ForecastResult })
             .
           </>
         ) : (
-          <>
-            Each bar is how often the simulation left you with that much.
-            Everything right of the dashed line is a profit;{" "}
-            <span className="num font-medium text-foreground">
-              {number(forecast.probabilityOfProfit, 0)}%
-            </span>{" "}
-            of all runs finished there. The most extreme 1% at each end is
-            trimmed off so the shape stays readable.
-          </>
+          "Hover a column to see how often that happened."
         )}
       </p>
 
