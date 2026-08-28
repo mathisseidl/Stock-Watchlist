@@ -126,7 +126,7 @@ export default function SettingsPage() {
                 <div>
                   <p className="text-sm font-medium">Upgrade to Pro</p>
                   <p className="text-xs text-muted-foreground">
-                    Unlimited investment analysis — {money(4.99)} a year.
+                    Unlimited investment analysis — {money(4.99)} once, no subscription.
                   </p>
                 </div>
                 <Link

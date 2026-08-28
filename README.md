@@ -11,7 +11,7 @@ investment calculations, and connect with friends to share watchlists.
 - **Stock detail** — live quote, interactive price chart, key stats and company news
 - **Analytics** — "what if you'd invested $X on date Y" calculator (free plan: 3/day; Unlimited plan: no limit)
 - **Community** — find friends by username, send/accept friend requests, view each other's watchlists
-- **Payments** — one-time $3.99 Stripe upgrade unlocks unlimited Analytics
+- **Payments** — one-time $4.99 Stripe upgrade unlocks unlimited Analytics
 
 ## Tech stack
 
