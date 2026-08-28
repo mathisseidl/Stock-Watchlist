@@ -224,15 +224,6 @@ export function SubscriptionCard({
                     close, and your account drops to Free.
                   </span>
                 </li>
-                <li className="flex gap-2.5">
-                  <span aria-hidden className="text-muted-foreground">
-                    →
-                  </span>
-                  <span>
-                    Changed your mind? You can resume any time before that date
-                    with no gap in billing.
-                  </span>
-                </li>
               </ul>
 
               <div className="flex flex-wrap justify-end gap-2">

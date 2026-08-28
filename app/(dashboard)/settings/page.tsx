@@ -204,10 +204,6 @@ export default function SettingsPage() {
             <dd>Stripe</dd>
           </div>
         </dl>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Prices may be delayed by up to 15 minutes. MATMAX is an information
-          tool, not investment advice.
-        </p>
       </Card>
 
       {!isGuest && (
