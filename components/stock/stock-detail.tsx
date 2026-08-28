@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, Star, Check } from "lucide-react";
+import { ArrowLeft, Star, Check, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { CompanyLogo } from "@/components/stock/company-logo";
 import { ChangeBadge } from "@/components/stock/change-badge";
 import { MarketStatus } from "@/components/stock/market-status";
 import { NewsList } from "@/components/stock/news-list";
+import { NewsSummaryLink } from "@/components/stock/news-summary-dialog";
 import { PriceChart } from "@/components/stock/price-chart";
 import { RangeSelector } from "@/components/stock/range-selector";
 import { useQuotes } from "@/hooks/use-quotes";
@@ -17,6 +18,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
+import { cn } from "@/lib/utils";
 import type { CandleRange } from "@/lib/market-data/types";
 
 function StatTile({ label, value }: { label: string; value: string }) {
@@ -156,14 +158,36 @@ export function StockDetail({ symbol }: { symbol: string }) {
       )}
 
       <Card className="gap-3 p-6">
-        <div>
-          <h3 className="text-base font-semibold">Worth reading</h3>
-          <p className="text-sm text-muted-foreground">
-            Three free-to-read stories from the last two days, and why each one
-            matters.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold">Worth reading</h3>
+            <p className="text-sm text-muted-foreground">
+              Three free-to-read stories from the last two days, and why each
+              one matters.
+            </p>
+          </div>
+          <NewsSummaryLink symbol={symbol} name={profile?.name} />
         </div>
         <NewsList symbol={symbol} />
+      </Card>
+
+      <Card className="flex-row flex-wrap items-center justify-between gap-3 p-6">
+        <div>
+          <h3 className="text-base font-semibold">
+            Where could {symbol} go from here?
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Run the forecast to see the best and worst realistic outcomes on a
+            date you choose.
+          </p>
+        </div>
+        <Link
+          href={`/forecast?symbol=${encodeURIComponent(symbol)}`}
+          className={cn(buttonVariants(), "rounded-full")}
+        >
+          <Sparkles className="size-4" />
+          Forecast {symbol}
+        </Link>
       </Card>
     </div>
   );

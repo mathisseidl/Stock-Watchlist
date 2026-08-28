@@ -1,7 +1,24 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getStripe, UPGRADE_PRICE_CENTS } from "@/lib/stripe";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  getStripe,
+  PRO_PRICE_CENTS,
+  PRO_PRODUCT_DESCRIPTION,
+  PRO_PRODUCT_NAME,
+} from "@/lib/stripe";
 
+/**
+ * Starts Stripe Checkout for the monthly Pro subscription.
+ *
+ * `mode: "subscription"` means Stripe keeps the card on file and raises the
+ * next invoice itself when the paid month runs out — that renewal is the
+ * product's recurring charge, and cancelling before it lands stops it, even
+ * with hours to spare.
+ *
+ * An existing customer id is reused so a returning user's payments all sit
+ * under one Stripe customer rather than a new one per checkout.
+ */
 export async function POST(request: Request) {
   const supabase = await createClient();
   const {
@@ -19,22 +36,36 @@ export async function POST(request: Request) {
     new URL(request.url).origin;
 
   try {
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const customerId = profile?.stripe_customer_id ?? null;
+
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: user.email,
+      mode: "subscription",
+      ...(customerId
+        ? { customer: customerId }
+        : { customer_email: user.email }),
       client_reference_id: user.id,
       metadata: { userId: user.id },
+      // Also stamped on the subscription itself, so a webhook or a support
+      // lookup can map it back to an account without the session.
+      subscription_data: { metadata: { userId: user.id } },
       line_items: [
         {
           quantity: 1,
           price_data: {
             currency: "usd",
-            unit_amount: UPGRADE_PRICE_CENTS,
+            unit_amount: PRO_PRICE_CENTS,
+            recurring: { interval: "month" },
             product_data: {
-              name: "MATMAX Analytics Unlimited",
-              description:
-                "One-time unlock for unlimited use of the Analytics calculator.",
+              name: PRO_PRODUCT_NAME,
+              description: PRO_PRODUCT_DESCRIPTION,
             },
           },
         },

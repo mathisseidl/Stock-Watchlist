@@ -6,14 +6,18 @@ import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { seriesChangePercent } from "@/hooks/use-candles";
 import type { CandleSeries, NewsItem } from "@/lib/market-data/types";
 
+/** Never show more than this. A list you scroll is a list you ignore. */
+export const MAX_ALERTS = 3;
+
 export type Alert = {
   id: string;
   symbol: string;
-  kind: "price" | "earnings" | "news";
-  headline: string;
+  kind: "earnings" | "price" | "news";
+  title: string;
   detail: string;
   changePercent?: number;
   url?: string;
+  publishedAt?: number;
 };
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -26,10 +30,22 @@ async function fetchJson<T>(url: string): Promise<T> {
 const EARNINGS_REASON = /^Earnings and guidance/;
 
 /**
+ * How the three slots are filled, in order:
+ *
+ *   1. Earnings. Results and guidance reset what a company is worth, so they
+ *      outrank anything else that happened today.
+ *   2. The biggest percentage move on the watchlist. If two stocks both broke
+ *      the threshold, the reader wants the one that moved further.
+ *   3. Other significant news, only if there is room left.
+ *
+ * Within a tier, the larger move wins.
+ */
+const TIER: Record<Alert["kind"], number> = { earnings: 0, price: 1, news: 2 };
+
+/**
  * Alerts are derived live from the watchlist rather than pushed from a server:
  * the app already polls today's candles and news for these symbols, so the
- * rules can be evaluated on what is in hand. Nothing is sent by email yet —
- * these surface in the app.
+ * rules can be evaluated on what is in hand.
  */
 export function useAlerts() {
   const { items } = useWatchlist();
@@ -38,11 +54,14 @@ export function useAlerts() {
   const enabled = ready && settings.notificationsEnabled && items.length > 0;
   const symbols = items.map((item) => item.symbol);
 
+  // Today's candles are fetched whenever alerts are on, not only when the
+  // price rule is: the day's move is what ranks an earnings story too. The
+  // query key matches the watchlist rows', so this costs no extra request.
   const candleQueries = useQueries({
     queries: symbols.map((symbol) => ({
       queryKey: ["candles", symbol, "1D"],
       queryFn: () => fetchJson<CandleSeries>(`/api/candles/${symbol}?range=1D`),
-      enabled: enabled && settings.notifyPriceMove,
+      enabled,
       staleTime: 60_000,
     })),
   });
@@ -58,23 +77,28 @@ export function useAlerts() {
 
   if (!enabled) return { alerts: [] as Alert[], isLoading: false };
 
+  const dayChange = new Map<string, number>();
+  symbols.forEach((symbol, index) => {
+    const series = candleQueries[index]?.data;
+    if (series) dayChange.set(symbol, seriesChangePercent(series));
+  });
+
   const alerts: Alert[] = [];
 
   if (settings.notifyPriceMove) {
-    symbols.forEach((symbol, index) => {
-      const series = candleQueries[index]?.data;
-      if (!series) return;
-      const change = seriesChangePercent(series);
-      if (Math.abs(change) < settings.priceMoveThreshold) return;
+    for (const symbol of symbols) {
+      const change = dayChange.get(symbol);
+      if (change === undefined) continue;
+      if (Math.abs(change) < settings.priceMoveThreshold) continue;
       alerts.push({
         id: `price-${symbol}`,
         symbol,
         kind: "price",
-        headline: `${symbol} moved ${change >= 0 ? "up" : "down"} sharply today`,
-        detail: `Past your ${settings.priceMoveThreshold}% threshold.`,
+        title: `${symbol} is ${change >= 0 ? "up" : "down"} sharply today`,
+        detail: `A bigger move than the ${settings.priceMoveThreshold}% you asked to hear about.`,
         changePercent: change,
       });
-    });
+    }
   }
 
   if (settings.notifyEarnings || settings.notifyBigNews) {
@@ -91,9 +115,11 @@ export function useAlerts() {
           id: `news-${symbol}-${item.id ?? item.url}`,
           symbol,
           kind: isEarnings ? "earnings" : "news",
-          headline: item.headline,
-          detail: `${item.source} · ${symbol}`,
+          title: item.headline,
+          detail: item.source,
+          changePercent: dayChange.get(symbol),
           url: item.url,
+          publishedAt: item.datetime,
         });
         // One story per symbol keeps the list readable.
         break;
@@ -101,13 +127,14 @@ export function useAlerts() {
     });
   }
 
-  // Biggest moves first, then everything else.
-  alerts.sort(
-    (a, b) => Math.abs(b.changePercent ?? 0) - Math.abs(a.changePercent ?? 0),
-  );
+  alerts.sort((a, b) => {
+    const byTier = TIER[a.kind] - TIER[b.kind];
+    if (byTier !== 0) return byTier;
+    return Math.abs(b.changePercent ?? 0) - Math.abs(a.changePercent ?? 0);
+  });
 
   return {
-    alerts,
+    alerts: alerts.slice(0, MAX_ALERTS),
     isLoading:
       candleQueries.some((query) => query.isLoading) ||
       newsQueries.some((query) => query.isLoading),

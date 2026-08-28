@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CompanyLogo } from "@/components/stock/company-logo";
 import { ChangeBadge } from "@/components/stock/change-badge";
 import { Sparkline } from "@/components/stock/sparkline";
+import { NewsSummaryLink } from "@/components/stock/news-summary-dialog";
 import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
@@ -54,16 +55,33 @@ export function WatchlistRow({
         </button>
       </div>
 
-      <Link
-        href={`/stock/${item.symbol}`}
-        className="flex min-w-0 flex-1 items-center gap-3 transition-opacity hover:opacity-70"
-      >
-        <CompanyLogo symbol={item.symbol} size="sm" />
+      {/* The logo and the name link through to the stock; the summary link
+          opens a panel, so it sits outside the anchor rather than inside it. */}
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <Link
+          href={`/stock/${item.symbol}`}
+          aria-label={`Open ${item.symbol}`}
+          className="shrink-0 transition-opacity hover:opacity-70"
+        >
+          <CompanyLogo symbol={item.symbol} size="sm" />
+        </Link>
         <div className="min-w-0">
-          <p className="text-sm font-semibold">{item.symbol}</p>
-          <p className="truncate text-xs text-muted-foreground">{item.name}</p>
+          <Link
+            href={`/stock/${item.symbol}`}
+            className="block min-w-0 transition-opacity hover:opacity-70"
+          >
+            <p className="text-sm font-semibold">{item.symbol}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {item.name}
+            </p>
+          </Link>
+          <NewsSummaryLink
+            symbol={item.symbol}
+            name={item.name}
+            className="mt-1"
+          />
         </div>
-      </Link>
+      </div>
 
       <div className="hidden sm:block">
         {series && series.points.length > 1 && (

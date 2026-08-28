@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
-import { proExpiryFrom, PRO_TERM_MONTHS } from "@/lib/pro";
+import { syncSubscriptionFromStripe } from "@/lib/subscription";
+import { proExpiryFrom } from "@/lib/pro";
 
 export default async function CheckoutSuccessPage({
   searchParams,
@@ -21,27 +22,47 @@ export default async function CheckoutSuccessPage({
   } = await supabase.auth.getUser();
 
   let paid = false;
+  let renewsOn: string | null = null;
+
   if (sessionId && user) {
     try {
       const stripe = getStripe();
       const session = await stripe.checkout.sessions.retrieve(sessionId);
+
       // Only unlock when Stripe confirms payment AND the session belongs to the
       // signed-in user (guards against replaying someone else's session id).
-      if (
-        session.payment_status === "paid" &&
-        session.metadata?.userId === user.id
-      ) {
-        const admin = createAdminClient();
-        // One-time charge buying a fixed term — record when it lapses so
-        // access ends unless they buy again. Nothing auto-renews.
-        await admin
-          .from("profiles")
-          .update({
-            is_paid: true,
-            pro_expires_at: proExpiryFrom().toISOString(),
-          })
-          .eq("id", user.id);
-        paid = true;
+      const belongsToUser = session.metadata?.userId === user.id;
+      const settled =
+        session.payment_status === "paid" ||
+        session.payment_status === "no_payment_required";
+
+      if (belongsToUser && settled) {
+        const subscriptionId =
+          typeof session.subscription === "string"
+            ? session.subscription
+            : (session.subscription?.id ?? null);
+
+        if (subscriptionId) {
+          // Stripe already knows when the first month ends and whether it will
+          // renew, so take the dates from there rather than computing our own.
+          const state = await syncSubscriptionFromStripe(
+            user.id,
+            subscriptionId,
+          );
+          paid = state?.isPaid ?? true;
+          renewsOn = state?.proExpiresAt ?? null;
+        } else {
+          // Defensive: a session with no subscription attached still paid, so
+          // grant the month rather than stranding them.
+          const expires = proExpiryFrom().toISOString();
+          const admin = createAdminClient();
+          await admin
+            .from("profiles")
+            .update({ is_paid: true, pro_expires_at: expires })
+            .eq("id", user.id);
+          paid = true;
+          renewsOn = expires;
+        }
       }
     } catch (error) {
       console.error("Failed to verify checkout session", error);
@@ -54,17 +75,42 @@ export default async function CheckoutSuccessPage({
         {paid ? (
           <>
             <CheckCircle2 className="size-12 text-gain" />
-            <h1 className="text-xl font-semibold">You&apos;re all set!</h1>
+            <h1 className="text-xl font-semibold">You&apos;re Pro.</h1>
             <p className="text-sm text-muted-foreground">
-              Your payment went through. Analytics is unlimited for the next{" "}
-              {PRO_TERM_MONTHS} months — no subscription, nothing renews.
+              Forecasts, news briefings and unlimited analysis are open now.
+              {renewsOn && (
+                <>
+                  {" "}
+                  Your month runs to{" "}
+                  <span className="font-medium text-foreground">
+                    {new Date(renewsOn).toLocaleDateString("en-US", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </span>
+                  , and renews at $4.99 unless you switch auto-pay off before
+                  then.
+                </>
+              )}
             </p>
-            <Link
-              href="/analytics"
-              className={cn(buttonVariants(), "rounded-full")}
-            >
-              Go to Analytics
-            </Link>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Link
+                href="/forecast"
+                className={cn(buttonVariants(), "rounded-full")}
+              >
+                Run a forecast
+              </Link>
+              <Link
+                href="/account"
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "rounded-full",
+                )}
+              >
+                Manage plan
+              </Link>
+            </div>
           </>
         ) : (
           <>

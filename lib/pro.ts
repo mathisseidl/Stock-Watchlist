@@ -1,15 +1,17 @@
-/** How long one purchase of Pro lasts. */
-export const PRO_TERM_MONTHS = 12;
+/** How long one paid period of Pro lasts. */
+export const PRO_TERM_MONTHS = 1;
 
 export type ProProfile = {
   is_paid?: boolean | null;
   pro_expires_at?: string | null;
+  auto_renew?: boolean | null;
+  subscription_status?: string | null;
 };
 
 /**
- * Pro is a one-time purchase valid for a fixed term — there is no
- * subscription and nothing auto-renews, so access has to be checked against
- * the expiry rather than the flag alone.
+ * Pro is a monthly subscription. Access is checked against the end of the paid
+ * period rather than the flag alone, so cancelling keeps the time already paid
+ * for and a lapsed card loses access the moment the period runs out.
  *
  * A missing expiry counts as active: those are accounts that paid before the
  * term existed, and silently revoking them would be wrong.
@@ -25,7 +27,7 @@ export function isProActive(
   return expires.getTime() > now.getTime();
 }
 
-/** The expiry to stamp on a fresh purchase. */
+/** The end of the period a payment just bought. */
 export function proExpiryFrom(start: Date = new Date()): Date {
   const expires = new Date(start);
   expires.setMonth(expires.getMonth() + PRO_TERM_MONTHS);

@@ -3,24 +3,36 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { UpgradeButton } from "@/components/pricing/upgrade-button";
 import { AuthForm } from "@/components/auth/auth-form";
-import { UsageCard } from "@/components/account/usage-card";
-import { BillingCard } from "@/components/account/billing-card";
+import { SubscriptionCard } from "@/components/account/subscription-card";
 import { InviteCard } from "@/components/account/invite-card";
 import { createClient } from "@/lib/supabase/server";
-import { isProActive, proDaysRemaining, PRO_TERM_MONTHS } from "@/lib/pro";
+import { getAccountSubscription } from "@/lib/subscription";
+import { proDaysRemaining } from "@/lib/pro";
 
+/**
+ * Eight lines, and no more. A plan card people actually read is a plan card
+ * that fits on the screen.
+ */
 const freeFeatures = [
-  "Search any stock by name",
-  "Your own watchlist",
-  "Live prices and full charts",
-  "The top 3 news stories for every stock",
-  "See what a past investment would be worth today",
+  "Search any listed company by name or ticker",
+  "Your own watchlist, saved to your account and synced across devices",
+  "Live prices, interactive charts and Day → All-time ranges",
+  "The 3 most trustworthy stories on every stock, none older than 48 hours",
+  "A short daily digest of what actually moved on your list",
+  "What-if investment analysis on any past date — 3 runs a day",
+  "One free S&P 500 forecast, run on the full analysis engine",
+  "Add friends by username and compare watchlists",
 ];
 
 const proFeatures = [
   "Everything in Free",
-  "Unlimited investment analysis",
+  "Forecast any stock: best case, likely case and worst case on a date you pick",
+  "AI news briefings — the last 24 hours on any stock in six lines, with sources",
+  "Unlimited what-if investment analysis, no daily cap",
+  "Every forecast shows the 14 named methods behind it, so you can check the work",
+  "Horizons from one week to ten years, on the exact date you choose",
   "A Pro badge in the app header",
+  "Cancel any time — right up to the day before the next payment",
 ];
 
 function FeatureList({ features }: { features: string[] }) {
@@ -51,8 +63,8 @@ export default async function AccountPage() {
           subtitle="Create an account to keep your watchlist saved across devices."
         />
         <p className="text-sm text-muted-foreground">
-          Signing up is free. Everything except unlimited investment analysis is
-          on the Free plan.
+          Signing up is free. Forecasting any stock, the AI news briefings and
+          unlimited investment analysis are on Pro.
         </p>
       </div>
     );
@@ -60,13 +72,18 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_paid, username, created_at, pro_expires_at")
+    .select("username, created_at")
     .eq("id", user.id)
     .maybeSingle();
 
-  const isPaid = isProActive(profile);
-  const proExpiresAt = profile?.pro_expires_at ?? null;
+  // Reads the plan through Stripe when the paid period is nearly up, so a
+  // renewal that just landed is already reflected here.
+  const account = await getAccountSubscription();
+  const isPaid = account?.isPaid ?? false;
+  const proExpiresAt = account?.proExpiresAt ?? null;
+  const autoRenew = account?.autoRenew ?? false;
   const daysLeft = proDaysRemaining(proExpiresAt);
+
   const username = profile?.username ?? null;
   const memberSince = profile?.created_at ?? user.created_at;
   const initials = (user.email ?? "MS").slice(0, 2).toUpperCase();
@@ -75,9 +92,7 @@ export default async function AccountPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Account</h1>
-        <p className="text-sm text-muted-foreground">
-          Your profile, plan and payments.
-        </p>
+        <p className="text-sm text-muted-foreground">Your profile and plan.</p>
       </div>
 
       {/* ---- Profile ------------------------------------------------- */}
@@ -110,30 +125,9 @@ export default async function AccountPage() {
             {isPaid ? "Pro" : "Free"}
           </span>
         </div>
-
-        {isPaid && proExpiresAt && (
-          <p className="rounded-xl bg-muted px-4 py-3 text-sm">
-            Pro until{" "}
-            <span className="font-semibold">
-              {new Date(proExpiresAt).toLocaleDateString("en-US", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </span>
-            {daysLeft !== null && (
-              <span className="text-muted-foreground">
-                {" "}· {daysLeft} days left
-              </span>
-            )}
-            . Nothing renews automatically — buy another {PRO_TERM_MONTHS}{" "}
-            months whenever you like.
-          </p>
-        )}
       </Card>
 
-      <UsageCard />
-      <BillingCard isPaid={isPaid} proExpiresAt={proExpiresAt} />
+      <SubscriptionCard initialExpiresAt={proExpiresAt} />
 
       {/* ---- Plans --------------------------------------------------- */}
       <div id="plans" className="flex flex-col gap-3 scroll-mt-6">
@@ -149,6 +143,9 @@ export default async function AccountPage() {
                   / forever
                 </span>
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                No card, no trial clock. It just stays free.
+              </p>
             </div>
             <FeatureList features={freeFeatures} />
             <p className="mt-auto rounded-full border border-border py-2 text-center text-sm font-medium text-muted-foreground">
@@ -162,36 +159,30 @@ export default async function AccountPage() {
               <p className="num mt-1 text-3xl font-semibold">
                 $4.99
                 <span className="text-base font-normal text-muted-foreground">
-                  /year
+                  /month
                 </span>
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Not a subscription — nothing renews and no card is kept on
-                file.
+                Renews monthly. Cancel any time — even the day before the next
+                payment — and you keep the days you&apos;ve paid for.
               </p>
             </div>
             <FeatureList features={proFeatures} />
             <div className="mt-auto">
               {isPaid ? (
-                <div className="flex flex-col gap-2">
-                  <div className="rounded-xl bg-gain-soft py-2 text-center">
-                    <p className="text-sm font-medium text-gain">
-                      ✓ Active until{" "}
-                      {proExpiresAt
-                        ? new Date(proExpiresAt).toLocaleDateString("en-US", {
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                          })
-                        : "—"}
-                    </p>
-                    {daysLeft !== null && (
-                      <p className="num text-xs text-gain/80">
-                        {daysLeft} days left
-                      </p>
-                    )}
-                  </div>
-                  {daysLeft !== null && daysLeft <= 30 && <UpgradeButton />}
+                <div className="rounded-xl bg-gain-soft py-2 text-center">
+                  <p className="text-sm font-medium text-gain">
+                    {proExpiresAt
+                      ? `✓ Active until ${new Date(proExpiresAt).toLocaleDateString(
+                          "en-US",
+                          { day: "numeric", month: "long", year: "numeric" },
+                        )}`
+                      : "✓ Active — no end date"}
+                  </p>
+                  <p className="num text-xs text-gain/80">
+                    {daysLeft !== null ? `${daysLeft} days left · ` : ""}
+                    {autoRenew ? "renews automatically" : "will not renew"}
+                  </p>
                 </div>
               ) : (
                 <UpgradeButton />
