@@ -87,16 +87,14 @@ function BriefBody({ symbol }: { symbol: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <ol className="flex flex-col gap-2.5">
-        {data.lines.map((line, index) => (
-          <li key={index} className="flex gap-3 text-sm leading-relaxed">
-            <span className="num mt-0.5 w-4 shrink-0 text-xs text-primary/60">
-              {index + 1}
-            </span>
-            <span>{line}</span>
-          </li>
-        ))}
-      </ol>
+      {/* Prose, not a list. The brief is written as sentences that follow on
+          from each other, and numbering them made a short read look like
+          homework. The opening line stands alone as the lead; the rest runs
+          together as one paragraph. */}
+      <div className="flex flex-col gap-3 text-sm leading-relaxed">
+        <p>{data.lines[0]}</p>
+        {data.lines.length > 1 && <p>{data.lines.slice(1).join(" ")}</p>}
+      </div>
 
       <div className="border-t border-border pt-3">
         <p className="text-xs font-medium text-muted-foreground">

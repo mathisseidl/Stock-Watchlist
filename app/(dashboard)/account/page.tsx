@@ -27,11 +27,9 @@ const freeFeatures = [
 const proFeatures = [
   "Everything in Free",
   "Forecast any stock: best case, likely case and worst case on a date you pick",
-  "AI news briefings — the last 24 hours on any stock in six lines, with sources",
-  "Unlimited what-if investment analysis, no daily cap",
-  "Every forecast shows the 14 named methods behind it, so you can check the work",
-  "Horizons from one week to ten years, on the exact date you choose",
-  "A Pro badge in the app header",
+  "AI news briefings, with sources",
+  "Unlimited what-if investment analysis",
+  "Every forecast shows the 14 named methods behind it",
   "Cancel any time — right up to the day before the next payment",
 ];
 
