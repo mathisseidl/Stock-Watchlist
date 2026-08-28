@@ -170,7 +170,9 @@ function ForecastPageBody() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        {/* A quarter of the fact boxes' 14px inner padding. Flush read as too
+            far left against them, the full 14px as too far right. */}
+        <div className="pl-[3.5px]">
           <h1 className="text-2xl font-semibold">Forecast</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             See the future of any stock with actual stock analysis methods.
