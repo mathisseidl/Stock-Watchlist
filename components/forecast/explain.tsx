@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CircleHelp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,30 +13,91 @@ import { cn } from "@/lib/utils";
  * first. So every technical word stays on the page and carries its own plain-
  * English definition one tap away.
  *
- * The definition opens *in place* rather than in a floating tooltip. Tooltips
- * need hover, and half of this app's readers are on a phone.
+ * The definition floats above the term rather than pushing the page around
+ * below it, and closes on a click anywhere else, on Escape, or on a second
+ * click of the trigger. Opening upward keeps it clear of the thing being
+ * explained, which is almost always directly beneath.
+ *
+ * It is a click rather than a hover because half of this app's readers are on
+ * a phone, where there is no hover.
  */
 export function Explain({
   text,
   children,
   className,
+  triggerClassName,
+  underline = true,
+  align = "start",
 }: {
   /** One sentence, no jargon of its own. */
   text: string;
   children: React.ReactNode;
   className?: string;
+  /** Lets a caller style the trigger — a dark pill on the outcome bar, say. */
+  triggerClassName?: string;
+  underline?: boolean;
+  /**
+   * Where the panel hangs from. "start" aligns to the trigger's left edge and
+   * is the safe default: a centred panel on a trigger near a container's left
+   * edge overhangs it. "center" is for a trigger that sits mid-container.
+   */
+  align?: "start" | "center";
 }) {
   const [open, setOpen] = useState(false);
+  const root = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      // A pointerdown on the trigger itself is left alone — the button's own
+      // click handler toggles it shut a moment later, and closing here first
+      // would make that click re-open it.
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
 
   return (
-    <span className={cn("inline-flex flex-col items-start", className)}>
+    <span
+      ref={root}
+      className={cn("relative inline-flex items-center", className)}
+    >
+      {open && (
+        <span
+          role="tooltip"
+          className={cn(
+            "absolute bottom-full z-20 mb-2 w-56 rounded-lg border border-border bg-popover p-2.5 text-[11px] leading-relaxed font-normal text-muted-foreground shadow-lg",
+            align === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
+          )}
+        >
+          {text}
+        </span>
+      )}
       <button
         type="button"
         onClick={() => setOpen((previous) => !previous)}
         aria-expanded={open}
-        className="group inline-flex items-center gap-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className={cn(
+          "group inline-flex items-center gap-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+          triggerClassName,
+        )}
       >
-        <span className="border-b border-dashed border-muted-foreground/40 transition-colors group-hover:border-muted-foreground">
+        <span
+          className={cn(
+            underline &&
+              "border-b border-dashed border-muted-foreground/40 transition-colors group-hover:border-muted-foreground",
+          )}
+        >
           {children}
         </span>
         <CircleHelp
@@ -46,11 +107,6 @@ export function Explain({
           )}
         />
       </button>
-      {open && (
-        <span className="mt-1.5 block rounded-lg bg-muted/70 px-2.5 py-1.5 text-[11px] leading-relaxed font-normal text-muted-foreground">
-          {text}
-        </span>
-      )}
     </span>
   );
 }
@@ -90,5 +146,5 @@ export const GLOSSARY = {
   annualized:
     "The same total return restated as a per-year rate, so a 3-month result and a 5-year one can be compared.",
   riskFree:
-    "Roughly what cash earns sitting safely in a savings account or short government bond.",
+    "What cash earns sitting safely in a savings account or short government bond.",
 } as const;

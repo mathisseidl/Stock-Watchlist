@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Activity, CircleHelp, Landmark, Target } from "lucide-react";
+import { Activity, Landmark, Target } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ForecastDistribution } from "@/components/forecast/forecast-distribution";
 import { ForecastDetails } from "@/components/forecast/forecast-details";
@@ -39,7 +38,6 @@ function sentenceCase(text: string) {
  */
 function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
   const { money } = useUserSettings();
-  const [explaining, setExplaining] = useState(false);
 
   const low = forecast.worst.value;
   const high = forecast.best.value;
@@ -68,22 +66,14 @@ function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
           className="absolute -top-9 flex -translate-x-1/2 flex-col items-center"
           style={{ left: `${tagAt}%` }}
         >
-          {/* Opens upward, over the headline, so it never covers the bar or
-              shifts the layout underneath it. */}
-          {explaining && (
-            <span className="absolute bottom-full left-1/2 mb-2 w-56 -translate-x-1/2 rounded-lg border border-border bg-popover p-2.5 text-[11px] leading-relaxed font-normal text-muted-foreground shadow-lg">
-              Half the runs did better than this midpoint value, half did worse.
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setExplaining((previous) => !previous)}
-            aria-expanded={explaining}
-            className="flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-background"
+          <Explain
+            text="Half the runs did better than this midpoint value, half did worse."
+            align="center"
+            underline={false}
+            triggerClassName="rounded-md bg-foreground px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-background"
           >
             Middle outcome
-            <CircleHelp className="size-3 opacity-70" />
-          </button>
+          </Explain>
           <span aria-hidden className="h-2.5 w-px bg-foreground/50" />
         </div>
 
@@ -281,12 +271,15 @@ export function ForecastResultView({
             tone={beatsCash >= 50 ? "gain" : "loss"}
             detail={
               <>
-                Cash in a{" "}
-                <Explain text={GLOSSARY.riskFree}>
-                  {number(forecast.cash.annualRatePercent, 0)}% savings account
+                A{" "}
+                <Explain
+                  text={`${GLOSSARY.riskFree} This one pays an annual percentage yield (APY) of ${number(forecast.cash.annualRatePercent, 0)}%.`}
+                >
+                  savings account
                 </Explain>{" "}
-                reaches {money(forecast.cash.value, 0)} with no risk at all.
-                That is the bar this has to clear to be worth doing.
+                would reach {money(forecast.cash.value, 0)} with no risk at all.
+                That is the threshold {forecast.name} has to beat to be worth
+                investing in.
               </>
             }
           />
