@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useTheme } from "next-themes";
 import {
   AreaSeries,
@@ -12,6 +18,35 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { CandlePoint } from "@/lib/market-data/types";
+
+const COARSE_POINTER = "(pointer: coarse)";
+
+function subscribeToPointer(onChange: () => void) {
+  const query = window.matchMedia(COARSE_POINTER);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+/**
+ * Whether the primary input is a finger rather than a mouse.
+ *
+ * The instruction under the chart used to be chosen by screen width, which is
+ * wrong: a tablet is wide enough to clear the `sm` breakpoint but has no
+ * Shift key to hold, so iPad readers were told to use a keyboard they do not
+ * have. Screen size has never implied input method — ask the pointer instead.
+ *
+ * `useSyncExternalStore` rather than an effect so the value is right on the
+ * first paint and follows a device that changes input (a tablet gaining a
+ * trackpad keyboard) without a flash of the wrong hint.
+ */
+function useCoarsePointer(): boolean {
+  return useSyncExternalStore(
+    subscribeToPointer,
+    () => window.matchMedia(COARSE_POINTER).matches,
+    // Server render: assume a mouse, matching the desktop-first markup.
+    () => false,
+  );
+}
 
 /** A point on the series resolved from a screen x-coordinate. */
 type MeasurePoint = {
@@ -168,6 +203,7 @@ export function PriceChart({
   const hoveringRef = useRef(false);
 
   const [measure, setMeasureState] = useState<Measure | null>(null);
+  const coarsePointer = useCoarsePointer();
   const { resolvedTheme } = useTheme();
 
   // Interaction handlers live outside React's render cycle, so the ref is the
@@ -518,14 +554,11 @@ export function PriceChart({
             {formatStamp(measure.b.time, spanSeconds)}
           </span>
         ) : (
-          <>
-            <span className="sm:hidden">
-              Pinch two fingers to compare two points
-            </span>
-            <span className="hidden sm:inline">
-              Hold ⇧ Shift and move the cursor to compare two points
-            </span>
-          </>
+          <span>
+            {coarsePointer
+              ? "Touch the chart with two fingers to compare two points"
+              : "Hold ⇧ Shift and move the cursor to compare two points"}
+          </span>
         )}
       </p>
     </div>

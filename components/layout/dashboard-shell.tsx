@@ -1,15 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { StockSearch } from "@/components/search/stock-search";
 import { MarketStatus } from "@/components/stock/market-status";
 import { createClient } from "@/lib/supabase/client";
 
+/** Horizontal travel that counts as a swipe rather than a tap or a scroll. */
+const SWIPE_DISTANCE = 70;
+/** Above this much vertical drift it was a scroll, not a swipe. */
+const SWIPE_DRIFT = 50;
+
+/**
+ * True when the touch began inside something that scrolls sideways — a wide
+ * table, a chart, the range strip. Those own the horizontal axis, and stealing
+ * it to open a menu would make them impossible to use.
+ */
+function startedInScroller(target: EventTarget | null): boolean {
+  let node = target instanceof HTMLElement ? target : null;
+  while (node && node !== document.body) {
+    const overflowX = getComputedStyle(node).overflowX;
+    if (
+      (overflowX === "auto" || overflowX === "scroll") &&
+      node.scrollWidth > node.clientWidth
+    ) {
+      return true;
+    }
+    node = node.parentElement;
+  }
+  return false;
+}
+
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const swipe = useRef<{ x: number; y: number; eligible: boolean } | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -27,7 +53,42 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full min-h-screen w-full">
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-      <div className="flex min-w-0 flex-1 flex-col bg-muted/30">
+      {/* Swipe right anywhere on the page to open the menu, the way a native
+          app behaves. Deliberately not an edge swipe: iOS Safari claims the
+          left edge for "back", so an edge gesture here would fight the
+          browser. Single-finger only, so the chart's two-finger compare is
+          untouched. */}
+      <div
+        className="flex min-w-0 flex-1 flex-col bg-muted/30"
+        onTouchStart={(event) => {
+          if (event.touches.length !== 1) {
+            swipe.current = null;
+            return;
+          }
+          const touch = event.touches[0];
+          swipe.current = {
+            x: touch.clientX,
+            y: touch.clientY,
+            eligible: !startedInScroller(event.target),
+          };
+        }}
+        onTouchMove={(event) => {
+          // A second finger means a pinch or a chart compare, never a swipe.
+          if (event.touches.length > 1) swipe.current = null;
+        }}
+        onTouchEnd={(event) => {
+          const start = swipe.current;
+          swipe.current = null;
+          if (!start?.eligible || mobileOpen) return;
+          const touch = event.changedTouches[0];
+          if (!touch) return;
+          const travelled = touch.clientX - start.x;
+          const drifted = Math.abs(touch.clientY - start.y);
+          if (travelled >= SWIPE_DISTANCE && drifted <= SWIPE_DRIFT) {
+            setMobileOpen(true);
+          }
+        }}
+      >
         <header className="flex items-center gap-3 border-b border-border bg-background px-4 py-3 md:px-8">
           {/* Mobile: menu button + brand (the sidebar brand is hidden here). */}
           <button

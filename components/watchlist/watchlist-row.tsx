@@ -33,14 +33,17 @@ export function WatchlistRow({
   const price = series?.price ?? 0;
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3">
+    // Tighter gaps and padding below `sm`: on a 375px phone the fixed columns
+    // left barely 100px for the name, which the "View summary" link no longer
+    // fits into.
+    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-3 sm:gap-4 sm:px-4">
       <div className="flex flex-col">
         <button
           type="button"
           aria-label={`Move ${item.symbol} up`}
           disabled={isFirst}
           onClick={() => move(item.symbol, "up")}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
         >
           <ChevronUp className="size-4" />
         </button>
@@ -49,7 +52,7 @@ export function WatchlistRow({
           aria-label={`Move ${item.symbol} down`}
           disabled={isLast}
           onClick={() => move(item.symbol, "down")}
-          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
         >
           <ChevronDown className="size-4" />
         </button>
@@ -89,7 +92,7 @@ export function WatchlistRow({
         )}
       </div>
 
-      <div className="flex w-28 flex-col items-end">
+      <div className="flex w-24 flex-col items-end sm:w-28">
         {isLoading ? (
           <Skeleton className="h-4 w-16" />
         ) : isError || price === 0 ? (
@@ -106,7 +109,7 @@ export function WatchlistRow({
         type="button"
         aria-label={`Remove ${item.symbol}`}
         onClick={() => remove(item.symbol)}
-        className="text-muted-foreground hover:text-destructive"
+        className="p-1 text-muted-foreground hover:text-destructive"
       >
         <Trash2 className="size-4" />
       </button>

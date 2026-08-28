@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   LayoutGrid,
@@ -38,6 +38,7 @@ export function Sidebar({
   const [mounted, setMounted] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
   const [isPaid, setIsPaid] = useState(false);
+  const swipe = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- next-themes hydration-safe mount check
@@ -87,6 +88,27 @@ export function Sidebar({
           "fixed inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6 transition-transform md:static md:z-auto md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
+        // Swipe left to put it away again — the mirror of the gesture that
+        // opened it, so the menu closes the same way it arrived.
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          swipe.current = touch
+            ? { x: touch.clientX, y: touch.clientY }
+            : null;
+        }}
+        onTouchEnd={(event) => {
+          const start = swipe.current;
+          swipe.current = null;
+          if (!start || !mobileOpen) return;
+          const touch = event.changedTouches[0];
+          if (!touch) return;
+          if (
+            start.x - touch.clientX >= 70 &&
+            Math.abs(touch.clientY - start.y) <= 50
+          ) {
+            onClose?.();
+          }
+        }}
       >
       <div className="flex items-center gap-2 px-2">
         <div className="flex size-9 items-center justify-center rounded-full bg-neutral-900 text-sm font-bold text-white">

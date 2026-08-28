@@ -37,7 +37,9 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           "fixed top-1/2 left-1/2 z-50 flex w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-2xl bg-card p-6 text-card-foreground shadow-2xl ring-1 ring-foreground/10 outline-none",
-          "max-h-[calc(100vh-3rem)] overflow-y-auto",
+          // dvh, not vh: on iOS Safari `100vh` counts the space behind the
+          // address bar, so a full panel ran off the bottom of the screen.
+          "max-h-[calc(100dvh-3rem)] overflow-y-auto",
           "transition-all duration-200 data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
           className,
         )}
