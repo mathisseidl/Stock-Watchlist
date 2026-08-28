@@ -89,8 +89,8 @@ export default async function CheckoutSuccessPage({
                       year: "numeric",
                     })}
                   </span>
-                  , and renews at $4.99 unless you switch auto-pay off before
-                  then.
+                  , and renews at $4.99 unless you cancel your subscription
+                  under &ldquo;Account&rdquo;.
                 </>
               )}
             </p>
