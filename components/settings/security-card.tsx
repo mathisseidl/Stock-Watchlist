@@ -88,7 +88,7 @@ export function SecurityCard({ email }: { email: string | null }) {
       const res = await fetch("/api/account/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmEmail: deleteConfirm }),
+        body: JSON.stringify({ confirm: deleteConfirm }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -204,13 +204,13 @@ export function SecurityCard({ email }: { email: string | null }) {
         {deleteOpen ? (
           <div className="flex flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
             <p className="text-xs text-muted-foreground">
-              Type <span className="font-medium text-foreground">{email}</span>{" "}
-              to confirm.
+              Type <span className="font-medium text-foreground">Delete</span> to
+              confirm.
             </p>
             <Input
               value={deleteConfirm}
               onChange={(event) => setDeleteConfirm(event.target.value)}
-              placeholder={email ?? "your email"}
+              placeholder="Delete"
               className="sm:max-w-sm"
             />
             {statusLine(deleteStatus)}
@@ -228,11 +228,7 @@ export function SecurityCard({ email }: { email: string | null }) {
               </Button>
               <Button
                 className="rounded-full bg-destructive text-white hover:bg-destructive/90"
-                disabled={
-                  deleting ||
-                  deleteConfirm.trim().toLowerCase() !==
-                    (email ?? "").toLowerCase()
-                }
+                disabled={deleting || deleteConfirm.trim() !== "Delete"}
                 onClick={handleDelete}
               >
                 {deleting ? "Deleting…" : "Delete my account"}

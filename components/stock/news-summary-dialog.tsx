@@ -171,7 +171,7 @@ function ProPitch({ symbol }: { symbol: string }) {
 }
 
 /**
- * The purple "View summary" link on a watchlist row, plus the panel it opens.
+ * The purple "News Summary" link on a watchlist row, plus the panel it opens.
  *
  * Non-Pro readers get the pitch instead of the brief — and the API refuses
  * them independently, so the gate is not just a hidden button.
@@ -199,7 +199,7 @@ export function NewsSummaryLink({
         )}
       >
         <span aria-hidden>→</span>
-        View summary
+        News Summary
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>

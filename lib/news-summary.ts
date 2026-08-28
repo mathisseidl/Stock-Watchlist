@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { NewsItem } from "@/lib/market-data/types";
 
 /**
- * The six-line briefing behind "View summary".
+ * The six-line briefing behind "News Summary".
  *
  * It is written from the same three curated stories the stock page already
  * shows — the ones that survived the trust, freshness and relevance filters —

@@ -6,7 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * Permanently deletes the signed-in user's account.
  *
  * Only ever acts on the caller's own id, taken from their verified session —
- * never from the request body — so this cannot be pointed at someone else.
+ * never from the request body — so this cannot be pointed at someone else. The
+ * request must carry a literal "Delete" confirmation string.
  * Every table that references auth.users cascades on delete, so removing the
  * auth user takes the watchlist, profile, settings and usage rows with it.
  */
@@ -20,22 +21,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  // Typing the address is the confirmation step; it has to match the session.
+  // Typing the word "Delete" is the confirmation step.
   let confirmation: string | undefined;
   try {
     const body = await request.json();
     confirmation =
-      typeof body?.confirmEmail === "string" ? body.confirmEmail : undefined;
+      typeof body?.confirm === "string" ? body.confirm : undefined;
   } catch {
     confirmation = undefined;
   }
 
-  if (
-    !confirmation ||
-    confirmation.trim().toLowerCase() !== (user.email ?? "").toLowerCase()
-  ) {
+  if (!confirmation || confirmation.trim() !== "Delete") {
     return NextResponse.json(
-      { error: "Type your email address exactly to confirm." },
+      { error: 'Type "Delete" exactly to confirm.' },
       { status: 400 },
     );
   }

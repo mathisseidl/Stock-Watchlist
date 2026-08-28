@@ -11,7 +11,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SettingRow, Toggle } from "@/components/settings/setting-row";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { localeFor } from "@/lib/format";
 import { proDaysRemaining } from "@/lib/pro";
@@ -117,12 +116,6 @@ export function SubscriptionCard({
         year: "numeric",
       })
     : null;
-  const expiryTime = plan.proExpiresAt
-    ? new Date(plan.proExpiresAt).toLocaleTimeString(locale, {
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : null;
 
   return (
     <Card className="gap-4 p-6">
@@ -133,57 +126,32 @@ export function SubscriptionCard({
         </p>
       </div>
 
-      <div className="flex items-start gap-3 rounded-xl bg-muted px-4 py-3">
-        <CalendarCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-        <p className="text-sm">
-          {expiryLabel ? (
-            <>
-              Your Pro subscription is valid until{" "}
-              <span className="font-semibold">{expiryLabel}</span>
-              {daysLeft !== null && (
-                <span className="text-muted-foreground">
-                  {" "}
-                  · {daysLeft} {daysLeft === 1 ? "day" : "days"} left
-                </span>
-              )}
-              .
-            </>
-          ) : (
-            <>
-              Your Pro access is <span className="font-semibold">open-ended</span>{" "}
-              — it has no end date.
-            </>
-          )}
-        </p>
-      </div>
+      {expiryLabel && (
+        <div className="flex items-start gap-3 rounded-xl bg-muted px-4 py-3">
+          <CalendarCheck className="mt-0.5 size-4 shrink-0 text-primary" />
+          <p className="text-sm">
+            Your Pro subscription is valid until{" "}
+            <span className="font-semibold">{expiryLabel}</span>
+            {daysLeft !== null && (
+              <span className="text-muted-foreground">
+                {" "}
+                · {daysLeft} {daysLeft === 1 ? "day" : "days"} left
+              </span>
+            )}
+            .
+          </p>
+        </div>
+      )}
 
-      {plan.hasSubscription ? (
+      {plan.hasSubscription && (
         <>
-          <SettingRow
-            label="Auto-pay"
-            description={
-              plan.autoRenew
-                ? `On. We'll charge $4.99 in the minute before your month runs out${expiryTime ? ` — around ${expiryTime} on ${expiryLabel}` : ""}, and your access rolls straight into the next month.`
-                : `Off. Nothing more will be charged. You keep everything until ${expiryLabel ?? "your period ends"}, and then drop back to Free.`
-            }
-            control={
-              <Toggle
-                checked={plan.autoRenew}
-                onChange={setAutoRenew}
-                disabled={saving}
-                label="Auto-pay"
-              />
-            }
-          />
-
-          {/* The explicit way out, for people who don't read "auto-pay" as
-              "cancel" — and the way back in once they have. */}
+          {/* Cancel is the way out; resuming is the way back in before the
+              period ends. */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
             {plan.autoRenew ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Done with Pro? Cancel whenever you like — even the day before
-                  the next payment.
+                  Done with Pro? Cancel whenever you like.
                 </p>
                 <Button
                   variant="destructive"
@@ -223,22 +191,6 @@ export function SubscriptionCard({
             </p>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}
-
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Cancelling and switching auto-pay off are the same thing: no further
-            charge, and you keep every day you have already paid for. Turning it
-            back on before the period ends resumes billing with no gap.
-            {plan.status && plan.status !== "active" && (
-              <>
-                {" "}
-                Stripe currently reports this subscription as{" "}
-                <span className="font-medium">
-                  {plan.status.replace(/_/g, " ")}
-                </span>
-                .
-              </>
-            )}
-          </p>
 
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <DialogContent className="max-w-md">
@@ -312,21 +264,6 @@ export function SubscriptionCard({
             </DialogContent>
           </Dialog>
         </>
-      ) : (
-        // Pro that does not run through a subscription: accounts comped by
-        // hand, and the ones that bought Pro before it went monthly. There is
-        // no card on file and nothing to renew, so there is no switch and no
-        // cancel button to offer them either — and no claim made about how
-        // they got it, since both routes land here.
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Your Pro access doesn&apos;t run through a subscription — there is no
-          card on file and{" "}
-          <span className="font-medium text-foreground">
-            nothing will ever be charged
-          </span>
-          . That also means there is nothing to cancel and no auto-pay to switch
-          off.
-        </p>
       )}
     </Card>
   );

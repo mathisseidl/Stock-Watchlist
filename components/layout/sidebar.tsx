@@ -20,7 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 const nav = [
   { href: "/my-stock", label: "My Stocks", icon: LayoutGrid },
   { href: "/forecast", label: "Forecast", icon: Sparkles },
-  { href: "/analytics", label: "Analytics", icon: LineChart },
+  { href: "/analytics", label: "Lookback", icon: LineChart },
   { href: "/community", label: "Community", icon: Users },
   { href: "/account", label: "Account", icon: UserRound },
   { href: "/settings", label: "Settings", icon: Settings },

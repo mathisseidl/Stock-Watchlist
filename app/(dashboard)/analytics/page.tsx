@@ -267,7 +267,7 @@ export default function AnalyticsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Analytics</h1>
+          <h1 className="text-2xl font-semibold">Lookback</h1>
           <p className="text-sm text-muted-foreground">
             See what a past investment would be worth today.
           </p>

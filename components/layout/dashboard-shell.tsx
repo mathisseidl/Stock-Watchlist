@@ -121,10 +121,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </main>
         <footer className="border-t border-border px-4 py-4 md:px-8">
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Prices and company data from Finnhub and Yahoo Finance, and may be
-            delayed by up to 15 minutes. MATMAX is an information tool, not
-            investment advice — it does not recommend buying or selling
-            anything. Past performance says nothing about future returns.
+            Prices, charts and company data come from Finnhub and Yahoo Finance
+            and can be delayed. Forecasts are simulated probability ranges, not
+            predictions, and news summaries are written by AI and can be wrong or
+            incomplete. MATMAX is an information tool, not investment advice —
+            nothing here is a recommendation to buy or sell any security, and
+            past performance is no guide to future results.
           </p>
         </footer>
       </div>

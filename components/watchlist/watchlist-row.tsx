@@ -34,7 +34,7 @@ export function WatchlistRow({
 
   return (
     // Tighter gaps and padding below `sm`: on a 375px phone the fixed columns
-    // left barely 100px for the name, which the "View summary" link no longer
+    // left barely 100px for the name, which the "News Summary" link no longer
     // fits into.
     <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-3 sm:gap-4 sm:px-4">
       <div className="flex flex-col">

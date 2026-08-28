@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
-import { LogOut, Sun, Moon, Monitor } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -17,27 +16,20 @@ import {
   SegmentedControl,
 } from "@/components/settings/setting-row";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
-import { RANGES } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import type { CandleRange } from "@/lib/market-data/types";
 
 const APP_VERSION = "1.0.0";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
   const [supabase] = useState(() => createClient());
   const [email, setEmail] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
-  const [isPaid, setIsPaid] = useState<boolean | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   const { settings, update, error } = useUserSettings();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration flag
-    setMounted(true);
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) {
         setEmail(data.user.email);
@@ -45,12 +37,6 @@ export default function SettingsPage() {
         setIsGuest(true);
       }
     });
-    fetch("/api/analytics")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setIsPaid(Boolean(data.isPaid));
-      })
-      .catch(() => {});
   }, [supabase]);
 
   async function handleSignOut() {
@@ -65,9 +51,6 @@ export default function SettingsPage() {
     <div className="flex max-w-2xl flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          How the app behaves, and your account security.
-        </p>
       </div>
 
       {error && (
@@ -76,7 +59,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {isGuest ? (
+      {isGuest && (
         <Card className="gap-4 p-6">
           <div>
             <p className="text-base font-semibold">
@@ -94,46 +77,19 @@ export default function SettingsPage() {
             Sign up
           </Link>
         </Card>
-      ) : (
-        <Card className="gap-4 p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{email ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">
-                {isPaid === null
-                  ? "Loading plan…"
-                  : isPaid
-                    ? "Pro plan"
-                    : "Free plan"}
-                {" · "}
-                Plan, payments and receipts live in Account.
-              </p>
-            </div>
-            <Link
-              href="/account"
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "w-fit rounded-full",
-              )}
-            >
-              Go to Account
-            </Link>
-          </div>
-        </Card>
       )}
 
-      {/* ---- Alerts -------------------------------------------------- */}
+      {/* ---- Notifications ----------------------------------------- */}
       <Card className="gap-5 p-6">
         <div>
-          <h3 className="text-base font-semibold">Alerts</h3>
+          <h3 className="text-base font-semibold">Notifications</h3>
           <p className="text-sm text-muted-foreground">
-            What we flag on your watchlist. Alerts appear in the app on My
-            Stock.
+            Notifications on your watchlist
           </p>
         </div>
 
         <SettingRow
-          label="Alerts"
+          label="Notifications"
           description="Turn everything below off in one go."
           control={
             <Toggle
@@ -229,102 +185,7 @@ export default function SettingsPage() {
         />
       </Card>
 
-      {/* ---- Display ------------------------------------------------- */}
-      <Card className="gap-5 p-6">
-        <div>
-          <h3 className="text-base font-semibold">Display</h3>
-          <p className="text-sm text-muted-foreground">
-            How numbers and charts are shown to you.
-          </p>
-        </div>
-
-        <SettingRow
-          label="Number format"
-          description={
-            settings.numberFormat === "eu"
-              ? "European: 1.234,56"
-              : "US: 1,234.56"
-          }
-          control={
-            <SegmentedControl
-              label="Number format"
-              value={settings.numberFormat}
-              options={[
-                { value: "us", label: "1,234.56" },
-                { value: "eu", label: "1.234,56" },
-              ]}
-              onChange={(next) => update({ numberFormat: next })}
-            />
-          }
-        />
-
-        <SettingRow
-          label="Default chart range"
-          description="Which range a stock opens on."
-          control={
-            <SegmentedControl
-              label="Default chart range"
-              value={settings.defaultRange}
-              options={RANGES.map((range) => ({
-                value: range.key as CandleRange,
-                label: range.label,
-              }))}
-              onChange={(next) => update({ defaultRange: next })}
-            />
-          }
-        />
-
-        <SettingRow
-          label="Appearance"
-          description="Follow your system setting, or pick one."
-          control={
-            <div className="inline-flex items-center gap-1 rounded-xl bg-muted p-1">
-              {[
-                { value: "light", label: "Light", Icon: Sun },
-                { value: "dark", label: "Dark", Icon: Moon },
-                { value: "system", label: "System", Icon: Monitor },
-              ].map(({ value, label, Icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setTheme(value)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors",
-                    mounted &&
-                      theme === value &&
-                      "bg-card text-foreground shadow-sm",
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          }
-        />
-      </Card>
-
-      {!isGuest && <SecurityCard email={email} />}
       {!isGuest && <SessionsCard />}
-
-      {!isGuest && (
-        <Card className="gap-4 p-6">
-          <h3 className="text-base font-semibold">Session</h3>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Signed in as {email ?? "—"}
-            </p>
-            <Button
-              variant="outline"
-              className="w-fit rounded-full"
-              onClick={handleSignOut}
-            >
-              <LogOut className="size-4" />
-              Sign out
-            </Button>
-          </div>
-        </Card>
-      )}
 
       {/* ---- About --------------------------------------------------- */}
       <Card className="gap-4 p-6">
@@ -348,6 +209,27 @@ export default function SettingsPage() {
           tool, not investment advice.
         </p>
       </Card>
+
+      {!isGuest && (
+        <Card className="gap-4 p-6">
+          <h3 className="text-base font-semibold">Session</h3>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Signed in as {email ?? "—"}
+            </p>
+            <Button
+              variant="outline"
+              className="w-fit rounded-full"
+              onClick={handleSignOut}
+            >
+              <LogOut className="size-4" />
+              Sign out
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {!isGuest && <SecurityCard email={email} />}
     </div>
   );
 }

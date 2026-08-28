@@ -12,12 +12,16 @@ import { cn } from "@/lib/utils";
 
 const TICK_MS = 30_000;
 
-const DOTS: Record<Session, string> = {
-  pre: "bg-amber-500",
+/**
+ * Green while regular hours are running, amber for the pre-market and
+ * after-hours sessions, red once the exchange is shut.
+ */
+const DOT: Record<Session, string> = {
   open: "bg-gain",
+  pre: "bg-amber-500",
   after: "bg-amber-500",
-  closed: "bg-muted-foreground/50",
-  holiday: "bg-muted-foreground/50",
+  closed: "bg-loss",
+  holiday: "bg-loss",
 };
 
 function subscribe(onChange: () => void) {
@@ -44,26 +48,20 @@ export function MarketStatus({ className }: { className?: string }) {
 
   const now = new Date(tick * TICK_MS);
   const session = marketSession(now);
+  const label =
+    SESSION_LABELS[session] +
+    (session === "open" && isEarlyClose(now) ? " · closes 1 PM" : "");
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs text-muted-foreground",
+        "inline-flex items-center gap-2 text-xs font-medium",
         className,
       )}
     >
-      <span
-        className={cn(
-          "size-1.5 shrink-0 rounded-full",
-          DOTS[session],
-          session === "open" && "animate-pulse",
-        )}
-      />
-      <span className="font-medium text-foreground/80">
-        {SESSION_LABELS[session]}
-        {session === "open" && isEarlyClose(now) ? " · closes 1pm" : ""}
-      </span>
-      <span className="num hidden sm:inline">{exchangeTime(now)} ET</span>
+      <span className={cn("size-2 shrink-0 rounded-full", DOT[session])} />
+      <span className="text-foreground">{label}</span>
+      <span className="text-muted-foreground">{exchangeTime(now)} ET</span>
     </span>
   );
 }

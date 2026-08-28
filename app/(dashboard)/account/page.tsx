@@ -5,6 +5,7 @@ import { UpgradeButton } from "@/components/pricing/upgrade-button";
 import { AuthForm } from "@/components/auth/auth-form";
 import { SubscriptionCard } from "@/components/account/subscription-card";
 import { InviteCard } from "@/components/account/invite-card";
+import { DisplayCard } from "@/components/settings/display-card";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountSubscription } from "@/lib/subscription";
 import { proDaysRemaining } from "@/lib/pro";
@@ -34,6 +35,19 @@ const freeMissing = [
   "Forecasts on any stock, not just the S&P 500",
   "News summary for every stock in 6 lines",
   "Test a past investment — Unlimited",
+];
+
+/**
+ * What a guest gets by creating a free account — the case for signing up, shown
+ * beside the form. Persistence and Community, not Pro features.
+ */
+const guestUnlocks = [
+  "Your watchlist saved to your account — on your phone and every device, not just this browser",
+  "Your alert, number-format and chart-range preferences saved and synced",
+  "A username, so friends can find you",
+  "Add friends and compare watchlists in Community",
+  "Your own link to invite friends to the app",
+  "The option to upgrade to Pro whenever you want",
 ];
 
 const proFeatures = [
@@ -82,18 +96,40 @@ export default async function AccountPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Guests see the sign-up form here.
+  // Guests see the sign-up form here, next to what an account unlocks.
   if (!user) {
     return (
-      <div className="flex flex-col items-center gap-4 py-4">
-        <AuthForm
-          mode="signup"
-          subtitle="Create an account to keep your watchlist saved across devices."
-        />
-        <p className="text-sm text-muted-foreground">
-          Signing up is free. Forecasting any stock, the news summaries and
-          unlimited investment analysis are on Pro.
-        </p>
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Create your account</h1>
+          <p className="text-sm text-muted-foreground">
+            You&apos;re browsing as a guest. Your watchlist and settings live in
+            this browser only — clear it or switch device and they&apos;re gone.
+          </p>
+        </div>
+
+        <div className="grid items-start gap-6 md:grid-cols-2">
+          <Card className="gap-5 p-6">
+            <div>
+              <h2 className="text-lg font-semibold">What signing up unlocks</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Free, no card. Takes a minute.
+              </p>
+            </div>
+            <FeatureList features={guestUnlocks} />
+            <p className="mt-auto text-xs leading-relaxed text-muted-foreground">
+              Pro — forecasts on any stock, 6-line news summaries and unlimited
+              Lookback — is an optional upgrade once you have an account.
+            </p>
+          </Card>
+
+          <div className="flex justify-center md:justify-start">
+            <AuthForm
+              mode="signup"
+              subtitle="Create an account to keep your watchlist saved across devices."
+            />
+          </div>
+        </div>
       </div>
     );
   }
@@ -227,6 +263,8 @@ export default async function AccountPage() {
           </Card>
         </div>
       </div>
+
+      <DisplayCard />
 
       <InviteCard username={username} />
     </div>
