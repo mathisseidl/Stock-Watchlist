@@ -78,11 +78,7 @@ export function WatchlistRow({
               {item.name}
             </p>
           </Link>
-          <NewsSummaryLink
-            symbol={item.symbol}
-            name={item.name}
-            className="mt-1"
-          />
+          <NewsSummaryLink symbol={item.symbol} className="mt-1" />
         </div>
       </div>
 

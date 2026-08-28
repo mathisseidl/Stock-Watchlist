@@ -166,7 +166,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
               one matters.
             </p>
           </div>
-          <NewsSummaryLink symbol={symbol} name={profile?.name} />
+          <NewsSummaryLink symbol={symbol} />
         </div>
         <NewsList symbol={symbol} />
       </Card>
