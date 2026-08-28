@@ -44,7 +44,7 @@ const proFeatures = [
   "Every forecast shows the 14 named methods behind it",
   "News summary for every stock in 6 lines",
   "Test a past investment — Unlimited",
-  "Cancel any time — right up to the day before the next payment",
+  "Cancel any time — up to the day before the next payment",
 ];
 
 function FeatureList({
