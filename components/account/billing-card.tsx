@@ -8,7 +8,13 @@ import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { localeFor } from "@/lib/format";
 import type { Purchase } from "@/app/api/billing/route";
 
-export function BillingCard({ isPaid }: { isPaid: boolean }) {
+export function BillingCard({
+  isPaid,
+  proExpiresAt,
+}: {
+  isPaid: boolean;
+  proExpiresAt: string | null;
+}) {
   const { settings } = useUserSettings();
   const [purchases, setPurchases] = useState<Purchase[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -41,9 +47,21 @@ export function BillingCard({ isPaid }: { isPaid: boolean }) {
         <h3 className="text-base font-semibold">Billing</h3>
         <p className="text-sm text-muted-foreground">
           {isPaid
-            ? "You bought Pro outright. There is no subscription and nothing renews — you will not be charged again."
+            ? "A one-off payment, not a subscription. No card is kept on file and you will not be charged again."
             : "You're on the Free plan. Nothing has been charged."}
         </p>
+        {isPaid && proExpiresAt && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            Access runs until{" "}
+            <span className="font-medium text-foreground">
+              {new Date(proExpiresAt).toLocaleDateString(
+                localeFor(settings.numberFormat),
+                { day: "numeric", month: "long", year: "numeric" },
+              )}
+            </span>
+            .
+          </p>
+        )}
       </div>
 
       {failed ? (

@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
 const nav = [
-  { href: "/my-stock", label: "My Stock", icon: LayoutGrid },
+  { href: "/my-stock", label: "My Stocks", icon: LayoutGrid },
   { href: "/analytics", label: "Analytics", icon: LineChart },
   { href: "/community", label: "Community", icon: Users },
   { href: "/account", label: "Account", icon: UserRound },

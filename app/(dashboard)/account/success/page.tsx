@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
+import { proExpiryFrom, PRO_TERM_MONTHS } from "@/lib/pro";
 
 export default async function CheckoutSuccessPage({
   searchParams,
@@ -31,9 +32,14 @@ export default async function CheckoutSuccessPage({
         session.metadata?.userId === user.id
       ) {
         const admin = createAdminClient();
+        // One-time charge buying a fixed term — record when it lapses so
+        // access ends unless they buy again. Nothing auto-renews.
         await admin
           .from("profiles")
-          .update({ is_paid: true })
+          .update({
+            is_paid: true,
+            pro_expires_at: proExpiryFrom().toISOString(),
+          })
           .eq("id", user.id);
         paid = true;
       }
@@ -50,8 +56,8 @@ export default async function CheckoutSuccessPage({
             <CheckCircle2 className="size-12 text-gain" />
             <h1 className="text-xl font-semibold">You&apos;re all set!</h1>
             <p className="text-sm text-muted-foreground">
-              Your payment was successful. Analytics is now unlimited on your
-              account.
+              Your payment went through. Analytics is unlimited for the next{" "}
+              {PRO_TERM_MONTHS} months — no subscription, nothing renews.
             </p>
             <Link
               href="/analytics"

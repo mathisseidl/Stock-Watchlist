@@ -7,7 +7,6 @@ import { useTheme } from "next-themes";
 import { LogOut, Sun, Moon, Monitor } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { SecurityCard } from "@/components/settings/security-card";
@@ -34,7 +33,7 @@ export default function SettingsPage() {
   const [isPaid, setIsPaid] = useState<boolean | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const { settings, update, error, money } = useUserSettings();
+  const { settings, update, error } = useUserSettings();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration flag
@@ -53,8 +52,6 @@ export default function SettingsPage() {
       })
       .catch(() => {});
   }, [supabase]);
-
-  const initials = email ? email.slice(0, 2).toUpperCase() : "MS";
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -98,46 +95,30 @@ export default function SettingsPage() {
           </Link>
         </Card>
       ) : (
-        <Card className="gap-5 p-6">
-          <div className="flex items-center gap-4">
-            <Avatar className="size-16">
-              <AvatarFallback className="bg-neutral-900 text-lg font-semibold text-white">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+        <Card className="gap-4 p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <p className="truncate text-base font-semibold">
-                {email ?? "—"}
-              </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="truncate text-sm font-medium">{email ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">
                 {isPaid === null
                   ? "Loading plan…"
                   : isPaid
                     ? "Pro plan"
                     : "Free plan"}
+                {" · "}
+                Plan, payments and receipts live in Account.
               </p>
             </div>
+            <Link
+              href="/account"
+              className={cn(
+                buttonVariants({ variant: "outline" }),
+                "w-fit rounded-full",
+              )}
+            >
+              Go to Account
+            </Link>
           </div>
-
-          {isPaid === false && (
-            <>
-              <Separator />
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium">Upgrade to Pro</p>
-                  <p className="text-xs text-muted-foreground">
-                    Unlimited investment analysis — {money(4.99)} once, no subscription.
-                  </p>
-                </div>
-                <Link
-                  href="/account"
-                  className={cn(buttonVariants(), "w-fit rounded-full")}
-                >
-                  View plans
-                </Link>
-              </div>
-            </>
-          )}
         </Card>
       )}
 

@@ -6,6 +6,7 @@ import { Star } from "lucide-react";
 import { RangeSelector } from "@/components/stock/range-selector";
 import { WatchlistRow } from "@/components/watchlist/watchlist-row";
 import { AlertList } from "@/components/stock/alert-list";
+import { WatchlistStats } from "@/components/watchlist/watchlist-stats";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import type { CandleRange } from "@/lib/market-data/types";
@@ -22,7 +23,7 @@ export default function MyStockPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">My Stock</h1>
+          <h1 className="text-2xl font-semibold">My Stocks</h1>
           <p className="text-sm text-muted-foreground">
             Your watchlist — search any stock and add it here.
           </p>
@@ -74,6 +75,8 @@ export default function MyStockPage() {
           ))}
         </div>
       )}
+
+      {ready && items.length > 0 && <WatchlistStats />}
     </div>
   );
 }

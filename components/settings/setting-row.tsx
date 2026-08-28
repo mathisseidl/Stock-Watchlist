@@ -60,10 +60,12 @@ export function Toggle({
         disabled && "cursor-not-allowed opacity-40",
       )}
     >
+      {/* Track is 44px and the knob 20px, so 20px of travel leaves an even
+          2px inset at both ends. 22px pushed it flush against the edge. */}
       <span
         className={cn(
-          "absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform",
-          checked ? "translate-x-5.5" : "translate-x-0.5",
+          "absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow-sm transition-transform",
+          checked ? "translate-x-5" : "translate-x-0",
         )}
       />
     </button>

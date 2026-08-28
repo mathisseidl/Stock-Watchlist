@@ -53,7 +53,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-4" />
-        Back to My Stock
+        Back to My Stocks
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-4">

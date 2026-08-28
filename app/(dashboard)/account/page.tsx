@@ -5,9 +5,9 @@ import { UpgradeButton } from "@/components/pricing/upgrade-button";
 import { AuthForm } from "@/components/auth/auth-form";
 import { UsageCard } from "@/components/account/usage-card";
 import { BillingCard } from "@/components/account/billing-card";
-import { AccountStats } from "@/components/account/account-stats";
 import { InviteCard } from "@/components/account/invite-card";
 import { createClient } from "@/lib/supabase/server";
+import { isProActive, proDaysRemaining, PRO_TERM_MONTHS } from "@/lib/pro";
 
 const freeFeatures = [
   "Search any stock by name",
@@ -60,11 +60,13 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_paid, username, created_at")
+    .select("is_paid, username, created_at, pro_expires_at")
     .eq("id", user.id)
     .maybeSingle();
 
-  const isPaid = Boolean(profile?.is_paid);
+  const isPaid = isProActive(profile);
+  const proExpiresAt = profile?.pro_expires_at ?? null;
+  const daysLeft = proDaysRemaining(proExpiresAt);
   const username = profile?.username ?? null;
   const memberSince = profile?.created_at ?? user.created_at;
   const initials = (user.email ?? "MS").slice(0, 2).toUpperCase();
@@ -74,7 +76,7 @@ export default async function AccountPage() {
       <div>
         <h1 className="text-2xl font-semibold">Account</h1>
         <p className="text-sm text-muted-foreground">
-          Your plan, payments and how your watchlist is doing.
+          Your profile, plan and payments.
         </p>
       </div>
 
@@ -108,11 +110,30 @@ export default async function AccountPage() {
             {isPaid ? "Pro" : "Free"}
           </span>
         </div>
+
+        {isPaid && proExpiresAt && (
+          <p className="rounded-xl bg-muted px-4 py-3 text-sm">
+            Pro until{" "}
+            <span className="font-semibold">
+              {new Date(proExpiresAt).toLocaleDateString("en-US", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </span>
+            {daysLeft !== null && (
+              <span className="text-muted-foreground">
+                {" "}· {daysLeft} days left
+              </span>
+            )}
+            . Nothing renews automatically — buy another {PRO_TERM_MONTHS}{" "}
+            months whenever you like.
+          </p>
+        )}
       </Card>
 
       <UsageCard />
-      <AccountStats />
-      <BillingCard isPaid={isPaid} />
+      <BillingCard isPaid={isPaid} proExpiresAt={proExpiresAt} />
 
       {/* ---- Plans --------------------------------------------------- */}
       <div id="plans" className="flex flex-col gap-3 scroll-mt-6">
@@ -142,19 +163,23 @@ export default async function AccountPage() {
                 $4.99
                 <span className="text-base font-normal text-muted-foreground">
                   {" "}
-                  once
+                  for a year
                 </span>
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                A single payment, not a subscription. Nothing renews.
+                A single payment covering {PRO_TERM_MONTHS} months. Not a
+                subscription — nothing renews and no card is kept on file.
               </p>
             </div>
             <FeatureList features={proFeatures} />
             <div className="mt-auto">
               {isPaid ? (
-                <p className="rounded-full bg-gain-soft py-2 text-center text-sm font-medium text-gain">
-                  ✓ You&apos;re on Pro
-                </p>
+                <div className="flex flex-col gap-2">
+                  <p className="rounded-full bg-gain-soft py-2 text-center text-sm font-medium text-gain">
+                    ✓ Active{daysLeft !== null ? ` · ${daysLeft} days left` : ""}
+                  </p>
+                  {daysLeft !== null && daysLeft <= 30 && <UpgradeButton />}
+                </div>
               ) : (
                 <UpgradeButton />
               )}

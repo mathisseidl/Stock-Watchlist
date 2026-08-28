@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isProActive } from "@/lib/pro";
 
 const FREE_DAILY_LIMIT = 3;
 
@@ -14,7 +15,7 @@ async function getContext() {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("profiles")
-    .select("is_paid")
+    .select("is_paid, pro_expires_at")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -29,7 +30,9 @@ async function getContext() {
   return {
     admin,
     userId: user.id,
-    isPaid: Boolean(profile?.is_paid),
+    // Pro lapses on its expiry date; the flag alone is not enough.
+    isPaid: isProActive(profile),
+    proExpiresAt: profile?.pro_expires_at ?? null,
     used: usage?.count ?? 0,
     today,
   };
@@ -41,6 +44,7 @@ export async function GET() {
 
   return NextResponse.json({
     isPaid: ctx.isPaid,
+    proExpiresAt: ctx.proExpiresAt,
     used: ctx.used,
     limit: FREE_DAILY_LIMIT,
     remaining: ctx.isPaid ? null : Math.max(0, FREE_DAILY_LIMIT - ctx.used),

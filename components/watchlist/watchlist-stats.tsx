@@ -31,8 +31,8 @@ function Tile({
   );
 }
 
-/** Watchlist performance over the last month, from data the app already has. */
-export function AccountStats() {
+/** Watchlist performance over the last month, from data the app already polls. */
+export function WatchlistStats() {
   const { items, ready } = useWatchlist();
   const { percent } = useUserSettings();
 
@@ -74,10 +74,9 @@ export function AccountStats() {
   if (ready && items.length === 0) {
     return (
       <Card className="gap-2 p-6">
-        <h3 className="text-base font-semibold">Your stats</h3>
+        <h3 className="text-base font-semibold">How your watchlist is doing</h3>
         <p className="text-sm text-muted-foreground">
-          Add a few stocks to your watchlist and this fills in with how they
-          have done.
+          Add a few stocks and this fills in with how they have done.
         </p>
       </Card>
     );
@@ -86,9 +85,9 @@ export function AccountStats() {
   return (
     <Card className="gap-4 p-6">
       <div>
-        <h3 className="text-base font-semibold">Your stats</h3>
+        <h3 className="text-base font-semibold">How your watchlist is doing</h3>
         <p className="text-sm text-muted-foreground">
-          Your watchlist over the last month.
+          Performance over the last month.
         </p>
       </div>
 
