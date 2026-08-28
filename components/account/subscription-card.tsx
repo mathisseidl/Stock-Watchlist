@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarCheck, RefreshCw } from "lucide-react";
+import { CalendarCheck, RefreshCw, RotateCcw, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { SettingRow, Toggle } from "@/components/settings/setting-row";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { localeFor } from "@/lib/format";
@@ -11,12 +18,19 @@ import { proDaysRemaining } from "@/lib/pro";
 import type { SubscriptionResponse } from "@/app/api/subscription/route";
 
 /**
- * The plan panel: when the paid month ends, and the switch that decides
- * whether it renews.
+ * The plan panel: when the paid month ends, and the two ways to stop it
+ * renewing.
  *
- * The toggle is not cosmetic — it sets `cancel_at_period_end` on the live
- * Stripe subscription, so switching it off is a real cancellation that still
- * leaves every day already paid for intact.
+ * Both controls write the same thing — `cancel_at_period_end` on the live
+ * Stripe subscription — because there is only one honest way to stop a
+ * subscription here: no further charge, and every day already paid for kept.
+ * They exist separately because they answer different questions. The toggle is
+ * the mechanism ("should this bill again?"); the Cancel button is the
+ * intention ("I want out"), and someone looking to leave should not have to
+ * work out that a switch labelled "auto-pay" is the exit.
+ *
+ * Cancelling asks for confirmation. Resuming does not — nothing is lost by
+ * turning billing back on, and a confirm step there would only be friction.
  */
 export function SubscriptionCard({
   initialExpiresAt,
@@ -27,6 +41,7 @@ export function SubscriptionCard({
   const [plan, setPlan] = useState<SubscriptionResponse | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -161,6 +176,46 @@ export function SubscriptionCard({
             }
           />
 
+          {/* The explicit way out, for people who don't read "auto-pay" as
+              "cancel" — and the way back in once they have. */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
+            {plan.autoRenew ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Done with Pro? Cancel whenever you like — even the day before
+                  the next payment.
+                </p>
+                <Button
+                  variant="destructive"
+                  className="rounded-full"
+                  disabled={saving}
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  <XCircle className="size-4" />
+                  Cancel Pro subscription
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm">
+                  <span className="font-medium">Your subscription is cancelled.</span>{" "}
+                  <span className="text-muted-foreground">
+                    Pro stays on until {expiryLabel ?? "the period ends"}, then
+                    your account drops to Free.
+                  </span>
+                </p>
+                <Button
+                  className="rounded-full"
+                  disabled={saving}
+                  onClick={() => setAutoRenew(true)}
+                >
+                  <RotateCcw className="size-4" />
+                  Resume Pro
+                </Button>
+              </>
+            )}
+          </div>
+
           {saving && (
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <RefreshCw className="size-3 animate-spin" />
@@ -170,9 +225,9 @@ export function SubscriptionCard({
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <p className="text-xs leading-relaxed text-muted-foreground">
-            You can switch auto-pay off at any point — including the day before
-            the next payment. Turning it back on before the period ends resumes
-            billing with no gap.
+            Cancelling and switching auto-pay off are the same thing: no further
+            charge, and you keep every day you have already paid for. Turning it
+            back on before the period ends resumes billing with no gap.
             {plan.status && plan.status !== "active" && (
               <>
                 {" "}
@@ -184,20 +239,93 @@ export function SubscriptionCard({
               </>
             )}
           </p>
+
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogContent className="max-w-md">
+              <div className="pr-8">
+                <DialogTitle>Cancel your Pro subscription?</DialogTitle>
+                <DialogDescription className="mt-1">
+                  Nothing more will be charged.
+                </DialogDescription>
+              </div>
+
+              <ul className="flex flex-col gap-2 text-sm">
+                <li className="flex gap-2.5">
+                  <span aria-hidden className="text-gain">
+                    ✓
+                  </span>
+                  <span>
+                    You keep Pro until{" "}
+                    <span className="font-semibold">
+                      {expiryLabel ?? "your period ends"}
+                    </span>
+                    {daysLeft !== null && ` — that's ${daysLeft} more ${daysLeft === 1 ? "day" : "days"}`}
+                    .
+                  </span>
+                </li>
+                <li className="flex gap-2.5">
+                  <span aria-hidden className="text-gain">
+                    ✓
+                  </span>
+                  <span>No refund is needed — you are simply not billed again.</span>
+                </li>
+                <li className="flex gap-2.5">
+                  <span aria-hidden className="text-muted-foreground">
+                    →
+                  </span>
+                  <span>
+                    After that, forecasts on any stock and the AI news briefings
+                    close, and your account drops to Free.
+                  </span>
+                </li>
+                <li className="flex gap-2.5">
+                  <span aria-hidden className="text-muted-foreground">
+                    →
+                  </span>
+                  <span>
+                    Changed your mind? You can resume any time before that date
+                    with no gap in billing.
+                  </span>
+                </li>
+              </ul>
+
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => setConfirmOpen(false)}
+                >
+                  Keep Pro
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="rounded-full"
+                  disabled={saving}
+                  onClick={async () => {
+                    await setAutoRenew(false);
+                    setConfirmOpen(false);
+                  }}
+                >
+                  {saving ? "Cancelling…" : "Yes, cancel Pro"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       ) : (
         // Pro that does not run through a subscription: accounts comped by
         // hand, and the ones that bought Pro before it went monthly. There is
-        // no card on file and nothing to renew, so there is no switch to offer
-        // them either — and no claim made about how they got it, since both
-        // routes land here.
+        // no card on file and nothing to renew, so there is no switch and no
+        // cancel button to offer them either — and no claim made about how
+        // they got it, since both routes land here.
         <p className="text-sm leading-relaxed text-muted-foreground">
           Your Pro access doesn&apos;t run through a subscription — there is no
           card on file and{" "}
           <span className="font-medium text-foreground">
             nothing will ever be charged
           </span>
-          . That also means there is no auto-pay to switch off.
+          . That also means there is nothing to cancel and no auto-pay to switch
+          off.
         </p>
       )}
     </Card>
