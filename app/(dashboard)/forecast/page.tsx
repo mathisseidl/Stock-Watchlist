@@ -3,14 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  ArrowUpRight,
-  BarChart3,
-  Lock,
-  MoveRight,
-  Sparkles,
-  Target,
-} from "lucide-react";
+import { ArrowUpRight, Lock, MoveRight, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -171,11 +164,16 @@ function ForecastPageBody() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        {/* The promise lives here rather than in a card under the form. A
+            "here is what you will get" panel only ever gets read once, and it
+            went stale the moment a feature it advertised was removed. */}
+        <div className="max-w-2xl">
           <h1 className="text-2xl font-semibold">Forecast</h1>
-          <p className="text-sm text-muted-foreground">
-            What a stake in a stock could be worth on a date you choose — the
-            good side and the bad side.
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            Nobody can predict a price. This plays the next stretch out twenty
+            thousand times, using how a stock has actually behaved, and shows
+            you the range those runs landed in — the good side, the bad side
+            and the middle, in dollars, with every method named underneath.
           </p>
         </div>
         {planReady &&
@@ -354,8 +352,6 @@ function ForecastPageBody() {
         {error && <p className="text-sm text-destructive">{error}</p>}
       </Card>
 
-      {phase === "idle" && !result && <ForecastPreview />}
-
       {thinking && pending && <ForecastLoader symbol={pending.symbol} />}
 
       {phase === "done" && result && (
@@ -377,59 +373,6 @@ function ForecastPageBody() {
 
       <DataDisclaimer className="border-t border-border pt-4" />
     </div>
-  );
-}
-
-/**
- * What the reader is about to get, shown before they have run anything.
- *
- * The form on its own gives a newcomer no reason to press the button — three
- * fields and a verb is not a promise. This is the promise.
- */
-function ForecastPreview() {
-  const steps = [
-    {
-      icon: BarChart3,
-      title: "A range, not a number",
-      body: "Nobody can predict a price. You get the good side, the bad side and the middle, in dollars.",
-    },
-    {
-      icon: Target,
-      title: "Odds on any target",
-      body: "Drag to any price you care about and see how often the simulation actually got there.",
-    },
-    {
-      icon: Sparkles,
-      title: "The workings, named",
-      body: "Every method, every measured input, printed underneath. Check the work or ignore it.",
-    },
-  ];
-
-  return (
-    <Card className="gap-5 p-6">
-      <div>
-        <h2 className="text-base font-semibold">
-          Pick a stock, an amount and a date
-        </h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Then the engine runs twenty thousand simulated futures and shows you
-          how they fell.
-        </p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-3">
-        {steps.map(({ icon: Icon, title, body }) => (
-          <div key={title} className="flex flex-col gap-1.5">
-            <span className="flex size-8 items-center justify-center rounded-full bg-accent">
-              <Icon className="size-4 text-accent-foreground" />
-            </span>
-            <p className="text-sm font-medium">{title}</p>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {body}
-            </p>
-          </div>
-        ))}
-      </div>
-    </Card>
   );
 }
 
