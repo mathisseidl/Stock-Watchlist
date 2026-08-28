@@ -45,18 +45,19 @@ export function ForecastDistribution({ forecast }: { forecast: ForecastResult })
             <span className="num font-medium text-foreground">
               {number(active.share * 100, 1)}%
             </span>{" "}
-            of runs ended between{" "}
-            <span className="num text-foreground">{money(active.from)}</span> and{" "}
-            <span className="num text-foreground">{money(active.to)}</span> a
-            share — worth{" "}
+            of runs left you with between{" "}
             <span className="num text-foreground">
-              {money(shares * active.from, 0)}–{money(shares * active.to, 0)}
+              {money(shares * active.from, 0)}
             </span>{" "}
-            to you.
+            and{" "}
+            <span className="num text-foreground">
+              {money(shares * active.to, 0)}
+            </span>
+            .
           </>
         ) : (
           <>
-            Each bar is how often the simulation ended in that price range.
+            Each bar is how often the simulation left you with that much.
             Everything right of the dashed line is a profit;{" "}
             <span className="num font-medium text-foreground">
               {number(forecast.probabilityOfProfit, 0)}%
@@ -70,7 +71,7 @@ export function ForecastDistribution({ forecast }: { forecast: ForecastResult })
       <div
         className="relative flex h-44 items-end gap-px"
         role="img"
-        aria-label={`Distribution of ${forecast.simulations.toLocaleString()} simulated ending prices, from ${money(first)} to ${money(buckets[buckets.length - 1].to)}`}
+        aria-label={`Distribution of ${forecast.simulations.toLocaleString()} simulated outcomes, leaving you with between ${money(shares * first, 0)} and ${money(shares * buckets[buckets.length - 1].to, 0)}`}
         onMouseLeave={() => setHovered(null)}
       >
         {buckets.map((bucket, index) => {
@@ -109,7 +110,7 @@ export function ForecastDistribution({ forecast }: { forecast: ForecastResult })
       </div>
 
       <div className="relative h-8 text-[11px] text-muted-foreground">
-        <span className="num absolute left-0">{money(first, 0)}</span>
+        <span className="num absolute left-0">{money(shares * first, 0)}</span>
         {withinRange && (
           <span
             className="absolute -translate-x-1/2 text-center whitespace-nowrap text-foreground/70"
@@ -117,11 +118,11 @@ export function ForecastDistribution({ forecast }: { forecast: ForecastResult })
           >
             break even
             <br />
-            <span className="num">{money(entry, 0)}</span>
+            <span className="num">{money(forecast.amount, 0)}</span>
           </span>
         )}
         <span className="num absolute right-0">
-          {money(buckets[buckets.length - 1].to, 0)}
+          {money(shares * buckets[buckets.length - 1].to, 0)}
         </span>
       </div>
     </div>

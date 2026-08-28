@@ -101,20 +101,6 @@ export type ForecastDrivers = {
   dailyCVaR95Percent: number;
 };
 
-export type ForecastBandPoint = {
-  /** Unix seconds. */
-  time: number;
-  /** 10th percentile of prices at this moment. */
-  low: number;
-  /** 25th. The inner fan, where half the runs live. */
-  lowMid: number;
-  mid: number;
-  /** 75th. */
-  highMid: number;
-  /** 90th. */
-  high: number;
-};
-
 /** One column of the outcome histogram. */
 export type ForecastBucket = {
   /** Price at the left edge of the bucket. */
@@ -188,7 +174,6 @@ export type ForecastResult = {
   simulations: number;
   historyDays: number;
   drivers: ForecastDrivers;
-  band: ForecastBandPoint[];
   methods: string[];
 };
 
@@ -379,8 +364,6 @@ export async function buildForecast(
 
   const paths = tradingDays > 1260 ? 12_000 : 20_000;
   const halfPaths = paths / 2;
-  const checkpointCount = Math.min(40, tradingDays);
-  const checkpointStep = tradingDays / checkpointCount;
 
   // Simulation is seeded from the inputs plus the calendar day, so the answer
   // is stable if the user re-runs it and moves on tomorrow's data.
@@ -410,7 +393,6 @@ export async function buildForecast(
   const restartProbability = 1 / 20;
 
   const terminal = new Float64Array(paths);
-  const checkpoints = new Float64Array(paths * checkpointCount);
   // Deepest peak-to-trough fall inside each path. Tracked in log space, where
   // the running peak is just a running maximum and the drawdown is a
   // subtraction — no exp() per step.
@@ -422,7 +404,6 @@ export async function buildForecast(
     let logPeak = logPrice;
     let worstLogDrop = 0;
     let cursor = Math.floor(random() * returns.length);
-    let nextCheckpoint = 0;
 
     for (let step = 1; step <= tradingDays; step += 1) {
       if (useGbm) {
@@ -438,24 +419,9 @@ export async function buildForecast(
 
       if (logPrice > logPeak) logPeak = logPrice;
       else if (logPeak - logPrice > worstLogDrop) worstLogDrop = logPeak - logPrice;
-
-      while (
-        nextCheckpoint < checkpointCount &&
-        step >= Math.round((nextCheckpoint + 1) * checkpointStep)
-      ) {
-        checkpoints[path * checkpointCount + nextCheckpoint] = Math.exp(logPrice);
-        nextCheckpoint += 1;
-      }
     }
 
-    const finalPrice = Math.exp(logPrice);
-    // Guard the tail of a very short horizon, where rounding can leave a
-    // checkpoint unwritten.
-    while (nextCheckpoint < checkpointCount) {
-      checkpoints[path * checkpointCount + nextCheckpoint] = finalPrice;
-      nextCheckpoint += 1;
-    }
-    terminal[path] = finalPrice;
+    terminal[path] = Math.exp(logPrice);
     // exp(−drop) is the trough as a fraction of the peak, so 1 − that is the
     // fall itself.
     pathDrawdown[path] = 1 - Math.exp(-worstLogDrop);
@@ -520,36 +486,6 @@ export async function buildForecast(
     share: count / paths,
   }));
 
-  /* --- Fan chart --------------------------------------------------- */
-
-  const now = Math.floor(Date.now() / 1000);
-  const horizonSeconds = horizonDays * 86_400;
-  const band: ForecastBandPoint[] = [
-    {
-      time: now,
-      low: entryPrice,
-      lowMid: entryPrice,
-      mid: entryPrice,
-      highMid: entryPrice,
-      high: entryPrice,
-    },
-  ];
-  const column = new Float64Array(paths);
-  for (let index = 0; index < checkpointCount; index += 1) {
-    for (let path = 0; path < paths; path += 1) {
-      column[path] = checkpoints[path * checkpointCount + index];
-    }
-    column.sort();
-    band.push({
-      time: now + Math.round((horizonSeconds * (index + 1)) / checkpointCount),
-      low: percentileSorted(column, 0.1),
-      lowMid: percentileSorted(column, 0.25),
-      mid: percentileSorted(column, 0.5),
-      highMid: percentileSorted(column, 0.75),
-      high: percentileSorted(column, 0.9),
-    });
-  }
-
   const targetDate = new Date(Date.now() + horizonDays * 86_400_000);
 
   return {
@@ -580,6 +516,7 @@ export async function buildForecast(
     },
     simulations: paths,
     historyDays: closes.length,
+    methods: FORECAST_METHODS,
     drivers: {
       annualDriftPercent: drift * 100,
       annualVolatilityPercent: annualVol * 100,
@@ -591,7 +528,5 @@ export async function buildForecast(
       dailyVaR95Percent: historicalVaR(returns) * 100,
       dailyCVaR95Percent: conditionalVaR(returns) * 100,
     },
-    band,
-    methods: FORECAST_METHODS,
   };
 }
