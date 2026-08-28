@@ -4,58 +4,27 @@ import { UpgradeButton } from "@/components/pricing/upgrade-button";
 import { AuthForm } from "@/components/auth/auth-form";
 import { createClient } from "@/lib/supabase/server";
 
-type Feature = { title: string; detail?: string };
-
-const freeFeatures: Feature[] = [
-  {
-    title: "Search any stock by name",
-    detail: "Type “Apple” and get AAPL — you don’t need to know the ticker.",
-  },
-  {
-    title: "Your own watchlist",
-    detail: "Save, reorder and follow as many stocks as you like.",
-  },
-  {
-    title: "Live prices and full charts",
-    detail:
-      "One day through to all time. Hold Shift, or pinch on your phone, to measure the percentage change between any two points.",
-  },
-  {
-    title: "The top 3 news stories for every stock",
-    detail:
-      "Free to read, never paywalled, published in the last 48 hours — each with one line on why it’s worth your time.",
-  },
-  {
-    title: "See what a past investment would be worth today",
-    detail:
-      "Pick a stock, an amount and a date, and get today’s value, profit and return, charted. Three a day.",
-  },
+const freeFeatures = [
+  "Search any stock by name",
+  "Your own watchlist",
+  "Live prices and full charts",
+  "The top 3 news stories for every stock",
+  "See what a past investment would be worth today",
 ];
 
-const proFeatures: Feature[] = [
-  { title: "Everything in Free" },
-  {
-    title: "Unlimited investment analysis",
-    detail:
-      "Run as many stocks, amounts and dates as you want, every day. No daily cap.",
-  },
-  { title: "A Pro badge in the app header" },
+const proFeatures = [
+  "Everything in Free",
+  "Unlimited investment analysis",
+  "A Pro badge in the app header",
 ];
 
-function FeatureList({ features }: { features: Feature[] }) {
+function FeatureList({ features }: { features: string[] }) {
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="flex flex-col gap-2.5">
       {features.map((feature) => (
-        <li key={feature.title} className="flex items-start gap-2.5">
+        <li key={feature} className="flex items-start gap-2.5 text-sm">
           <Check className="mt-0.5 size-4 shrink-0 text-gain" />
-          <div>
-            <p className="text-sm font-medium">{feature.title}</p>
-            {feature.detail && (
-              <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
-                {feature.detail}
-              </p>
-            )}
-          </div>
+          {feature}
         </li>
       ))}
     </ul>
