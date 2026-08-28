@@ -20,31 +20,6 @@ export function describeHorizon(days: number): string {
 }
 
 /**
- * The share of runs that finished at or above `target`, in percent.
- *
- * `percentiles` is the engine's p0…p100 ladder of terminal prices, which rises
- * monotonically — so finding where a price sits in it and interpolating gives
- * that price's percentile rank, and 100 minus the rank is the probability of
- * doing at least that well. Answering it here rather than on the server is
- * what makes the odds slider move with the reader's finger.
- */
-export function shareAtOrAbove(percentiles: number[], target: number): number {
-  const last = percentiles.length - 1;
-  if (last < 1) return 0;
-  if (target <= percentiles[0]) return 100;
-  if (target >= percentiles[last]) return 0;
-
-  let index = 0;
-  while (index < last - 1 && percentiles[index + 1] < target) index += 1;
-
-  const low = percentiles[index];
-  const high = percentiles[index + 1];
-  const within = high > low ? (target - low) / (high - low) : 0;
-  const rank = ((index + within) / last) * 100;
-  return Math.min(100, Math.max(0, 100 - rank));
-}
-
-/**
  * A percentage restated as odds, because "62%" is a statistic and "about 6 in
  * 10" is a feeling. Deliberately vague at the extremes — claiming "1 in 847"
  * from twenty thousand simulations would be false precision.

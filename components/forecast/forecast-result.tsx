@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Activity, Landmark, Route, ShieldAlert, Target } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/settings/setting-row";
-import { ForecastOddsExplorer } from "@/components/forecast/forecast-odds";
 import { ForecastDistribution } from "@/components/forecast/forecast-distribution";
 import { ForecastDetails } from "@/components/forecast/forecast-details";
 import { Explain, GLOSSARY } from "@/components/forecast/explain";
@@ -20,25 +19,33 @@ import type { ForecastResult } from "@/lib/forecast/engine";
 
 type Mode = "guided" | "compact";
 
+/** Past about eighteen months a total return stops being intuitive on its own. */
+const LONG_HORIZON_DAYS = 550;
+
+/** `oddsPhrase` returns a fragment; this starts a sentence with it. */
+function sentenceCase(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 /* ------------------------------------------------------------------ */
 /* Pieces                                                              */
 /* ------------------------------------------------------------------ */
 
 /**
- * The whole spread on one axis: worst tenth at the left edge, best tenth at
- * the right, the middle outcome marked, and the colour changing where your
- * stake breaks even.
+ * The whole spread on one axis: the unlucky tenth at the left edge, the lucky
+ * tenth at the right, the middle outcome marked, and the colour changing where
+ * your stake breaks even.
  *
- * This replaces the three outcome cards that used to sit underneath. They
- * carried the same three numbers the axis already shows, and seeing them side
- * by side in boxes made the reader do the comparison that the axis does for
- * them.
+ * Everything on it is labelled where it sits rather than in a caption
+ * underneath. A reader asked, reasonably, what the dot was and what "10%" at
+ * the ends was 10% *of* — both of which the old version expected them to
+ * infer. The dot now carries its own tag on a leader line, and each end says
+ * in words what reaching it would mean.
  *
- * Note there is deliberately no "break even" label. An earlier version put one
- * in a three-column row under the bar, which pinned it to dead centre while
- * its tick sat wherever break-even actually fell — so the median could render
- * visually *left* of a label claiming to mark a lower number. The colour
- * change is the marker; the caption says what the colour means.
+ * There is deliberately no break-even label. An earlier version put one in a
+ * three-column row under the bar, which pinned it to dead centre while its
+ * tick sat wherever break-even actually fell — so the median could render
+ * visually *left* of a label claiming to mark a lower number.
  */
 function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
   const { money } = useUserSettings();
@@ -51,42 +58,70 @@ function OutcomeRange({ forecast }: { forecast: ForecastResult }) {
 
   const breakEven = position(forecast.amount);
   const median = position(forecast.likely.value);
+  // Keep the tag and its leader line clear of both edges. The median sits
+  // between the two ends by construction, so this almost never bites.
+  const tagAt = Math.min(82, Math.max(18, median));
   const stake = money(forecast.amount, 0);
 
   const caption =
     forecast.amount <= low
-      ? `Even the worst tenth of runs finished above your ${stake}.`
+      ? `Even the unluckiest tenth of runs finished above your ${stake}.`
       : forecast.amount >= high
-        ? `Even the best tenth of runs finished below your ${stake}.`
-        : `The dot is the middle outcome. Red is where you end up below your ${stake}.`;
+        ? `Even the luckiest tenth of runs finished below your ${stake}.`
+        : `The red stretch is where you end up with less than the ${stake} you put in.`;
 
   return (
-    <div>
-      <div className="relative h-3 overflow-hidden rounded-full bg-muted">
+    <div className="pt-9">
+      <div className="relative">
+        {/* The dot says what it is, on a leader line down to itself. */}
         <div
-          className="absolute inset-y-0 left-0 bg-loss/40"
-          style={{ width: `${breakEven}%` }}
-        />
-        <div
-          className="absolute inset-y-0 right-0 bg-gain/40"
-          style={{ width: `${100 - breakEven}%` }}
-        />
-        <div
-          className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-foreground"
-          style={{ left: `${median}%` }}
-        />
+          className="absolute -top-9 flex -translate-x-1/2 flex-col items-center"
+          style={{ left: `${tagAt}%` }}
+        >
+          <span className="rounded-md bg-foreground px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-background">
+            Middle outcome
+          </span>
+          <span aria-hidden className="h-2.5 w-px bg-foreground/50" />
+        </div>
+
+        <div className="relative h-3 overflow-hidden rounded-full bg-muted">
+          <div
+            className="absolute inset-y-0 left-0 bg-loss/40"
+            style={{ width: `${breakEven}%` }}
+          />
+          <div
+            className="absolute inset-y-0 right-0 bg-gain/40"
+            style={{ width: `${100 - breakEven}%` }}
+          />
+          <div
+            className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card bg-foreground"
+            style={{ left: `${median}%` }}
+          />
+        </div>
       </div>
 
-      <div className="mt-2 flex items-baseline justify-between text-[11px] text-muted-foreground">
-        <span>
-          Worst 10% <span className="num text-loss">{money(low, 0)}</span>
+      <div className="mt-2.5 flex items-start justify-between gap-6 text-[11px] leading-relaxed">
+        <span className="text-left">
+          <span className="block font-medium">If it goes badly</span>
+          <span className="num block text-base font-semibold text-loss">
+            {money(low, 0)}
+          </span>
+          <span className="block text-muted-foreground">
+            1 run in 10 ended below this
+          </span>
         </span>
-        <span>
-          Best 10% <span className="num text-gain">{money(high, 0)}</span>
+        <span className="text-right">
+          <span className="block font-medium">If it goes well</span>
+          <span className="num block text-base font-semibold text-gain">
+            {money(high, 0)}
+          </span>
+          <span className="block text-muted-foreground">
+            1 run in 10 ended above this
+          </span>
         </span>
       </div>
 
-      <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
         {caption}
       </p>
     </div>
@@ -154,15 +189,12 @@ export function ForecastResultView({
   const risk = describeRisk(forecast.drivers.annualVolatilityPercent);
   const upside = forecast.likely.profit >= 0;
   const beatsCash = forecast.cash.probabilityOfBeating;
+  const runs = forecast.simulations.toLocaleString();
+  const longHorizon = forecast.horizonDays >= LONG_HORIZON_DAYS;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ---- Reading level ---------------------------------------------- */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {forecast.simulations.toLocaleString()} simulated futures for{" "}
-          <span className="font-medium text-foreground">{forecast.symbol}</span>
-        </p>
+      <div className="flex justify-end">
         <SegmentedControl
           label="How much explanation to show"
           value={mode}
@@ -195,6 +227,18 @@ export function ForecastResultView({
           )}
         </div>
 
+        {/* Says what a "run" is, once, before the word is used forty times. */}
+        {guided && (
+          <p className="rounded-xl bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
+            We played the next {horizon} out{" "}
+            <span className="font-medium text-foreground">{runs} times</span>,
+            using how {forecast.name} has actually moved over the last five
+            years — different luck each time. Each of those is a{" "}
+            <span className="font-medium text-foreground">run</span>, and every
+            number on this page is counted from how those {runs} runs ended.
+          </p>
+        )}
+
         <div>
           <p className="text-sm font-medium text-muted-foreground">
             {describeVerdict(forecast.probabilityOfProfit)}
@@ -217,6 +261,17 @@ export function ForecastResultView({
           <p className="mt-1 text-sm text-muted-foreground">
             the <Explain text={GLOSSARY.median}>middle outcome</Explain> — half
             the runs did better than this, half did worse
+            {longHorizon && (
+              <>
+                {" "}
+                · works out at{" "}
+                <span className="num">
+                  {forecast.likely.annualizedPercent >= 0 ? "+" : "−"}
+                  {number(Math.abs(forecast.likely.annualizedPercent), 1)}%
+                </span>{" "}
+                a year
+              </>
+            )}
           </p>
         </div>
 
@@ -228,7 +283,7 @@ export function ForecastResultView({
             label="Chance of a profit"
             value={`${number(forecast.probabilityOfProfit, 0)}%`}
             tone={forecast.probabilityOfProfit >= 50 ? "gain" : "loss"}
-            detail={`${oddsPhrase(forecast.probabilityOfProfit)} ended in profit.`}
+            detail={`${sentenceCase(oddsPhrase(forecast.probabilityOfProfit))} ended with more than the ${money(forecast.amount, 0)} you put in.`}
           />
           <KeyStat
             icon={Landmark}
@@ -237,11 +292,12 @@ export function ForecastResultView({
             tone={beatsCash >= 50 ? "gain" : "loss"}
             detail={
               <>
-                A savings account at{" "}
+                Cash in a{" "}
                 <Explain text={GLOSSARY.riskFree}>
-                  {number(forecast.cash.annualRatePercent, 0)}%
+                  {number(forecast.cash.annualRatePercent, 0)}% savings account
                 </Explain>{" "}
-                would reach {money(forecast.cash.value, 0)}.
+                reaches {money(forecast.cash.value, 0)} with no risk at all.
+                That is the bar this has to clear to be worth doing.
               </>
             }
           />
@@ -249,29 +305,27 @@ export function ForecastResultView({
             icon={Activity}
             label="How rough a ride"
             value={risk.label}
-            detail={`${risk.detail} ${number(forecast.drivers.annualVolatilityPercent, 0)}% swing a year.`}
+            detail={`In a normal year it drifts about ${number(forecast.drivers.annualVolatilityPercent, 0)}% away from where it started, up or down. ${risk.detail}`}
           />
         </div>
       </Card>
 
-      {/* ---- 2. Play with it -------------------------------------------- */}
-      <ForecastOddsExplorer forecast={forecast} />
-
-      {/* ---- 3. The shape ----------------------------------------------- */}
+      {/* ---- 2. The shape ----------------------------------------------- */}
       <Card className="gap-4 p-6">
         <div>
           <h3 className="text-base font-semibold">Where the runs landed</h3>
           {guided && (
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Every simulated ending, sorted into columns. The numbers above are
-              just three points picked out of this shape.
+              All {runs} endings, sorted into columns by how much you were left
+              with. The bar above picks three points out of this shape; this is
+              the whole of it.
             </p>
           )}
         </div>
         <ForecastDistribution forecast={forecast} />
       </Card>
 
-      {/* ---- 4. The honest part ----------------------------------------- */}
+      {/* ---- 3. The honest part ----------------------------------------- */}
       <Card className="gap-4 border-loss/25 p-6">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-loss-soft">
@@ -291,13 +345,14 @@ export function ForecastResultView({
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-loss/25 bg-loss-soft/30 p-4">
             <p className="text-xs font-medium text-muted-foreground">
-              The bad tail
+              If it goes really badly
             </p>
             <p className="num-display mt-1 text-xl text-loss">
               {money(forecast.stress.value)}
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              One run in twenty ended at or below this.
+              1 run in 20 ended at or below this — worse than the bad end of
+              the bar above.
             </p>
           </div>
 
@@ -310,9 +365,10 @@ export function ForecastResultView({
               −{number(forecast.journey.medianDipPercent, 0)}%
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              The typical run{" "}
-              <Explain text={GLOSSARY.drawdown}>dipped</Explain> at least this
-              far below its own high along the way.
+              Half the runs{" "}
+              <Explain text={GLOSSARY.drawdown}>dropped</Explain> at least this
+              far below their own high at some point on the way — including
+              runs that ended up fine. You would have had to sit through it.
             </p>
           </div>
 
@@ -324,14 +380,14 @@ export function ForecastResultView({
               −{number(forecast.drivers.maxDrawdownPercent, 0)}%
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-              {forecast.symbol}&apos;s deepest real fall from a peak in five
-              years. Not a simulation — it happened.
+              {forecast.symbol}&apos;s deepest real fall from a peak in the last
+              five years. Not a simulation — it happened.
             </p>
           </div>
         </div>
       </Card>
 
-      {/* ---- 5. The workings -------------------------------------------- */}
+      {/* ---- 4. The workings -------------------------------------------- */}
       <ForecastDetails forecast={forecast} />
     </div>
   );
