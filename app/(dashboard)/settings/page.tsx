@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { SecurityCard } from "@/components/settings/security-card";
 import { SessionsCard } from "@/components/settings/sessions-card";
 import { DisplayCard } from "@/components/settings/display-card";
+import { FeedbackCard } from "@/components/settings/feedback-card";
 import {
   SettingRow,
   Toggle,
@@ -19,8 +20,6 @@ import {
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-
-const APP_VERSION = "1.0.0";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -188,26 +187,9 @@ export default function SettingsPage() {
 
       <DisplayCard />
 
-      {!isGuest && <SessionsCard />}
+      {!isGuest && <FeedbackCard />}
 
-      {/* ---- About --------------------------------------------------- */}
-      <Card className="gap-4 p-6">
-        <h3 className="text-base font-semibold">About</h3>
-        <dl className="flex flex-col gap-2 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Version</dt>
-            <dd className="num">{APP_VERSION}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Market data</dt>
-            <dd>Finnhub &amp; Yahoo Finance</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Payments</dt>
-            <dd>Stripe</dd>
-          </div>
-        </dl>
-      </Card>
+      {!isGuest && <SessionsCard />}
 
       {!isGuest && (
         <Card className="gap-4 p-6">
