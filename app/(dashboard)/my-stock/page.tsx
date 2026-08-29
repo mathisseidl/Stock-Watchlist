@@ -51,7 +51,7 @@ export default function MyStockPage() {
             href="/account"
             className="font-semibold text-primary hover:underline"
           >
-            Sign in to sync it →
+            Sign in for free →
           </Link>
         </div>
       )}
