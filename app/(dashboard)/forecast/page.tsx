@@ -477,7 +477,7 @@ function ForecastUpsell({
       </ul>
 
       <p className="rounded-xl border border-border px-4 py-3 text-sm">
-        <span className="num font-semibold">$4.99/month</span>, also unlocking
+        <span className="num font-semibold">$1.99/month</span>, also unlocking
         the AI news briefings and unlimited analysis. Cancel any time.
       </p>
 
@@ -485,7 +485,7 @@ function ForecastUpsell({
         href="/account#plans"
         className={cn(buttonVariants(), "w-full rounded-full sm:w-auto sm:self-start")}
       >
-        Get Pro — $4.99/month
+        Get Pro — $1.99/month
         <ArrowUpRight className="size-4" />
       </Link>
     </Card>

@@ -21,7 +21,7 @@ import { useProStatus } from "@/hooks/use-pro";
 import { cn } from "@/lib/utils";
 import type { NewsBrief } from "@/lib/news-summary";
 
-/** Why the brief is worth the $4.99, in the reader's own terms. */
+/** Why the brief is worth the $1.99, in the reader's own terms. */
 const SELLING_POINTS = [
   "Every story on your stock in a few sentences — the day's news in half a minute.",
   "Credible desks only. Nothing over 24 hours, nothing paywalled, nothing off-topic.",
@@ -207,7 +207,7 @@ function ProPitch({ symbol }: { symbol: string }) {
       </ul>
 
       <p className="rounded-xl border border-border px-4 py-3 text-sm">
-        <span className="num font-semibold">$4.99/month</span>, also unlocking
+        <span className="num font-semibold">$1.99/month</span>, also unlocking
         forecasts and unlimited analysis. Cancel any time.
       </p>
 
@@ -215,7 +215,7 @@ function ProPitch({ symbol }: { symbol: string }) {
         href="/account#plans"
         className={cn(buttonVariants(), "w-full rounded-full")}
       >
-        Get Pro — $4.99/month
+        Get Pro — $1.99/month
         <ArrowUpRight className="size-4" />
       </Link>
     </div>

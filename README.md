@@ -14,7 +14,7 @@ investment calculations, and connect with friends to share watchlists.
 - **Alerts** — the three biggest things on your watchlist right now, earnings first, then the largest move of the day
 - **Lookback** — "what if you'd invested $X on date Y" calculator (free plan: 3/day; Pro: no limit)
 - **Community** — find friends by username, send/accept friend requests, view each other's watchlists
-- **Payments** — $4.99/month Stripe subscription, with an auto-pay switch that sets `cancel_at_period_end`, so you can cancel right up to the day before the next charge and keep the days you've paid for
+- **Payments** — $1.99/month Stripe subscription, with an auto-pay switch that sets `cancel_at_period_end`, so you can cancel right up to the day before the next charge and keep the days you've paid for
 
 ## Tech stack
 
@@ -62,7 +62,7 @@ These are the third-party websites this project relies on to work:
 - **[GitHub](https://github.com/)** — hosts the source code repository.
 - **[Vercel](https://vercel.com/)** — builds and hosts the live website.
 - **[Supabase](https://supabase.com/)** — provides the database, user accounts/login, and per-user data security.
-- **[Stripe](https://stripe.com/)** — processes the $4.99/month subscription for the Pro plan.
+- **[Stripe](https://stripe.com/)** — processes the $1.99/month subscription for the Pro plan.
 - **[Anthropic](https://www.anthropic.com/)** — writes the Pro news briefings, when an API key is configured.
 - **[Finnhub](https://finnhub.io/)** — supplies live stock quotes, ticker search, company logos, and news.
 - **[Yahoo Finance](https://finance.yahoo.com/)** — supplies the historical price data used to draw the charts.

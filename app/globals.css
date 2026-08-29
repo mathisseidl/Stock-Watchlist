@@ -155,6 +155,18 @@
   }
 }
 
+/*
+ * Pro gradient backgrounds. When one is active the gradient is painted on
+ * <body> inline, and page-level text switches to the single ink colour the
+ * preset ships with — black or white, never a tint. Cards keep their own
+ * opaque surfaces and their own foreground token, so only text sitting
+ * directly on the gradient follows the ink.
+ */
+html[data-gradient] {
+  --foreground: var(--gradient-ink);
+  --muted-foreground: var(--gradient-ink-muted);
+}
+
 /**
  * Every figure the user reads as data — prices, percentages, deltas, counts.
  *

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { containsProfanity } from "@/lib/profanity";
 
 export function AuthForm({
   mode,
@@ -32,6 +33,9 @@ export function AuthForm({
 
     try {
       if (isSignup) {
+        if (containsProfanity(username)) {
+          throw new Error("Pick a username without slurs or swear words.");
+        }
         const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

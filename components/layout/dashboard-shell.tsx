@@ -5,6 +5,8 @@ import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { StockSearch } from "@/components/search/stock-search";
 import { MarketStatus } from "@/components/stock/market-status";
+import { useBackground } from "@/components/settings/background-provider";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
 /** Horizontal travel that counts as a swipe rather than a tap or a scroll. */
@@ -35,6 +37,7 @@ function startedInScroller(target: EventTarget | null): boolean {
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const { activeId: gradient } = useBackground();
   const swipe = useRef<{ x: number; y: number; eligible: boolean } | null>(null);
 
   useEffect(() => {
@@ -59,7 +62,12 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           browser. Single-finger only, so the chart's two-finger compare is
           untouched. */}
       <div
-        className="flex min-w-0 flex-1 flex-col bg-muted/30"
+        className={cn(
+          "flex min-w-0 flex-1 flex-col",
+          // A gradient owns the page background; the muted wash would only
+          // dull it.
+          gradient ? "bg-transparent" : "bg-muted/30",
+        )}
         onTouchStart={(event) => {
           if (event.touches.length !== 1) {
             swipe.current = null;
@@ -89,7 +97,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           }
         }}
       >
-        <header className="flex items-center gap-3 border-b border-border bg-background px-4 py-3 md:px-8">
+        <header
+          className={cn(
+            "flex items-center gap-3 border-b border-border px-4 py-3 md:px-8",
+            gradient
+              ? "bg-background/60 backdrop-blur-md"
+              : "bg-background",
+          )}
+        >
           {/* Mobile: menu button + brand (the sidebar brand is hidden here). */}
           <button
             type="button"

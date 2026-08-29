@@ -302,7 +302,7 @@ export default function AnalyticsPage() {
             href="/account"
             className={cn(buttonVariants(), "rounded-full")}
           >
-            Upgrade — $4.99/month
+            Upgrade — $1.99/month
           </Link>
         </Card>
       )}

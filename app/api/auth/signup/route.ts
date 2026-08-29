@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { defaultWatchlist } from "@/lib/mock-data";
+import { containsProfanity } from "@/lib/profanity";
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
@@ -21,6 +22,13 @@ export async function POST(request: Request) {
         error:
           "Username must be 3–20 characters: lowercase letters, numbers or underscores.",
       },
+      { status: 400 },
+    );
+  }
+
+  if (containsProfanity(username)) {
+    return NextResponse.json(
+      { error: "Pick a username without slurs or swear words." },
       { status: 400 },
     );
   }

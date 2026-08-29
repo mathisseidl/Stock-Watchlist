@@ -252,7 +252,7 @@ export default async function AccountPage() {
             <div>
               <h3 className="text-lg font-semibold">Pro</h3>
               <p className="num mt-1 text-3xl font-semibold">
-                $4.99
+                $1.99
                 <span className="text-base font-normal text-muted-foreground">
                   /month
                 </span>
@@ -263,6 +263,20 @@ export default async function AccountPage() {
               </p>
             </div>
             <FeatureList features={proFeatures} />
+
+            {/* Set apart from the feature list on purpose — it's reassurance
+                about the checkout, not another thing the plan includes, and
+                shouldn't read as the last bullet. */}
+            <div className="mt-2 flex items-start gap-2.5 border-t border-border pt-5 text-sm">
+              <Check className="mt-0.5 size-4 shrink-0 text-gain" />
+              <span>
+                Payment provider: <span className="font-medium">Stripe</span>{" "}
+                <span className="text-muted-foreground">
+                  (trusted by Google, Amazon, Shopify, etc.)
+                </span>
+              </span>
+            </div>
+
             <div className="mt-auto">
               {isPaid ? (
                 <div className="rounded-xl bg-gain-soft py-2 text-center">

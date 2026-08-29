@@ -3,6 +3,8 @@
 import { Card } from "@/components/ui/card";
 import { SettingRow, SegmentedControl } from "@/components/settings/setting-row";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
+import { BackgroundPicker } from "@/components/settings/background-picker";
+import { Separator } from "@/components/ui/separator";
 import { RANGES } from "@/lib/ranges";
 import type { CandleRange } from "@/lib/market-data/types";
 
@@ -57,6 +59,10 @@ export function DisplayCard() {
           />
         }
       />
+
+      <Separator />
+
+      <BackgroundPicker />
     </Card>
   );
 }

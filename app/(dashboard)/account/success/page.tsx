@@ -89,7 +89,7 @@ export default async function CheckoutSuccessPage({
                       year: "numeric",
                     })}
                   </span>
-                  , and renews at $4.99 unless you cancel your subscription
+                  , and renews at $1.99 unless you cancel your subscription
                   under &ldquo;Account&rdquo;.
                 </>
               )}
