@@ -155,21 +155,6 @@ export default function SettingsPage() {
             </div>
           }
         />
-
-        <Separator />
-
-        <SettingRow
-          label="Major news"
-          description="Earnings, deals, lawsuits, leadership changes and product launches on stocks you follow."
-          control={
-            <Toggle
-              label="Major news alerts"
-              disabled={alertsOff}
-              checked={settings.notifyBigNews}
-              onChange={(next) => update({ notifyBigNews: next })}
-            />
-          }
-        />
       </Card>
 
       <DisplayCard />

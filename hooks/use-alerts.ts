@@ -61,11 +61,13 @@ export function useAlerts() {
     })),
   });
 
+  // News is the always-on part of the section — it is a watchlist feed, not an
+  // alert the reader opts into. Only the price-move rows below are gated.
   const newsQueries = useQueries({
     queries: symbols.map((symbol) => ({
       queryKey: ["news", symbol],
       queryFn: () => fetchJson<NewsItem[]>(`/api/news/${symbol}`),
-      enabled: enabled && settings.notifyBigNews,
+      enabled,
       staleTime: 15 * 60 * 1000,
     })),
   });
@@ -96,27 +98,25 @@ export function useAlerts() {
     }
   }
 
-  if (settings.notifyBigNews) {
-    symbols.forEach((symbol, index) => {
-      const news = newsQueries[index]?.data;
-      if (!news) return;
+  symbols.forEach((symbol, index) => {
+    const news = newsQueries[index]?.data;
+    if (!news) return;
 
-      for (const item of news) {
-        alerts.push({
-          id: `news-${symbol}-${item.id ?? item.url}`,
-          symbol,
-          kind: "news",
-          title: item.headline,
-          detail: item.source,
-          changePercent: dayChange.get(symbol),
-          url: item.url,
-          publishedAt: item.datetime,
-        });
-        // One story per symbol keeps the list readable.
-        break;
-      }
-    });
-  }
+    for (const item of news) {
+      alerts.push({
+        id: `news-${symbol}-${item.id ?? item.url}`,
+        symbol,
+        kind: "news",
+        title: item.headline,
+        detail: item.source,
+        changePercent: dayChange.get(symbol),
+        url: item.url,
+        publishedAt: item.datetime,
+      });
+      // One story per symbol keeps the list readable.
+      break;
+    }
+  });
 
   alerts.sort((a, b) => {
     const byTier = TIER[a.kind] - TIER[b.kind];
