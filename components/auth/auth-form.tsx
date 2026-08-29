@@ -63,6 +63,12 @@ export function AuthForm({
     }
   }
 
+  const subtitleText =
+    subtitle ??
+    (isSignup
+      ? "Start tracking your watchlist on MATMAX Stock."
+      : "Sign in to your MATMAX Stock watchlist.");
+
   return (
     <Card className="w-full max-w-sm gap-5 p-8">
       <div className="flex flex-col items-center gap-2">
@@ -72,12 +78,11 @@ export function AuthForm({
         <h1 className="text-xl font-semibold">
           {isSignup ? "Create your account" : "Welcome back"}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          {subtitle ??
-            (isSignup
-              ? "Start tracking your watchlist on MATMAX Stock."
-              : "Sign in to your MATMAX Stock watchlist.")}
-        </p>
+        {/* An empty subtitle drops the line entirely, for callers whose
+            surrounding page already says why you would sign up. */}
+        {subtitleText && (
+          <p className="text-sm text-muted-foreground">{subtitleText}</p>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

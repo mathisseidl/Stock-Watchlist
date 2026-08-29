@@ -146,10 +146,7 @@ export default async function AccountPage() {
           </Card>
 
           <div className="flex justify-center md:justify-start">
-            <AuthForm
-              mode="signup"
-              subtitle="Create an account to keep your watchlist saved across devices."
-            />
+            <AuthForm mode="signup" subtitle="" />
           </div>
         </div>
       </div>

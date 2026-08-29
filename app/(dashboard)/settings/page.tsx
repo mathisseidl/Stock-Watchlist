@@ -66,8 +66,7 @@ export default function SettingsPage() {
               You&apos;re browsing as a guest
             </p>
             <p className="text-sm text-muted-foreground">
-              Preferences below are saved on this device. Sign up to sync them
-              and your watchlist across devices.
+              Preferences below are saved on this device only.
             </p>
           </div>
           <Link
