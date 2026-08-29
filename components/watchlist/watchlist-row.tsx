@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronUp, ChevronDown, Trash2 } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CompanyLogo } from "@/components/stock/company-logo";
 import { ChangeBadge } from "@/components/stock/change-badge";
@@ -10,23 +12,29 @@ import { NewsSummaryLink } from "@/components/stock/news-summary-dialog";
 import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
+import { cn } from "@/lib/utils";
 import type { CandleRange } from "@/lib/market-data/types";
 import type { WatchlistItem } from "@/lib/mock-data";
 
 export function WatchlistRow({
   item,
   range,
-  isFirst,
-  isLast,
 }: {
   item: WatchlistItem;
   range: CandleRange;
-  isFirst: boolean;
-  isLast: boolean;
 }) {
-  const { remove, move } = useWatchlist();
+  const { remove } = useWatchlist();
   const { money } = useUserSettings();
   const { data: series, isLoading, isError } = useCandles(item.symbol, range);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.symbol });
 
   const changePercent = seriesChangePercent(series);
   const positive = changePercent >= 0;
@@ -36,27 +44,23 @@ export function WatchlistRow({
     // Tighter gaps and padding below `sm`: on a 375px phone the fixed columns
     // left barely 100px for the name, which the "News Summary" link no longer
     // fits into.
-    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-3 sm:gap-4 sm:px-4">
-      <div className="flex flex-col">
-        <button
-          type="button"
-          aria-label={`Move ${item.symbol} up`}
-          disabled={isFirst}
-          onClick={() => move(item.symbol, "up")}
-          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-        >
-          <ChevronUp className="size-4" />
-        </button>
-        <button
-          type="button"
-          aria-label={`Move ${item.symbol} down`}
-          disabled={isLast}
-          onClick={() => move(item.symbol, "down")}
-          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-        >
-          <ChevronDown className="size-4" />
-        </button>
-      </div>
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-3 sm:gap-4 sm:px-4",
+        isDragging && "relative z-10 shadow-lg",
+      )}
+    >
+      <button
+        type="button"
+        aria-label={`Drag to reorder ${item.symbol}`}
+        {...attributes}
+        {...listeners}
+        className="-ml-1 touch-none p-1 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+      >
+        <GripVertical className="size-4" />
+      </button>
 
       {/* The logo and the name link through to the stock; the summary link
           opens a panel, so it sits outside the anchor rather than inside it. */}

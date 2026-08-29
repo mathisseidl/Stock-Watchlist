@@ -15,7 +15,8 @@ type WatchlistContextValue = {
   has: (symbol: string) => boolean;
   add: (item: WatchlistItem) => void;
   remove: (symbol: string) => void;
-  move: (symbol: string, direction: "up" | "down") => void;
+  /** Persist a hand-reordered list (drag and drop). */
+  reorder: (next: WatchlistItem[]) => void;
   ready: boolean;
   isGuest: boolean;
   /** Set when a change could not be saved, so the UI can say so. */
@@ -181,28 +182,26 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
     [commit, items, supabase, userId],
   );
 
-  const move = useCallback(
-    (symbol: string, direction: "up" | "down") => {
-      const index = items.findIndex((item) => item.symbol === symbol);
-      if (index === -1) return;
-      const target = direction === "up" ? index - 1 : index + 1;
-      if (target < 0 || target >= items.length) return;
+  const reorder = useCallback(
+    (next: WatchlistItem[]) => {
+      const previous = items;
+      const sameOrder =
+        next.length === previous.length &&
+        next.every((item, index) => previous[index]?.symbol === item.symbol);
+      if (sameOrder) return;
 
-      const next = [...items];
-      [next[index], next[target]] = [next[target], next[index]];
-
-      void commit(next, items, async () => {
-        const first = await supabase
-          .from("watchlist_items")
-          .update({ position: index })
-          .eq("user_id", userId)
-          .eq("symbol", next[index].symbol);
-        if (first.error) return first;
-        return supabase
-          .from("watchlist_items")
-          .update({ position: target })
-          .eq("user_id", userId)
-          .eq("symbol", next[target].symbol);
+      // Only the rows that actually shifted need a write.
+      void commit(next, previous, async () => {
+        for (let index = 0; index < next.length; index++) {
+          if (previous[index]?.symbol === next[index].symbol) continue;
+          const result = await supabase
+            .from("watchlist_items")
+            .update({ position: index })
+            .eq("user_id", userId)
+            .eq("symbol", next[index].symbol);
+          if (result.error) return result;
+        }
+        return { error: null };
       });
     },
     [commit, items, supabase, userId],
@@ -210,7 +209,7 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <WatchlistContext.Provider
-      value={{ items, has, add, remove, move, ready, isGuest, error }}
+      value={{ items, has, add, remove, reorder, ready, isGuest, error }}
     >
       {children}
     </WatchlistContext.Provider>

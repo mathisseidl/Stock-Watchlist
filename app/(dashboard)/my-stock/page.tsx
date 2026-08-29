@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { RangeSelector } from "@/components/stock/range-selector";
-import { WatchlistRow } from "@/components/watchlist/watchlist-row";
+import { WatchlistList } from "@/components/watchlist/watchlist-list";
 import { AlertList } from "@/components/stock/alert-list";
 import { WatchlistStats } from "@/components/watchlist/watchlist-stats";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
@@ -65,17 +65,7 @@ export default function MyStockPage() {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {items.map((item, index) => (
-            <WatchlistRow
-              key={item.symbol}
-              item={item}
-              range={activeRange}
-              isFirst={index === 0}
-              isLast={index === items.length - 1}
-            />
-          ))}
-        </div>
+        <WatchlistList range={activeRange} />
       )}
 
       {ready && items.length > 0 && <WatchlistStats />}

@@ -7,11 +7,11 @@ investment calculations, and connect with friends to share watchlists.
 ## Features
 
 - **Auth** — email/password accounts (Supabase), each user sees only their own data
-- **Watchlist** — add/remove/reorder stocks; live price, sparkline and % change per row, with Day / Week / Month / Year / 5Y / All ranges
+- **Watchlist** — add/remove stocks and drag to reorder; live price, sparkline and % change per row, with Day / Week / Month / Year / 5Y / All ranges
 - **Stock detail** — live quote, interactive price chart, key stats and company news
 - **Forecast** (Pro) — Monte Carlo simulation over Geometric Brownian Motion with fat-tailed shocks and a stationary block bootstrap, giving best / likely / worst outcomes for a date you pick. Everyone can run the S&P 500 sample; Pro forecasts any stock
 - **News briefings** (Pro) — a six-line AI summary of the last 24 hours on any watchlist stock, with its sources listed underneath
-- **Alerts** — the three biggest things on your watchlist right now, earnings first, then the largest move of the day
+- **Top news** — the day's three most relevant watchlist news stories, with any outsized price move surfaced alongside
 - **Lookback** — "what if you'd invested $X on date Y" calculator (free plan: 3/day; Pro: no limit)
 - **Community** — find friends by username, send/accept friend requests, view each other's watchlists
 - **Payments** — $1.99/month Stripe subscription. First-time members get a 7-day free trial (card taken up front, first charge only when the trial ends). An auto-pay switch sets `cancel_at_period_end`, so you can cancel right up to the day before the next charge — or before the trial ends — and keep the days you've paid for

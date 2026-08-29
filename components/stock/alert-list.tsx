@@ -90,12 +90,9 @@ export function AlertList() {
     <section className="rounded-2xl bg-card p-4 ring-1 ring-foreground/10 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2 px-3">
         <div>
-          <h2 className="text-base font-semibold">Worth a look today</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {alerts.length === 1
-              ? "One thing happened on your watchlist."
-              : `The ${alerts.length} biggest things on your watchlist right now.`}
-          </p>
+          <h2 className="text-base font-semibold">
+            Top 3 News stories of today
+          </h2>
         </div>
         <Link
           href="/settings"
