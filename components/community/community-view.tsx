@@ -5,9 +5,10 @@ import Link from "next/link";
 import { Search, UserPlus, Check, X, Clock, Eye } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 type Friend = { id: string; username: string };
 type Incoming = { requestId: string; id: string; username: string };
@@ -38,6 +39,7 @@ function UserAvatar({ username }: { username: string }) {
 export function CommunityView() {
   const [supabase] = useState(() => createClient());
   const [me, setMe] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   const [friends, setFriends] = useState<Friend[]>([]);
   const [incoming, setIncoming] = useState<Incoming[]>([]);
@@ -51,7 +53,17 @@ export function CommunityView() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    if (!user) return;
+
+    // Signed out: nothing here works without an account, so leave the lists
+    // empty and let the view offer to make one.
+    if (!user) {
+      setMe(null);
+      setFriends([]);
+      setIncoming([]);
+      setOutgoingIds(new Set());
+      setReady(true);
+      return;
+    }
     setMe(user.id);
 
     const { data } = await supabase
@@ -90,12 +102,19 @@ export function CommunityView() {
     setFriends(nextFriends);
     setIncoming(nextIncoming);
     setOutgoingIds(nextOutgoing);
+    setReady(true);
   }, [supabase]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial async data load
     loadAll();
-  }, [loadAll]);
+    // Signing in from the prompt below has to swap this page over, otherwise
+    // the reader is left looking at the sign-up card they just acted on.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => loadAll());
+    return () => subscription.unsubscribe();
+  }, [loadAll, supabase]);
 
   // Debounced username search.
   useEffect(() => {
@@ -160,16 +179,40 @@ export function CommunityView() {
         </p>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search people by username"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoCapitalize="none"
-          className="pl-9"
-        />
-      </div>
+      {/* Guests get the prompt instead of the search: friends live on an
+          account, so every control below would be dead in their hands. */}
+      {ready && !me && (
+        <Card className="gap-4 p-6">
+          <div>
+            <p className="text-base font-semibold">
+              To add friends, create a free account
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Friends and requests are saved to your account, so they follow you
+              to any device. Free, and it takes a minute.
+            </p>
+          </div>
+          <Link
+            href="/account"
+            className={cn(buttonVariants(), "w-fit rounded-full")}
+          >
+            Create a free account
+          </Link>
+        </Card>
+      )}
+
+      {me && (
+        <div className="relative max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search people by username"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            autoCapitalize="none"
+            className="pl-9"
+          />
+        </div>
+      )}
 
       {query.trim() && (
         <Card className="gap-3 p-6">
@@ -193,7 +236,9 @@ export function CommunityView() {
                   >
                     <div className="flex items-center gap-3">
                       <UserAvatar username={person.username} />
-                      <p className="text-sm font-semibold">@{person.username}</p>
+                      <p className="text-sm font-semibold">
+                        @{person.username}
+                      </p>
                     </div>
                     {isFriend ? (
                       <span className="text-xs font-medium text-gain">
@@ -270,35 +315,39 @@ export function CommunityView() {
         </Card>
       )}
 
-      <Card className="gap-3 p-6">
-        <h3 className="text-base font-semibold">My friends ({friends.length})</h3>
-        {friends.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No friends yet. Search a username above to send a request.
-          </p>
-        ) : (
-          <div className="flex flex-col">
-            {friends.map((friend) => (
-              <div
-                key={friend.id}
-                className="flex items-center justify-between rounded-xl px-2 py-2.5 hover:bg-muted/50"
-              >
-                <div className="flex items-center gap-3">
-                  <UserAvatar username={friend.username} />
-                  <p className="text-sm font-semibold">@{friend.username}</p>
-                </div>
-                <Link
-                  href={`/community/${friend.username}`}
-                  className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+      {me && (
+        <Card className="gap-3 p-6">
+          <h3 className="text-base font-semibold">
+            My friends ({friends.length})
+          </h3>
+          {friends.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No friends yet. Search a username above to send a request.
+            </p>
+          ) : (
+            <div className="flex flex-col">
+              {friends.map((friend) => (
+                <div
+                  key={friend.id}
+                  className="flex items-center justify-between rounded-xl px-2 py-2.5 hover:bg-muted/50"
                 >
-                  <Eye className="size-4" />
-                  View watchlist
-                </Link>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+                  <div className="flex items-center gap-3">
+                    <UserAvatar username={friend.username} />
+                    <p className="text-sm font-semibold">@{friend.username}</p>
+                  </div>
+                  <Link
+                    href={`/community/${friend.username}`}
+                    className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                  >
+                    <Eye className="size-4" />
+                    View watchlist
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
