@@ -7,9 +7,10 @@ import { presetsForMode } from "@/lib/backgrounds";
 import { cn } from "@/lib/utils";
 
 /**
- * The gradient chooser in Settings → Display. Circles carry the gradient
- * itself; clicking one paints the whole app. Only the current theme's set is
- * shown — Light and Dark keep separate choices. Pro only.
+ * The gradient chooser, sat under the Light/Dark switch in the sidebar. Each
+ * circle carries the gradient itself; clicking one paints the whole app.
+ * Only the current theme's set shows — Light and Dark keep separate choices.
+ * Pro only, and wordless by design: the switch above already labels the area.
  */
 export function BackgroundPicker() {
   const { activeId, mode, allowed, ready, setBackground } = useBackground();
@@ -18,27 +19,10 @@ export function BackgroundPicker() {
   const locked = ready && !allowed;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium">
-            Background
-            {locked && (
-              <span className="ml-2 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
-                Pro
-              </span>
-            )}
-          </p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-            A gradient behind the whole app, just for {mode} mode. Switch themes
-            in the sidebar to set the other one.
-          </p>
-        </div>
-      </div>
-
+    <div className="mt-3 flex flex-wrap items-center gap-2">
       <div
         className={cn(
-          "flex flex-wrap items-center gap-2.5",
+          "flex flex-wrap items-center gap-2",
           locked && "pointer-events-none opacity-50",
         )}
       >
@@ -47,8 +31,8 @@ export function BackgroundPicker() {
           selected={activeId === null}
           onClick={() => setBackground(null)}
         >
-          <span className="flex size-full items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <Ban className="size-4" />
+          <span className="flex size-full items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground/50">
+            <Ban className="size-3.5" />
           </span>
         </Swatch>
 
@@ -70,10 +54,11 @@ export function BackgroundPicker() {
       {locked && (
         <Link
           href="/account#plans"
-          className="flex w-fit items-center gap-1.5 text-xs font-medium text-primary"
+          aria-label="Upgrade to Pro to use backgrounds"
+          title="Pro"
+          className="flex size-7 items-center justify-center rounded-full text-sidebar-foreground/50 hover:text-sidebar-foreground"
         >
           <Lock className="size-3.5" />
-          Upgrade to Pro to use backgrounds
         </Link>
       )}
     </div>
@@ -99,15 +84,15 @@ function Swatch({
       title={label}
       onClick={onClick}
       className={cn(
-        "relative block size-9 shrink-0 rounded-full ring-1 ring-foreground/15 transition",
-        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-        selected && "ring-2 ring-primary ring-offset-2 ring-offset-card",
+        "relative block size-7 shrink-0 rounded-full ring-1 ring-sidebar-foreground/15 transition",
+        "focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none",
+        selected && "ring-2 ring-sidebar-ring ring-offset-2 ring-offset-sidebar",
       )}
     >
       {children}
       {selected && (
-        <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <Check className="size-2.5" />
+        <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
+          <Check className="size-2" />
         </span>
       )}
     </button>

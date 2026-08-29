@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { BackgroundPicker } from "@/components/settings/background-picker";
 
 const nav = [
   { href: "/my-stock", label: "My Stocks", icon: LayoutGrid },
@@ -85,7 +86,7 @@ export function Sidebar({
       />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6 transition-transform md:static md:z-auto md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar px-4 py-6 transition-transform md:static md:z-auto md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
         // Swipe left to put it away again — the mirror of the gesture that
@@ -177,6 +178,10 @@ export function Sidebar({
             Dark
           </button>
         </div>
+
+        {/* Gradient backgrounds for the current theme — swatches only, since
+            the switch above already names this corner. */}
+        {mounted && <BackgroundPicker />}
       </div>
       </aside>
     </>

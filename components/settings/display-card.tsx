@@ -3,14 +3,13 @@
 import { Card } from "@/components/ui/card";
 import { SettingRow, SegmentedControl } from "@/components/settings/setting-row";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
-import { BackgroundPicker } from "@/components/settings/background-picker";
-import { Separator } from "@/components/ui/separator";
 import { RANGES } from "@/lib/ranges";
 import type { CandleRange } from "@/lib/market-data/types";
 
 /**
  * Number and chart display preferences, shown in Settings under Notifications.
- * Appearance (light/dark) is not here — that switch is in the sidebar.
+ * Appearance (light/dark) is not here — that switch is in the sidebar, and so
+ * is the Pro gradient picker.
  */
 export function DisplayCard() {
   const { settings, update } = useUserSettings();
@@ -59,10 +58,6 @@ export function DisplayCard() {
           />
         }
       />
-
-      <Separator />
-
-      <BackgroundPicker />
     </Card>
   );
 }
