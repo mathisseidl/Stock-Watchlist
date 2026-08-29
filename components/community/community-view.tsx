@@ -183,15 +183,9 @@ export function CommunityView() {
           account, so every control below would be dead in their hands. */}
       {ready && !me && (
         <Card className="gap-4 p-6">
-          <div>
-            <p className="text-base font-semibold">
-              To add friends, create a free account
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Friends and requests are saved to your account, so they follow you
-              to any device. Free, and it takes a minute.
-            </p>
-          </div>
+          <p className="text-base font-semibold">
+            To add friends, create a free account
+          </p>
           <Link
             href="/account"
             className={cn(buttonVariants(), "w-fit rounded-full")}
