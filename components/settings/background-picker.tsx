@@ -10,37 +10,34 @@ import { cn } from "@/lib/utils";
  * The gradient chooser, sat under the Light/Dark switch in the sidebar. Each
  * circle carries the gradient itself; clicking one paints the whole app.
  * Only the current theme's set shows — Light and Dark keep separate choices.
- * Pro only, and wordless by design: the switch above already labels the area.
+ * "No background" and the free default are open to everyone; the rest are Pro.
  */
 export function BackgroundPicker() {
   const { activeId, mode, allowed, ready, setBackground } = useBackground();
   const presets = presetsForMode(mode);
-  // Don't flash the locked state at a Pro member while their plan loads.
+  // Pro gate — applies only to the non-free gradients.
   const locked = ready && !allowed;
 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2">
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-2",
-          locked && "pointer-events-none opacity-50",
-        )}
+      <Swatch
+        label="No background"
+        selected={activeId === null}
+        onClick={() => setBackground(null)}
       >
-        <Swatch
-          label="No background"
-          selected={activeId === null}
-          onClick={() => setBackground(null)}
-        >
-          <span className="flex size-full items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground/50">
-            <Ban className="size-3.5" />
-          </span>
-        </Swatch>
+        <span className="flex size-full items-center justify-center rounded-full bg-sidebar-accent text-sidebar-foreground/50">
+          <Ban className="size-3.5" />
+        </span>
+      </Swatch>
 
-        {presets.map((preset) => (
+      {presets.map((preset) => {
+        const swatchLocked = locked && !preset.free;
+        return (
           <Swatch
             key={preset.id}
-            label={preset.label}
+            label={swatchLocked ? `${preset.label} — Pro` : preset.label}
             selected={activeId === preset.id}
+            disabled={swatchLocked}
             onClick={() => setBackground(preset.id)}
           >
             <span
@@ -48,13 +45,13 @@ export function BackgroundPicker() {
               style={{ backgroundImage: preset.swatch }}
             />
           </Swatch>
-        ))}
-      </div>
+        );
+      })}
 
       {locked && (
         <Link
           href="/account#plans"
-          aria-label="Upgrade to Pro to use backgrounds"
+          aria-label="Upgrade to Pro for more backgrounds"
           title="Pro"
           className="flex size-7 items-center justify-center rounded-full text-sidebar-foreground/50 hover:text-sidebar-foreground"
         >
@@ -69,11 +66,13 @@ function Swatch({
   label,
   selected,
   onClick,
+  disabled,
   children,
 }: {
   label: string;
   selected: boolean;
   onClick: () => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -82,10 +81,12 @@ function Swatch({
       aria-label={label}
       aria-pressed={selected}
       title={label}
+      disabled={disabled}
       onClick={onClick}
       className={cn(
         "relative block size-7 shrink-0 rounded-full ring-1 ring-sidebar-foreground/15 transition",
         "focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none",
+        "disabled:cursor-not-allowed disabled:opacity-40",
         selected && "ring-2 ring-sidebar-ring ring-offset-2 ring-offset-sidebar",
       )}
     >

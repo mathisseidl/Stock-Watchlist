@@ -1,8 +1,9 @@
 /**
- * Pro members can trade the flat app background for a gradient. Each preset
- * belongs to one theme — the light set only shows under Light, the dark set
- * only under Dark — and carries the one ink colour (black or white, nothing
- * else) that stays legible on top of it.
+ * The app background can be a gradient rather than the flat wash. One preset —
+ * the light "Dawn" — is the default every account starts on and is free for
+ * all; the rest are Pro. Each preset belongs to one theme (the light set only
+ * shows under Light, the dark set only under Dark) and carries the one ink
+ * colour (black or white, nothing else) that stays legible on top of it.
  *
  * The palettes are lifted from a set of reference screenshots: a soft sunrise,
  * an iridescent wash, a quiet haze, a bold ember, and — for dark — an aurora,
@@ -23,6 +24,8 @@ export type BackgroundPreset = {
   ink: string;
   /** Same ink, dimmed, for secondary text sitting on the background. */
   inkMuted: string;
+  /** Usable without Pro. Exactly one preset (the default) sets this. */
+  free?: boolean;
 };
 
 const BLACK_INK = "#0b0b0f";
@@ -39,6 +42,7 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
     swatch: "linear-gradient(135deg, #fdf3e3, #dbeef2)",
     ink: BLACK_INK,
     inkMuted: BLACK_INK_MUTED,
+    free: true,
   },
   {
     id: "light-bloom",
@@ -127,10 +131,21 @@ export const BACKGROUND_STORAGE_KEY = "matmax-background";
 /** next-themes writes the active theme here. */
 export const THEME_STORAGE_KEY = "theme";
 
+/** The gradient every account starts on, free of Pro. */
+export const DEFAULT_LIGHT_PRESET_ID = "light-dawn";
+
 /** A choice per mode, so switching Light/Dark swaps the gradient with it. */
 export type BackgroundChoice = { light: string | null; dark: string | null };
 
-export const EMPTY_CHOICE: BackgroundChoice = { light: null, dark: null };
+/**
+ * A visitor who has never opened the picker: the default light gradient, and
+ * nothing on dark. `null` in a *stored* choice means the opposite — the user
+ * turned the gradient off on purpose — so the two must stay distinguishable.
+ */
+export const DEFAULT_CHOICE: BackgroundChoice = {
+  light: DEFAULT_LIGHT_PRESET_ID,
+  dark: null,
+};
 
 export function presetById(id: string | null | undefined): BackgroundPreset | null {
   if (!id) return null;
@@ -141,17 +156,48 @@ export function presetsForMode(mode: BackgroundMode): BackgroundPreset[] {
   return BACKGROUND_PRESETS.filter((preset) => preset.mode === mode);
 }
 
+function readStoredMode(
+  parsed: Partial<Record<BackgroundMode, unknown>>,
+  mode: BackgroundMode,
+): string | null {
+  // Mode absent from the stored object → untouched, so keep its default.
+  if (!(mode in parsed)) return DEFAULT_CHOICE[mode];
+  // Present and explicitly null → the user chose "No background". Respect it.
+  const value = parsed[mode];
+  if (typeof value !== "string") return null;
+  return presetById(value)?.id ?? null;
+}
+
 export function parseChoice(raw: string | null): BackgroundChoice {
-  if (!raw) return EMPTY_CHOICE;
+  // No stored key at all → first visit, so the default gradient applies.
+  if (!raw) return DEFAULT_CHOICE;
   try {
-    const parsed = JSON.parse(raw) as Partial<BackgroundChoice>;
+    const parsed = JSON.parse(raw) as Partial<Record<BackgroundMode, unknown>>;
     return {
-      light: presetById(parsed.light)?.id ?? null,
-      dark: presetById(parsed.dark)?.id ?? null,
+      light: readStoredMode(parsed, "light"),
+      dark: readStoredMode(parsed, "dark"),
     };
   } catch {
-    return EMPTY_CHOICE;
+    return DEFAULT_CHOICE;
   }
+}
+
+/**
+ * The preset to actually paint. `null` means a flat background: either an
+ * explicit "No background", or a non-Pro account whose stored gradient is
+ * Pro-only and has no free fallback for this mode (i.e. dark).
+ */
+export function resolveGradient(
+  choice: BackgroundChoice,
+  mode: BackgroundMode,
+  canUsePro: boolean,
+): BackgroundPreset | null {
+  const id = mode === "light" ? choice.light : choice.dark;
+  if (id === null) return null;
+  const preset = presetById(id);
+  if (preset && (canUsePro || preset.free)) return preset;
+  // Stored gradient is gone or out of reach — fall back to the free default.
+  return mode === "light" ? presetById(DEFAULT_LIGHT_PRESET_ID) : null;
 }
 
 /**
@@ -181,10 +227,14 @@ export function applyBackground(preset: BackgroundPreset | null): void {
 }
 
 /**
- * A tiny script that paints the stored gradient before first paint, so a
- * reloaded page doesn't flash the flat background first. Pro isn't checked
- * here — the provider drops the gradient a beat later if the account isn't
- * paid — but a stale choice from a lapsed membership is the only cost.
+ * A tiny script that paints the gradient before first paint, so a reloaded
+ * page doesn't flash the flat background first. It mirrors parseChoice: no
+ * stored key, or a stored object without this mode's key, means the default
+ * gradient; an explicit null means the user turned it off.
+ *
+ * Pro isn't checked here — the default is free, which is the common case; a
+ * lapsed member with a Pro gradient stored sees it for one frame before the
+ * provider swaps in the default.
  */
 export function backgroundBootScript(): string {
   const map: Record<string, Pick<BackgroundPreset, "page" | "ink" | "inkMuted">> =
@@ -197,11 +247,13 @@ export function backgroundBootScript(): string {
     };
   }
   return `(function(){try{
-var choice=JSON.parse(localStorage.getItem(${JSON.stringify(
-    BACKGROUND_STORAGE_KEY,
-  )})||"{}");
-var theme=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})||"dark";
-var id=theme==="light"?choice.light:choice.dark;
+var raw=localStorage.getItem(${JSON.stringify(BACKGROUND_STORAGE_KEY)});
+var c=raw?JSON.parse(raw):null;
+var DEF=${JSON.stringify(DEFAULT_LIGHT_PRESET_ID)};
+var light=c&&("light" in c)?c.light:DEF;
+var dark=c&&("dark" in c)?c.dark:null;
+var theme=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})||"light";
+var id=theme==="dark"?dark:light;
 var presets=${JSON.stringify(map)};
 var p=id&&presets[id];
 if(!p)return;

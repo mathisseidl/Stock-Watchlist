@@ -11,8 +11,8 @@ export default function DashboardLayout({
 }) {
   return (
     <>
-      {/* Paints a Pro member's saved gradient before first paint, so a reload
-          doesn't flash the flat background. */}
+      {/* Paints the active gradient before first paint, so a reload doesn't
+          flash the flat background. New accounts start on the free default. */}
       <script
         id="matmax-background-boot"
         dangerouslySetInnerHTML={{ __html: backgroundBootScript() }}
