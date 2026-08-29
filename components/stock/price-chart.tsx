@@ -934,11 +934,12 @@ export function PriceChart({
               )}
             </svg>
 
-            {/* Level with the hover price — same `top`, same translate — so
-                the readout does not jump between the two modes. */}
+            {/* Set like the hover price — same face, size and weight, same
+                `top` and translate — so the readout does not shift between
+                the two modes. */}
             <div
               className={
-                "num absolute left-1/2 flex -translate-x-1/2 -translate-y-full items-baseline gap-6 text-lg font-semibold whitespace-nowrap " +
+                "num absolute left-1/2 flex -translate-x-1/2 -translate-y-full items-baseline gap-6 text-sm font-semibold whitespace-nowrap " +
                 (diffPositive ? "text-gain" : "text-loss")
               }
               style={{ top: priceLabelTop }}
