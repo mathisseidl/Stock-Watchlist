@@ -606,8 +606,10 @@ export function PriceChart({
       {/* The readout is a fixed header rather than a label pinned near the
           points: it never lands under a finger, and it holds still instead of
           sliding around as the measurement changes. */}
+      {/* Top-aligned rather than centred so the date sits at the same height
+          whether or not a second line of figures follows it. */}
       <div
-        className="flex flex-col items-center justify-center overflow-hidden text-center"
+        className="flex flex-col items-center justify-start overflow-hidden text-center"
         style={{ height: HEADER_HEIGHT }}
       >
         {measure && (
@@ -634,15 +636,12 @@ export function PriceChart({
           </>
         )}
 
+        {/* Only the date here — the price rides the vertical line instead, so
+            it stays next to the point it belongs to. */}
         {!measure && hover && (
-          <>
-            <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
-              {formatStamp(hover.time, seriesSpan)}
-            </p>
-            <p className="num text-lg font-semibold whitespace-nowrap">
-              ${hover.value.toFixed(2)}
-            </p>
-          </>
+          <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
+            {formatStamp(hover.time, seriesSpan)}
+          </p>
         )}
       </div>
 
@@ -683,6 +682,16 @@ export function PriceChart({
                 />
               )}
             </svg>
+
+            {/* Rides the vertical line. Clamped in CSS rather than against a
+                measured width so it needs no resize plumbing — 48px clears
+                half of the widest price this label realistically holds. */}
+            <div
+              className="num absolute top-2 -translate-x-1/2 rounded-lg bg-popover/95 px-2 py-1 text-sm font-semibold shadow-sm ring-1 ring-border backdrop-blur"
+              style={{ left: `clamp(48px, ${hover.x}px, calc(100% - 48px))` }}
+            >
+              ${hover.value.toFixed(2)}
+            </div>
           </div>
         )}
 
