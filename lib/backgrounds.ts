@@ -64,8 +64,8 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
     mode: "light",
     page: "radial-gradient(120% 120% at 50% -10%, #f2ad70 0%, #db7c44 55%, #bd5a30 100%)",
     swatch: "linear-gradient(135deg, #f2ad70, #bd5a30)",
-    ink: WHITE_INK,
-    inkMuted: "rgba(255, 255, 255, 0.78)",
+    ink: BLACK_INK,
+    inkMuted: BLACK_INK_MUTED,
   },
   {
     id: "dark-aurora",
