@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowUpRight, Lock, MoveRight, Sparkles } from "lucide-react";
+import { ArrowUpRight, Lock, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -25,14 +25,6 @@ import {
 import { cn } from "@/lib/utils";
 import type { ForecastResult } from "@/lib/forecast/engine";
 import type { SymbolSearchResult } from "@/lib/market-data/types";
-
-/** Why the forecast is worth paying for, in the reader's own terms. */
-const SELLING_POINTS = [
-  "Any listed company with a year of history, not just the index.",
-  "Both sides in dollars: what a good run pays, what a bad one costs.",
-  "All 14 methods named under every result, so you can check the work.",
-  "Any horizon from a week to ten years, on a date you pick.",
-];
 
 const QUICK_HORIZONS = [
   { label: "30 days", days: 30 },
@@ -369,10 +361,7 @@ function ForecastPageBody() {
       )}
 
       {planReady && !isPaid && (
-        <ForecastUpsell
-          hasRun={phase === "done"}
-          symbols={items.slice(0, 4).map((item) => item.symbol)}
-        />
+        <ForecastUpsell hasRun={phase === "done"} />
       )}
 
       <DataDisclaimer className="border-t border-border pt-4" />
@@ -434,13 +423,7 @@ function EngineFacts() {
   );
 }
 
-function ForecastUpsell({
-  hasRun,
-  symbols,
-}: {
-  hasRun: boolean;
-  symbols: string[];
-}) {
+function ForecastUpsell({ hasRun }: { hasRun: boolean }) {
   return (
     <Card className="gap-4 border-primary/40 p-6 ring-1 ring-primary/20">
       <div className="flex items-start gap-3">
@@ -451,35 +434,14 @@ function ForecastUpsell({
               ? "That was the sample. Pro runs it on anything."
               : "Forecasting any stock is a Pro feature"}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {symbols.length > 0 ? (
-              <>
-                Same engine, pointed at the stocks you actually hold —{" "}
-                <span className="font-medium text-foreground">
-                  {symbols.join(", ")}
-                </span>
-                . Pro only changes what you can aim it at.
-              </>
-            ) : (
-              <>Same engine either way. Pro only changes what you can point it at.</>
-            )}
-          </p>
         </div>
       </div>
-
-      <ul className="flex flex-col gap-3">
-        {SELLING_POINTS.map((point) => (
-          <li key={point} className="flex gap-2.5 text-sm leading-relaxed">
-            <MoveRight className="mt-1 size-3.5 shrink-0 text-primary" />
-            <span>{point}</span>
-          </li>
-        ))}
-      </ul>
 
       <p className="rounded-xl border border-border px-4 py-3 text-sm">
         Free for 7 days, then{" "}
         <span className="num font-semibold">$1.99/month</span> — also unlocking
-        the AI news briefings and unlimited analysis. Cancel any time before the
+        news summaries of the last 24h for every stock, unlimited what-if
+        calculations, and many more cool features. Cancel any time before the
         trial ends and you won&apos;t be charged.
       </p>
 

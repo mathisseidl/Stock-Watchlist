@@ -300,9 +300,17 @@ export default function AnalyticsPage() {
           </div>
           <Link
             href="/account"
-            className={cn(buttonVariants(), "rounded-full")}
+            className={cn(
+              buttonVariants(),
+              // Two stacked lines need more room than the button's default
+              // single-line height allows.
+              "h-auto flex-col gap-0 rounded-full py-2",
+            )}
           >
-            Start free trial
+            <span>Start free trial</span>
+            <span className="text-[11px] font-normal opacity-70">
+              after that $1.99/month
+            </span>
           </Link>
         </Card>
       )}

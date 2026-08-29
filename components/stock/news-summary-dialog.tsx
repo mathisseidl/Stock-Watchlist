@@ -23,10 +23,9 @@ import type { NewsBrief } from "@/lib/news-summary";
 
 /** Why the brief is worth the $1.99, in the reader's own terms. */
 const SELLING_POINTS = [
-  "Every story on your stock in a few sentences — the day's news in half a minute.",
-  "Credible desks only. Nothing over 24 hours, nothing paywalled, nothing off-topic.",
+  "Top 3 News stories summarized into a few sentences",
+  "All news within 24h of publishing",
   "Every line sourced, so you can check it in one click.",
-  "Works on every stock in your watchlist.",
 ];
 
 function timeAgo(unixSeconds: number) {
@@ -209,8 +208,9 @@ function ProPitch({ symbol }: { symbol: string }) {
       <p className="rounded-xl border border-border px-4 py-3 text-sm">
         Free for 7 days, then{" "}
         <span className="num font-semibold">$1.99/month</span> — also unlocking
-        forecasts and unlimited analysis. Cancel any time before the trial ends
-        and you won&apos;t be charged.
+        news summaries of the last 24h for every stock, forecast analysis on any
+        stock you wish and many more cool features. Cancel any time before the
+        trial ends and you won&apos;t be charged.
       </p>
 
       <Link
