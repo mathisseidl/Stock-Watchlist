@@ -108,6 +108,7 @@ export function SubscriptionCard({
   if (!plan.isPaid) return null;
 
   const locale = localeFor(settings.numberFormat);
+  const isTrialing = plan.status === "trialing";
   const daysLeft = proDaysRemaining(plan.proExpiresAt);
   const expiryLabel = plan.proExpiresAt
     ? new Date(plan.proExpiresAt).toLocaleDateString(locale, {
@@ -122,7 +123,8 @@ export function SubscriptionCard({
       <div>
         <h3 className="text-base font-semibold">Your subscription</h3>
         <p className="text-sm text-muted-foreground">
-          MATMAX Stock Pro · <span className="num">$1.99</span> a month.
+          MATMAX Stock Pro · <span className="num">$1.99</span> a month
+          {isTrialing ? ", after your free trial." : "."}
         </p>
       </div>
 
@@ -130,15 +132,32 @@ export function SubscriptionCard({
         <div className="flex items-start gap-3 rounded-xl bg-muted px-4 py-3">
           <CalendarCheck className="mt-0.5 size-4 shrink-0 text-primary" />
           <p className="text-sm">
-            Your Pro subscription is valid until{" "}
-            <span className="font-semibold">{expiryLabel}</span>
-            {daysLeft !== null && (
-              <span className="text-muted-foreground">
-                {" "}
-                · {daysLeft} {daysLeft === 1 ? "day" : "days"} left
-              </span>
+            {isTrialing ? (
+              <>
+                Your free trial runs until{" "}
+                <span className="font-semibold">{expiryLabel}</span>
+                {daysLeft !== null && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {daysLeft} {daysLeft === 1 ? "day" : "days"} left
+                  </span>
+                )}
+                . The first <span className="num">$1.99</span> charge lands then,
+                unless you cancel before.
+              </>
+            ) : (
+              <>
+                Your Pro subscription is valid until{" "}
+                <span className="font-semibold">{expiryLabel}</span>
+                {daysLeft !== null && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {daysLeft} {daysLeft === 1 ? "day" : "days"} left
+                  </span>
+                )}
+                .
+              </>
             )}
-            .
           </p>
         </div>
       )}
@@ -151,7 +170,9 @@ export function SubscriptionCard({
             {plan.autoRenew ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Done with Pro? Cancel whenever you like.
+                  {isTrialing
+                    ? "Not for you? Cancel before the trial ends and pay nothing."
+                    : "Done with Pro? Cancel whenever you like."}
                 </p>
                 <Button
                   variant="destructive"
@@ -160,16 +181,21 @@ export function SubscriptionCard({
                   onClick={() => setConfirmOpen(true)}
                 >
                   <XCircle className="size-4" />
-                  Cancel Pro subscription
+                  {isTrialing ? "Cancel free trial" : "Cancel Pro subscription"}
                 </Button>
               </>
             ) : (
               <>
                 <p className="text-sm">
-                  <span className="font-medium">Your subscription is cancelled.</span>{" "}
+                  <span className="font-medium">
+                    {isTrialing
+                      ? "Your trial is cancelled."
+                      : "Your subscription is cancelled."}
+                  </span>{" "}
                   <span className="text-muted-foreground">
                     Pro stays on until {expiryLabel ?? "the period ends"}, then
-                    your account drops to Free.
+                    your account drops to Free
+                    {isTrialing ? " — you won't be charged." : "."}
                   </span>
                 </p>
                 <Button
@@ -195,9 +221,15 @@ export function SubscriptionCard({
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <DialogContent className="max-w-md">
               <div className="pr-8">
-                <DialogTitle>Cancel your Pro subscription?</DialogTitle>
+                <DialogTitle>
+                  {isTrialing
+                    ? "Cancel your free trial?"
+                    : "Cancel your Pro subscription?"}
+                </DialogTitle>
                 <DialogDescription className="mt-1">
-                  Nothing more will be charged.
+                  {isTrialing
+                    ? "You won't be charged."
+                    : "Nothing more will be charged."}
                 </DialogDescription>
               </div>
 

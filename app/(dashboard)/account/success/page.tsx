@@ -23,6 +23,7 @@ export default async function CheckoutSuccessPage({
 
   let paid = false;
   let renewsOn: string | null = null;
+  let trialing = false;
 
   if (sessionId && user) {
     try {
@@ -51,6 +52,7 @@ export default async function CheckoutSuccessPage({
           );
           paid = state?.isPaid ?? true;
           renewsOn = state?.proExpiresAt ?? null;
+          trialing = state?.status === "trialing";
         } else {
           // Defensive: a session with no subscription attached still paid, so
           // grant the month rather than stranding them.
@@ -75,13 +77,15 @@ export default async function CheckoutSuccessPage({
         {paid ? (
           <>
             <CheckCircle2 className="size-12 text-gain" />
-            <h1 className="text-xl font-semibold">You&apos;re Pro.</h1>
+            <h1 className="text-xl font-semibold">
+              {trialing ? "Your free trial is on." : "You're Pro."}
+            </h1>
             <p className="text-sm text-muted-foreground">
               Forecasts, news briefings and unlimited analysis are open now.
               {renewsOn && (
                 <>
                   {" "}
-                  Your month runs to{" "}
+                  {trialing ? "Your trial runs to " : "Your month runs to "}
                   <span className="font-medium text-foreground">
                     {new Date(renewsOn).toLocaleDateString("en-US", {
                       day: "numeric",
@@ -89,8 +93,9 @@ export default async function CheckoutSuccessPage({
                       year: "numeric",
                     })}
                   </span>
-                  , and renews at $1.99 unless you cancel your subscription
-                  under &ldquo;Account&rdquo;.
+                  {trialing
+                    ? ". The first $1.99 charge lands then — cancel before it under “Account” and you won’t be charged."
+                    : ", and renews at $1.99 unless you cancel your subscription under “Account”."}
                 </>
               )}
             </p>

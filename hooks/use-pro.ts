@@ -44,6 +44,8 @@ export function useProStatus() {
     plan,
     isPaid: plan.isPaid,
     isGuest: plan.isGuest,
+    /** On the free trial: Pro is open, but the first charge hasn't landed yet. */
+    isTrialing: plan.status === "trialing",
     /**
      * False until the plan is actually known. Callers must wait on this before
      * showing an upsell — `plan` falls back to GUEST while loading, so acting

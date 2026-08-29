@@ -169,6 +169,8 @@ export default async function AccountPage() {
   const isPaid = account?.isPaid ?? false;
   const proExpiresAt = account?.proExpiresAt ?? null;
   const autoRenew = account?.autoRenew ?? false;
+  const isTrialing = account?.status === "trialing";
+  const hadSubscription = account?.hasSubscription ?? false;
   const daysLeft = proDaysRemaining(proExpiresAt);
 
   const username = profile?.username ?? null;
@@ -258,8 +260,9 @@ export default async function AccountPage() {
                 </span>
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Renews monthly. Cancel any time — even the day before the next
-                payment — and you keep the days you&apos;ve paid for.
+                {isPaid || hadSubscription
+                  ? "Renews monthly. Cancel any time — even the day before the next payment — and you keep the days you've paid for."
+                  : "Starts with a 7-day free trial. Then $1.99/month — cancel any time before the trial ends and you won't be charged."}
               </p>
             </div>
             <FeatureList features={proFeatures} />
@@ -281,16 +284,27 @@ export default async function AccountPage() {
               {isPaid ? (
                 <div className="rounded-xl bg-gain-soft py-2 text-center">
                   <p className="text-sm font-medium text-gain">
-                    {proExpiresAt
-                      ? `✓ Active until ${new Date(proExpiresAt).toLocaleDateString(
+                    {isTrialing && proExpiresAt
+                      ? `✓ Free trial until ${new Date(proExpiresAt).toLocaleDateString(
                           "en-US",
                           { day: "numeric", month: "long", year: "numeric" },
                         )}`
-                      : "✓ Active — no end date"}
+                      : proExpiresAt
+                        ? `✓ Active until ${new Date(proExpiresAt).toLocaleDateString(
+                            "en-US",
+                            { day: "numeric", month: "long", year: "numeric" },
+                          )}`
+                        : "✓ Active — no end date"}
                   </p>
                   <p className="num text-xs text-gain/80">
                     {daysLeft !== null ? `${daysLeft} days left · ` : ""}
-                    {autoRenew ? "renews automatically" : "will not renew"}
+                    {isTrialing
+                      ? autoRenew
+                        ? "first charge then"
+                        : "cancelled — ends free"
+                      : autoRenew
+                        ? "renews automatically"
+                        : "will not renew"}
                   </p>
                 </div>
               ) : (

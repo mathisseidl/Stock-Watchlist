@@ -6,6 +6,7 @@ import {
   PRO_PRICE_CENTS,
   PRO_PRODUCT_DESCRIPTION,
   PRO_PRODUCT_NAME,
+  PRO_TRIAL_DAYS,
 } from "@/lib/stripe";
 
 /**
@@ -15,6 +16,10 @@ import {
  * next invoice itself when the paid month runs out — that renewal is the
  * product's recurring charge, and cancelling before it lands stops it, even
  * with hours to spare.
+ *
+ * First-time members get a free trial (see PRO_TRIAL_DAYS): the card is still
+ * taken at checkout, but the first charge only lands when the trial ends, so
+ * cancelling before then costs nothing.
  *
  * An existing customer id is reused so a returning user's payments all sit
  * under one Stripe customer rather than a new one per checkout.
@@ -39,11 +44,15 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     const { data: profile } = await admin
       .from("profiles")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, stripe_subscription_id")
       .eq("id", user.id)
       .maybeSingle();
 
     const customerId = profile?.stripe_customer_id ?? null;
+
+    // The free trial is for first-time members. Anyone Stripe has seen before —
+    // a past customer or a lapsed subscription — subscribes straight away.
+    const offerTrial = !customerId && !profile?.stripe_subscription_id;
 
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
@@ -55,7 +64,10 @@ export async function POST(request: Request) {
       metadata: { userId: user.id },
       // Also stamped on the subscription itself, so a webhook or a support
       // lookup can map it back to an account without the session.
-      subscription_data: { metadata: { userId: user.id } },
+      subscription_data: {
+        metadata: { userId: user.id },
+        ...(offerTrial ? { trial_period_days: PRO_TRIAL_DAYS } : {}),
+      },
       line_items: [
         {
           quantity: 1,
