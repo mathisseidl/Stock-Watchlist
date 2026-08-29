@@ -19,11 +19,15 @@ export const PRO_PRICE_CENTS = 199;
 export const PRO_PRICE_LABEL = "$1.99/month";
 
 /**
- * New members start on a free trial of this length. Stripe still takes a card
- * up front and charges the first month automatically when the trial ends —
+ * New members start on a free trial. Stripe still takes a card up front and
+ * charges the first month automatically when the trial's hours run out —
  * cancelling any time before then stops that charge.
+ *
+ * The trial is quoted to members in hours; PRO_TRIAL_DAYS is the same span in
+ * the unit Stripe's `trial_period_days` wants (168h = 7d, to the second).
  */
-export const PRO_TRIAL_DAYS = 7;
+export const PRO_TRIAL_HOURS = 168;
+export const PRO_TRIAL_DAYS = PRO_TRIAL_HOURS / 24;
 
 export const PRO_PRODUCT_NAME = "MATMAX Stock Pro";
 export const PRO_PRODUCT_DESCRIPTION =

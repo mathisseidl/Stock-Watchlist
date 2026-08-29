@@ -207,9 +207,9 @@ function ProPitch({ symbol }: { symbol: string }) {
       </ul>
 
       <p className="rounded-xl border border-border px-4 py-3 text-sm">
-        Free for 7 days, then{" "}
+        Free for 168 hours, then{" "}
         <span className="num font-semibold">$1.99/month</span> — also unlocking
-        forecasts and unlimited analysis. Cancel any time before the trial ends
+        forecasts and unlimited analysis. Cancel any time before the hours are up
         and you won&apos;t be charged.
       </p>
 
@@ -217,7 +217,7 @@ function ProPitch({ symbol }: { symbol: string }) {
         href="/account#plans"
         className={cn(buttonVariants(), "w-full rounded-full")}
       >
-        Start your 7-day free trial
+        Start your 168-hour free trial
         <ArrowUpRight className="size-4" />
       </Link>
     </div>

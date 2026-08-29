@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useProStatus } from "@/hooks/use-pro";
-import { PRO_TRIAL_DAYS } from "@/lib/stripe";
+import { PRO_TRIAL_HOURS } from "@/lib/stripe";
 
 export function UpgradeButton() {
   const { plan } = useProStatus();
@@ -40,12 +40,12 @@ export function UpgradeButton() {
         {loading
           ? "Redirecting…"
           : trialEligible
-            ? `Start your ${PRO_TRIAL_DAYS}-day free trial`
+            ? `Start your ${PRO_TRIAL_HOURS}-hour free trial`
             : "Upgrade to Pro — $1.99/month"}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
         {trialEligible
-          ? `Card required. Then $1.99/month — cancel any time before day ${PRO_TRIAL_DAYS} and you won't be charged.`
+          ? `Card required. Then $1.99/month — cancel any time before the ${PRO_TRIAL_HOURS} hours are up and you won't be charged.`
           : "Billed $1.99/month. Cancel any time."}
       </p>
       {error && <p className="text-sm text-destructive">{error}</p>}

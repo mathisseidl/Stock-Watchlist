@@ -7,7 +7,7 @@ import { SubscriptionCard } from "@/components/account/subscription-card";
 import { InviteCard } from "@/components/account/invite-card";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountSubscription } from "@/lib/subscription";
-import { proDaysRemaining } from "@/lib/pro";
+import { proDaysRemaining, proHoursRemaining } from "@/lib/pro";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,11 +41,11 @@ const freeMissing = [
  * beside the form. Persistence and Community, not Pro features.
  */
 const guestUnlocks: Feature[] = [
-  "Your watchlist saved to your account — on your phone and every device, not just this browser",
-  "Your alert, number-format and chart-range preferences saved and synced",
-  "Add friends and compare watchlists in Community",
+  "Your watchlist saved to your account",
+  "Notifications, number-format and chart-range preferences saved and synced",
+  "Add friends and compare watchlists",
   {
-    text: "The option to upgrade to Pro whenever you want",
+    text: "Option to upgrade to Pro",
     // Named here rather than in a sentence under the card, so the reader can
     // see what the upgrade actually buys at the moment they read about it.
     sub: [
@@ -102,9 +102,9 @@ function FeatureList({
                 {sub.map((item) => (
                   <li
                     key={item}
-                    className="flex items-start gap-2 text-xs text-muted-foreground"
+                    className="flex items-start gap-2 text-sm text-muted-foreground"
                   >
-                    <Check className="mt-0.5 size-3 shrink-0 text-muted-foreground/60" />
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60" />
                     {item}
                   </li>
                 ))}
@@ -129,16 +129,15 @@ export default async function AccountPage() {
       <div className="flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-semibold">Create your account</h1>
-          <p className="text-sm text-muted-foreground">
-            You&apos;re browsing as a guest. Your watchlist and settings live in
-            this browser only — clear it or switch device and they&apos;re gone.
-          </p>
         </div>
 
         <div className="grid items-start gap-6 md:grid-cols-2">
           <Card className="gap-5 p-6">
             <div>
-              <h2 className="text-lg font-semibold">What signing up unlocks</h2>
+              <h2 className="text-lg font-semibold">
+                What signing up{" "}
+                <span className="text-xl">for free</span> unlocks
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Free, no card. Takes a minute.
               </p>
@@ -172,6 +171,7 @@ export default async function AccountPage() {
   const isTrialing = account?.status === "trialing";
   const hadSubscription = account?.hasSubscription ?? false;
   const daysLeft = proDaysRemaining(proExpiresAt);
+  const hoursLeft = proHoursRemaining(proExpiresAt);
 
   const username = profile?.username ?? null;
   const memberSince = profile?.created_at ?? user.created_at;
@@ -262,7 +262,7 @@ export default async function AccountPage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {isPaid || hadSubscription
                   ? "Renews monthly. Cancel any time — even the day before the next payment — and you keep the days you've paid for."
-                  : "Starts with a 7-day free trial. Then $1.99/month — cancel any time before the trial ends and you won't be charged."}
+                  : "Starts with a 168-hour free trial. Then $1.99/month — cancel any time before the hours are up and you won't be charged."}
               </p>
             </div>
             <FeatureList features={proFeatures} />
@@ -297,7 +297,13 @@ export default async function AccountPage() {
                         : "✓ Active — no end date"}
                   </p>
                   <p className="num text-xs text-gain/80">
-                    {daysLeft !== null ? `${daysLeft} days left · ` : ""}
+                    {isTrialing
+                      ? hoursLeft !== null
+                        ? `${hoursLeft} ${hoursLeft === 1 ? "hour" : "hours"} left · `
+                        : ""
+                      : daysLeft !== null
+                        ? `${daysLeft} days left · `
+                        : ""}
                     {isTrialing
                       ? autoRenew
                         ? "first charge then"

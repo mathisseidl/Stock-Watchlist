@@ -47,3 +47,17 @@ export function proDaysRemaining(
     Math.ceil((expires.getTime() - now.getTime()) / 86_400_000),
   );
 }
+
+/** Whole hours left, floored at zero. Used for the free-trial countdown. */
+export function proHoursRemaining(
+  expiresAt: string | null | undefined,
+  now: Date = new Date(),
+): number | null {
+  if (!expiresAt) return null;
+  const expires = new Date(expiresAt);
+  if (Number.isNaN(expires.getTime())) return null;
+  return Math.max(
+    0,
+    Math.ceil((expires.getTime() - now.getTime()) / 3_600_000),
+  );
+}
