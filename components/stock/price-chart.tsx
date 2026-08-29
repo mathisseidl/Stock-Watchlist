@@ -11,6 +11,7 @@ import { useTheme } from "next-themes";
 import {
   AreaSeries,
   ColorType,
+  CrosshairMode,
   createChart,
   type IChartApi,
   type ISeriesApi,
@@ -131,9 +132,13 @@ function formatStamp(time: number, spanSeconds: number) {
  * Room above the plot for the readout. It sits over the chart rather than
  * under it because during a two-finger measurement the reader's own hand
  * covers the bottom of the screen — the numbers have to be where they can
- * still be seen.
+ * still be seen. The space is reserved whether or not a measurement is in
+ * progress, so starting one never resizes the plot underneath.
  */
 const HEADER_HEIGHT = 46;
+
+/** Room under the plot for the how-to-use hint. */
+const CAPTION_HEIGHT = 20;
 
 function plural(count: number, unit: string) {
   return `${count} ${unit}${count === 1 ? "" : "s"}`;
@@ -334,10 +339,10 @@ export function PriceChart({
       },
       rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false, timeVisible: true },
-      crosshair: {
-        vertLine: { color: color, width: 1, labelBackgroundColor: color },
-        horzLine: { color: color, labelBackgroundColor: color },
-      },
+      // No crosshair: its default style is a dashed rule in both axes, which
+      // clutters the plot and clashes with the solid guides the measurement
+      // overlay draws.
+      crosshair: { mode: CrosshairMode.Hidden },
     });
     chartRef.current = chart;
 
@@ -516,7 +521,7 @@ export function PriceChart({
         className="flex flex-col items-center justify-center overflow-hidden text-center"
         style={{ height: HEADER_HEIGHT }}
       >
-        {measure ? (
+        {measure && (
           <>
             <p className="num text-[11px] whitespace-nowrap text-muted-foreground">
               {formatStamp(measure.a.time, spanSeconds)} –{" "}
@@ -538,18 +543,12 @@ export function PriceChart({
               </span>
             </p>
           </>
-        ) : (
-          <p className="text-[11px] text-muted-foreground/70">
-            {coarsePointer
-              ? "Touch the chart with two fingers to compare two points"
-              : "Hold ⇧ Shift and move the cursor to compare two points"}
-          </p>
         )}
       </div>
 
       <div
         className="relative w-full select-none"
-        style={{ height: Math.max(0, height - HEADER_HEIGHT) }}
+        style={{ height: Math.max(0, height - HEADER_HEIGHT - CAPTION_HEIGHT) }}
         data-measuring={measure ? "true" : undefined}
       >
         <div ref={containerRef} className="absolute inset-0" />
@@ -611,6 +610,18 @@ export function PriceChart({
           </div>
         )}
       </div>
+
+      {/* Hidden rather than unmounted while measuring: the numbers above say
+          everything at that point, but the row still has to hold its height. */}
+      <p
+        className="flex items-center overflow-hidden text-[11px] whitespace-nowrap text-muted-foreground/70"
+        style={{ height: CAPTION_HEIGHT }}
+      >
+        {!measure &&
+          (coarsePointer
+            ? "Touch the chart with two fingers to compare two points"
+            : "Hold ⇧ Shift and move the cursor to compare two points")}
+      </p>
     </div>
   );
 }
