@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { localeFor } from "@/lib/format";
-import { proDaysRemaining, proHoursRemaining } from "@/lib/pro";
+import { proDaysRemaining } from "@/lib/pro";
 import type { SubscriptionResponse } from "@/app/api/subscription/route";
 
 /**
@@ -110,7 +110,6 @@ export function SubscriptionCard({
   const locale = localeFor(settings.numberFormat);
   const isTrialing = plan.status === "trialing";
   const daysLeft = proDaysRemaining(plan.proExpiresAt);
-  const hoursLeft = proHoursRemaining(plan.proExpiresAt);
   const expiryLabel = plan.proExpiresAt
     ? new Date(plan.proExpiresAt).toLocaleDateString(locale, {
         day: "numeric",
@@ -137,10 +136,10 @@ export function SubscriptionCard({
               <>
                 Your free trial runs until{" "}
                 <span className="font-semibold">{expiryLabel}</span>
-                {hoursLeft !== null && (
+                {daysLeft !== null && (
                   <span className="text-muted-foreground">
                     {" "}
-                    · {hoursLeft} {hoursLeft === 1 ? "hour" : "hours"} left
+                    · {daysLeft} {daysLeft === 1 ? "day" : "days"} left
                   </span>
                 )}
                 . The first <span className="num">$1.99</span> charge lands then,
@@ -244,11 +243,7 @@ export function SubscriptionCard({
                     <span className="font-semibold">
                       {expiryLabel ?? "your period ends"}
                     </span>
-                    {isTrialing
-                      ? hoursLeft !== null &&
-                        ` — that's ${hoursLeft} more ${hoursLeft === 1 ? "hour" : "hours"}`
-                      : daysLeft !== null &&
-                        ` — that's ${daysLeft} more ${daysLeft === 1 ? "day" : "days"}`}
+                    {daysLeft !== null && ` — that's ${daysLeft} more ${daysLeft === 1 ? "day" : "days"}`}
                     .
                   </span>
                 </li>

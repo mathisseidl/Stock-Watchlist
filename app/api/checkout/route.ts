@@ -17,9 +17,9 @@ import {
  * product's recurring charge, and cancelling before it lands stops it, even
  * with hours to spare.
  *
- * First-time members get a free trial (see PRO_TRIAL_HOURS): the card is still
- * taken at checkout, but the first charge only lands when the trial's hours run
- * out, so cancelling before then costs nothing.
+ * First-time members get a free trial (see PRO_TRIAL_DAYS): the card is still
+ * taken at checkout, but the first charge only lands when the trial ends, so
+ * cancelling before then costs nothing.
  *
  * An existing customer id is reused so a returning user's payments all sit
  * under one Stripe customer rather than a new one per checkout.

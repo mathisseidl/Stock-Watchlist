@@ -294,7 +294,7 @@ export default function AnalyticsPage() {
                 You&apos;ve used all 3 free searches today
               </p>
               <p className="text-sm text-muted-foreground">
-                Try Pro free for 168 hours to run unlimited what-if calculations.
+                Try Pro free for 7 days to run unlimited what-if calculations.
               </p>
             </div>
           </div>

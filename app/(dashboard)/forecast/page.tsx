@@ -477,17 +477,17 @@ function ForecastUpsell({
       </ul>
 
       <p className="rounded-xl border border-border px-4 py-3 text-sm">
-        Free for 168 hours, then{" "}
+        Free for 7 days, then{" "}
         <span className="num font-semibold">$1.99/month</span> — also unlocking
         the AI news briefings and unlimited analysis. Cancel any time before the
-        hours are up and you won&apos;t be charged.
+        trial ends and you won&apos;t be charged.
       </p>
 
       <Link
         href="/account#plans"
         className={cn(buttonVariants(), "w-full rounded-full sm:w-auto sm:self-start")}
       >
-        Start your 168-hour free trial
+        Start your 7-day free trial
         <ArrowUpRight className="size-4" />
       </Link>
     </Card>

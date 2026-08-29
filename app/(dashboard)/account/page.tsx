@@ -7,7 +7,7 @@ import { SubscriptionCard } from "@/components/account/subscription-card";
 import { InviteCard } from "@/components/account/invite-card";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountSubscription } from "@/lib/subscription";
-import { proDaysRemaining, proHoursRemaining } from "@/lib/pro";
+import { proDaysRemaining } from "@/lib/pro";
 import { cn } from "@/lib/utils";
 
 /**
@@ -171,7 +171,6 @@ export default async function AccountPage() {
   const isTrialing = account?.status === "trialing";
   const hadSubscription = account?.hasSubscription ?? false;
   const daysLeft = proDaysRemaining(proExpiresAt);
-  const hoursLeft = proHoursRemaining(proExpiresAt);
 
   const username = profile?.username ?? null;
   const memberSince = profile?.created_at ?? user.created_at;
@@ -262,7 +261,7 @@ export default async function AccountPage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {isPaid || hadSubscription
                   ? "Renews monthly. Cancel any time — even the day before the next payment — and you keep the days you've paid for."
-                  : "Starts with a 168-hour free trial. Then $1.99/month — cancel any time before the hours are up and you won't be charged."}
+                  : "Starts with a 7-day free trial. Then $1.99/month — cancel any time before the trial ends and you won't be charged."}
               </p>
             </div>
             <FeatureList features={proFeatures} />
@@ -297,13 +296,7 @@ export default async function AccountPage() {
                         : "✓ Active — no end date"}
                   </p>
                   <p className="num text-xs text-gain/80">
-                    {isTrialing
-                      ? hoursLeft !== null
-                        ? `${hoursLeft} ${hoursLeft === 1 ? "hour" : "hours"} left · `
-                        : ""
-                      : daysLeft !== null
-                        ? `${daysLeft} days left · `
-                        : ""}
+                    {daysLeft !== null ? `${daysLeft} days left · ` : ""}
                     {isTrialing
                       ? autoRenew
                         ? "first charge then"
