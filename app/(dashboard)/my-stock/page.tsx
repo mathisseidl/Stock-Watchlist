@@ -21,23 +21,35 @@ export default function MyStockPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">My Stocks</h1>
-          <p className="text-sm text-muted-foreground">
-            Your watchlist — search any stock and add it here.
-          </p>
-        </div>
-        {/* On phones the range lives on the stock page itself — the list just
-            uses the reader's default. */}
-        <div className="hidden sm:block">
-          <RangeSelector value={activeRange} onChange={setRange} />
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold">My Stocks</h1>
+        <p className="text-sm text-muted-foreground">
+          Your watchlist — search any stock and add it here.
+        </p>
       </div>
 
       {error && (
         <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
+        </div>
+      )}
+
+      {ready && items.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">
+          <Star className="size-6 text-muted-foreground" />
+          <p className="text-sm font-medium">Your watchlist is empty</p>
+          <p className="text-sm text-muted-foreground">
+            Use the search box up top to find a stock and add it.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {/* One range drives both the rows below and the summary further
+              down, so the two can never disagree about the period. */}
+          <div className="flex justify-end">
+            <RangeSelector value={activeRange} onChange={setRange} size="sm" />
+          </div>
+          <WatchlistList range={activeRange} />
         </div>
       )}
 
@@ -56,19 +68,7 @@ export default function MyStockPage() {
         </div>
       )}
 
-      {ready && items.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border py-16 text-center">
-          <Star className="size-6 text-muted-foreground" />
-          <p className="text-sm font-medium">Your watchlist is empty</p>
-          <p className="text-sm text-muted-foreground">
-            Use the search box up top to find a stock and add it.
-          </p>
-        </div>
-      ) : (
-        <WatchlistList range={activeRange} />
-      )}
-
-      {ready && items.length > 0 && <WatchlistStats />}
+      {ready && items.length > 0 && <WatchlistStats range={activeRange} />}
 
       <AlertList />
     </div>
