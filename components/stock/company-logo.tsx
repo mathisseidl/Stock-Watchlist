@@ -39,11 +39,13 @@ export function CompanyLogo({
     >
       {/* Company logos come from arbitrary provider hosts, so a plain img with
           an onError fallback is more robust here than next/image. */}
+      {/* object-cover + the round, clipping parent means a square logo tile is
+          cropped to the circle rather than sitting inside it as a square. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={logoUrl}
         alt={`${symbol} logo`}
-        className="size-full object-contain p-1"
+        className="size-full object-cover"
         onError={() => setImgFailed(true)}
       />
     </div>

@@ -1,45 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import {
-  BellOff,
-  CalendarClock,
-  ChevronRight,
-  Newspaper,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import { BellOff, ChevronRight } from "lucide-react";
 import { useAlerts, type Alert } from "@/hooks/use-alerts";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { ChangeBadge } from "@/components/stock/change-badge";
-import { cn } from "@/lib/utils";
-
-/** Each kind gets one icon and one tint, so the row is readable at a glance. */
-function AlertIcon({ alert }: { alert: Alert }) {
-  const up = (alert.changePercent ?? 0) >= 0;
-
-  const { Icon, tint } =
-    alert.kind === "earnings"
-      ? { Icon: CalendarClock, tint: "bg-accent text-accent-foreground" }
-      : alert.kind === "price"
-        ? {
-            Icon: up ? TrendingUp : TrendingDown,
-            tint: up ? "bg-gain-soft text-gain" : "bg-loss-soft text-loss",
-          }
-        : { Icon: Newspaper, tint: "bg-muted text-muted-foreground" };
-
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-full",
-        tint,
-      )}
-    >
-      <Icon className="size-4" />
-    </span>
-  );
-}
+import { CompanyLogo } from "@/components/stock/company-logo";
 
 function timeAgo(unixSeconds: number) {
   const minutes = Math.max(1, Math.round((Date.now() / 1000 - unixSeconds) / 60));
@@ -52,7 +18,7 @@ function timeAgo(unixSeconds: number) {
 function AlertRow({ alert }: { alert: Alert }) {
   const body = (
     <>
-      <AlertIcon alert={alert} />
+      <CompanyLogo symbol={alert.symbol} size="sm" />
 
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
