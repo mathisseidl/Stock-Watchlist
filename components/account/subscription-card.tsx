@@ -252,8 +252,8 @@ export function SubscriptionCard({
                     →
                   </span>
                   <span>
-                    After that, forecasts on any stock and the AI news briefings
-                    close, and your account drops to Free.
+                    After that, forecasts, lookbacks, and news summaries on any
+                    stock close, and your account drops to Free.
                   </span>
                 </li>
               </ul>
