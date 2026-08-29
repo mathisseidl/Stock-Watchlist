@@ -62,8 +62,14 @@ type Measure = {
   b: MeasurePoint;
   /** Which input started the measurement, so each one cleans up after itself. */
   source: "touch" | "shift";
-  /** Captured with the measurement so the label can be clamped on render. */
-  containerWidth: number;
+  /**
+   * The real series path between the two ends, in screen coordinates. Drawn
+   * over the line so the measured stretch lights up in the gain/loss color
+   * rather than being reduced to a straight chord between the endpoints.
+   */
+  path: { x: number; y: number }[];
+  /** Captured with the measurement so the path's fill can reach the baseline. */
+  plotHeight: number;
 };
 
 /**
@@ -121,8 +127,13 @@ function formatStamp(time: number, spanSeconds: number) {
   });
 }
 
-/** Room under the plot for the hint & measured-range caption. */
-const CAPTION_HEIGHT = 20;
+/**
+ * Room above the plot for the readout. It sits over the chart rather than
+ * under it because during a two-finger measurement the reader's own hand
+ * covers the bottom of the screen — the numbers have to be where they can
+ * still be seen.
+ */
+const HEADER_HEIGHT = 46;
 
 function plural(count: number, unit: string) {
   return `${count} ${unit}${count === 1 ? "" : "s"}`;
@@ -250,18 +261,54 @@ export function PriceChart({
     };
   }, []);
 
+  /** Screen coordinates for every data point between two indices, inclusive. */
+  const seriesPath = useCallback((fromIndex: number, toIndex: number) => {
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    const data = pointsRef.current;
+    if (!chart || !series) return [];
+
+    const timeScale = chart.timeScale();
+    const path: { x: number; y: number }[] = [];
+    // A five-year daily series is well over a thousand points, and this runs on
+    // every touchmove. Past a few hundred the extra vertices are sub-pixel.
+    const step = Math.max(1, Math.ceil((toIndex - fromIndex + 1) / 400));
+
+    for (let index = fromIndex; index <= toIndex; index += step) {
+      const x = timeScale.logicalToCoordinate(index as Logical);
+      const y = series.priceToCoordinate(data[index].value);
+      if (x !== null && y !== null) path.push({ x, y });
+    }
+
+    // Stepping can stop short of the far end, which would leave the highlight
+    // visibly detached from the point the reader is touching.
+    const endX = timeScale.logicalToCoordinate(toIndex as Logical);
+    const endY = series.priceToCoordinate(data[toIndex].value);
+    if (endX !== null && endY !== null && path.at(-1)?.x !== endX) {
+      path.push({ x: endX, y: endY });
+    }
+
+    return path;
+  }, []);
+
   const measureBetween = useCallback(
     (xA: number, xB: number, source: Measure["source"]): Measure | null => {
       const first = resolveAt(xA);
       const second = resolveAt(xB);
       if (!first || !second) return null;
-      const containerWidth = containerRef.current?.clientWidth ?? 0;
+
       // Always order left-to-right so the percentage reads forward in time.
-      return first.index <= second.index
-        ? { a: first, b: second, source, containerWidth }
-        : { a: second, b: first, source, containerWidth };
+      const [a, b] = first.index <= second.index ? [first, second] : [second, first];
+
+      return {
+        a,
+        b,
+        source,
+        path: seriesPath(a.index, b.index),
+        plotHeight: containerRef.current?.clientHeight ?? 0,
+      };
     },
-    [resolveAt],
+    [resolveAt, seriesPath],
   );
 
   useEffect(() => {
@@ -454,116 +501,116 @@ export function PriceChart({
   const diffPositive = diff >= 0;
   const spanSeconds = measure ? measure.b.time - measure.a.time : 0;
 
-  const midX = measure ? (measure.a.x + measure.b.x) / 2 : 0;
-  const labelX = measure
-    ? Math.max(96, Math.min(Math.max(96, measure.containerWidth - 96), midX))
-    : 0;
+  const polyline = measure?.path.map((p) => `${p.x},${p.y}`).join(" ") ?? "";
+  const polygon =
+    measure && measure.path.length > 1
+      ? `${measure.path[0].x},${measure.plotHeight} ${polyline} ${measure.path.at(-1)!.x},${measure.plotHeight}`
+      : "";
 
   return (
-    // The caption sits below the plot rather than inside it — at the bottom of
-    // the chart it collided with the time axis labels. The plot gives up that
-    // height so the component still measures exactly `height` overall.
     <div className="w-full" style={{ height }}>
+      {/* The readout is a fixed header rather than a label pinned near the
+          points: it never lands under a finger, and it holds still instead of
+          sliding around as the measurement changes. */}
+      <div
+        className="flex flex-col items-center justify-center overflow-hidden text-center"
+        style={{ height: HEADER_HEIGHT }}
+      >
+        {measure ? (
+          <>
+            <p className="num text-[11px] whitespace-nowrap text-muted-foreground">
+              {formatStamp(measure.a.time, spanSeconds)} –{" "}
+              {formatStamp(measure.b.time, spanSeconds)} ·{" "}
+              {formatSpan(spanSeconds)}
+            </p>
+            <p
+              className={
+                "num flex items-baseline gap-3 text-lg font-semibold whitespace-nowrap " +
+                (diffPositive ? "text-gain" : "text-loss")
+              }
+            >
+              <span>
+                {diffPositive ? "+" : "−"}${Math.abs(diff).toFixed(2)}
+              </span>
+              <span>
+                {diffPositive ? "+" : "−"}
+                {Math.abs(diffPercent).toFixed(2)}%
+              </span>
+            </p>
+          </>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/70">
+            {coarsePointer
+              ? "Touch the chart with two fingers to compare two points"
+              : "Hold ⇧ Shift and move the cursor to compare two points"}
+          </p>
+        )}
+      </div>
+
       <div
         className="relative w-full select-none"
-        style={{ height: Math.max(0, height - CAPTION_HEIGHT) }}
+        style={{ height: Math.max(0, height - HEADER_HEIGHT) }}
         data-measuring={measure ? "true" : undefined}
       >
         <div ref={containerRef} className="absolute inset-0" />
 
-      {measure && (
-        <div className="pointer-events-none absolute inset-0 z-10">
-          <svg className="size-full" aria-hidden="true">
-            <rect
-              x={Math.min(measure.a.x, measure.b.x)}
-              y={0}
-              width={Math.abs(measure.b.x - measure.a.x)}
-              height="100%"
-              className="fill-primary/8"
-            />
-            {[measure.a, measure.b].map((point, index) => (
-              <line
-                key={index}
-                x1={point.x}
-                x2={point.x}
-                y1={0}
-                y2="100%"
-                strokeDasharray="4 4"
-                className="stroke-primary/60"
-                strokeWidth={1}
-              />
-            ))}
-            {measure.a.y !== null && measure.b.y !== null && (
-              <line
-                x1={measure.a.x}
-                y1={measure.a.y}
-                x2={measure.b.x}
-                y2={measure.b.y}
-                className={diffPositive ? "stroke-gain" : "stroke-loss"}
-                strokeWidth={1.5}
-              />
-            )}
-            {[measure.a, measure.b].map((point, index) =>
-              point.y === null ? null : (
-                <circle
+        {measure && (
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <svg className="size-full" aria-hidden="true">
+              {/* Full-height rules mark where each finger is, so the reader can
+                  see what they have grabbed without lifting a hand. */}
+              {[measure.a, measure.b].map((point, index) => (
+                <line
                   key={index}
-                  cx={point.x}
-                  cy={point.y}
-                  r={4}
-                  className={
-                    diffPositive
-                      ? "fill-gain stroke-background"
-                      : "fill-loss stroke-background"
-                  }
-                  strokeWidth={2}
+                  x1={point.x}
+                  x2={point.x}
+                  y1={0}
+                  y2="100%"
+                  className={diffPositive ? "stroke-gain" : "stroke-loss"}
+                  strokeWidth={1.5}
+                  opacity={0.55}
                 />
-              ),
-            )}
-          </svg>
+              ))}
 
-          <div
-            className="absolute top-2 -translate-x-1/2 rounded-xl border border-border bg-popover/95 px-3 py-2 text-center shadow-lg backdrop-blur"
-            style={{ left: labelX }}
-          >
-            <p
-              className={
-                "num text-lg font-semibold " +
-                (diffPositive ? "text-gain" : "text-loss")
-              }
-            >
-              {diffPositive ? "+" : "−"}
-              {Math.abs(diffPercent).toFixed(2)}%
-            </p>
-            <p className="num text-xs text-muted-foreground">
-              {diffPositive ? "+" : "−"}${Math.abs(diff).toFixed(2)} ·{" "}
-              {formatSpan(spanSeconds)}
-            </p>
-            <p className="mt-0.5 num text-[11px] text-muted-foreground/80">
-              ${measure.a.value.toFixed(2)} → ${measure.b.value.toFixed(2)}
-            </p>
+              {polygon && (
+                <polygon
+                  points={polygon}
+                  className={diffPositive ? "fill-gain" : "fill-loss"}
+                  opacity={0.16}
+                />
+              )}
+
+              {polyline && (
+                <polyline
+                  points={polyline}
+                  fill="none"
+                  className={diffPositive ? "stroke-gain" : "stroke-loss"}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+
+              {[measure.a, measure.b].map((point, index) =>
+                point.y === null ? null : (
+                  <circle
+                    key={index}
+                    cx={point.x}
+                    cy={point.y}
+                    r={7}
+                    className={
+                      diffPositive
+                        ? "fill-gain stroke-background"
+                        : "fill-loss stroke-background"
+                    }
+                    strokeWidth={2.5}
+                  />
+                ),
+              )}
+            </svg>
           </div>
-
-        </div>
         )}
       </div>
-
-      <p
-        className="flex items-center overflow-hidden text-[11px] whitespace-nowrap text-muted-foreground/70"
-        style={{ height: CAPTION_HEIGHT }}
-      >
-        {measure ? (
-          <span className="num">
-            {formatStamp(measure.a.time, spanSeconds)} →{" "}
-            {formatStamp(measure.b.time, spanSeconds)}
-          </span>
-        ) : (
-          <span>
-            {coarsePointer
-              ? "Touch the chart with two fingers to compare two points"
-              : "Hold ⇧ Shift and move the cursor to compare two points"}
-          </span>
-        )}
-      </p>
     </div>
   );
 }
