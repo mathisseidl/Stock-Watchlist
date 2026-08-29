@@ -523,7 +523,7 @@ export function PriceChart({
       >
         {measure && (
           <>
-            <p className="num text-[11px] whitespace-nowrap text-muted-foreground">
+            <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
               {formatStamp(measure.a.time, spanSeconds)} –{" "}
               {formatStamp(measure.b.time, spanSeconds)} ·{" "}
               {formatSpan(spanSeconds)}
