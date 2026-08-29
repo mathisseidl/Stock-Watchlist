@@ -530,7 +530,7 @@ export function PriceChart({
             </p>
             <p
               className={
-                "num flex items-baseline gap-3 text-lg font-semibold whitespace-nowrap " +
+                "num flex items-baseline gap-6 text-lg font-semibold whitespace-nowrap " +
                 (diffPositive ? "text-gain" : "text-loss")
               }
             >
