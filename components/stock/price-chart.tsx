@@ -168,9 +168,21 @@ const TICK_STEPS = [1, 2, 2.5, 5];
 const MIN_TICK_GAP = 30;
 
 /**
- * The y of the topmost horizontal gridline, which is what the scrub rules
- * hang from. It sits above the plotted data, inside the headroom, so it
- * cannot be derived from the scale margin — the tick has to be found.
+ * Clearance the anchor gridline needs above it, for the price to sit there.
+ * A line's height plus the gap under it.
+ */
+const LABEL_CLEARANCE = 26;
+
+/**
+ * The y of the gridline the scrub rules hang from.
+ *
+ * Normally the topmost one. It sits above the plotted data, inside the
+ * headroom, so it cannot be derived from the scale margin — the tick has to
+ * be found. Where in that headroom it lands is a matter of how close the
+ * range happens to run to a round number, so it can come out flush against
+ * the top of the plot with no room for the price above it (MSFT over a day
+ * does this: $2 steps with 520 a few pixels off the edge). When that
+ * happens the next gridline down takes the anchor instead.
  */
 function findTopGridline(
   series: ISeriesApi<"Area">,
@@ -188,7 +200,16 @@ function findTopGridline(
     (TICK_STEPS.find((candidate) => candidate * magnitude >= rough) ?? 10) *
     magnitude;
 
-  return series.priceToCoordinate(Math.floor(top / step) * step);
+  // Gridlines are at least MIN_TICK_GAP apart and that clears LABEL_CLEARANCE,
+  // so one step down is always enough — but bound the walk regardless.
+  let tick = Math.floor(top / step) * step;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const y = series.priceToCoordinate(tick);
+    if (y === null) return null;
+    if (y >= LABEL_CLEARANCE) return y;
+    tick -= step;
+  }
+  return null;
 }
 
 function plural(count: number, unit: string) {
@@ -669,9 +690,9 @@ export function PriceChart({
     points.length > 1 ? points[points.length - 1].time - points[0].time : 0;
 
   const ruleTop = gridTop ?? PLOT_TOP_FALLBACK;
-  // Kept clear of the plot's own top edge, in case the gridline sits high
-  // enough that there is no room for the figure above it.
-  const priceLabelTop = Math.max(18, (gridTop ?? 0) - 6);
+  // The anchor is chosen to have LABEL_CLEARANCE above it, so this always
+  // leaves the figure inside the plot.
+  const priceLabelTop = (gridTop ?? LABEL_CLEARANCE) - 6;
 
   const polyline = measure?.path.map((p) => `${p.x},${p.y}`).join(" ") ?? "";
   const polygon =
