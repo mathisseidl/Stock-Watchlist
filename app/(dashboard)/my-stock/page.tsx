@@ -44,8 +44,8 @@ export default function MyStockPage() {
       {isGuest && (
         <div className="flex flex-col gap-2 rounded-xl border border-primary/30 bg-accent px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
           <span className="text-accent-foreground">
-            You&apos;re not signed in. This watchlist is saved on this device
-            only, so it won&apos;t follow you to your phone.
+            You&apos;re not signed. This watchlist is saved on this local device
+            only.
           </span>
           <Link
             href="/account"
