@@ -142,13 +142,54 @@ const CAPTION_HEIGHT = 20;
 
 /**
  * Headroom the price scale leaves above the highest point, as a fraction of
- * the plot. This is lightweight-charts' own default for an area series, set
- * explicitly here because the overlay keys off it: the top gridline sits at
- * this line, so the scrub rules start here rather than running up through the
- * empty band above it, and the price label hangs just above it.
+ * the plot. lightweight-charts' own default for an area series, pinned here
+ * so the chart cannot silently rescale under the overlay.
  */
 const PLOT_TOP_MARGIN = 0.2;
-const PLOT_TOP = `${PLOT_TOP_MARGIN * 100}%`;
+
+/** Where the scrub rules start if the top gridline cannot be located. */
+const PLOT_TOP_FALLBACK = `${PLOT_TOP_MARGIN * 100}%`;
+
+/**
+ * The steps a price axis is allowed to tick in, before scaling by a power of
+ * ten. Matches the "nice number" ladder lightweight-charts picks from.
+ */
+const TICK_STEPS = [1, 2, 2.5, 5];
+
+/**
+ * The narrowest gap, in pixels, the library will leave between two gridlines
+ * before it reaches for the next step up.
+ *
+ * Read off a rendered chart rather than from the library: it exposes no API
+ * for tick positions, and the alternative — running the axis a second time
+ * from its source — would be far more to keep in step. Being wrong here is
+ * cosmetic, and only where it changes which step wins.
+ */
+const MIN_TICK_GAP = 30;
+
+/**
+ * The y of the topmost horizontal gridline, which is what the scrub rules
+ * hang from. It sits above the plotted data, inside the headroom, so it
+ * cannot be derived from the scale margin — the tick has to be found.
+ */
+function findTopGridline(
+  series: ISeriesApi<"Area">,
+  plotHeight: number,
+): number | null {
+  if (plotHeight <= 0) return null;
+
+  const top = series.coordinateToPrice(0);
+  const bottom = series.coordinateToPrice(plotHeight);
+  if (top === null || bottom === null || top <= bottom) return null;
+
+  const rough = (top - bottom) / Math.max(1, plotHeight / MIN_TICK_GAP);
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const step =
+    (TICK_STEPS.find((candidate) => candidate * magnitude >= rough) ?? 10) *
+    magnitude;
+
+  return series.priceToCoordinate(Math.floor(top / step) * step);
+}
 
 function plural(count: number, unit: string) {
   return `${count} ${unit}${count === 1 ? "" : "s"}`;
@@ -234,8 +275,19 @@ export function PriceChart({
 
   const [measure, setMeasureState] = useState<Measure | null>(null);
   const [hover, setHoverState] = useState<MeasurePoint | null>(null);
+  const [gridTop, setGridTop] = useState<number | null>(null);
   const coarsePointer = useCoarsePointer();
   const { resolvedTheme } = useTheme();
+
+  const refreshGridTop = useCallback(() => {
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series) return;
+    // paneSize, not the container's height: the container also holds the time
+    // axis, and counting that would stretch the range the tick step is
+    // chosen from.
+    setGridTop(findTopGridline(series, chart.paneSize().height));
+  }, []);
 
   // Interaction handlers live outside React's render cycle, so the ref is the
   // source of truth and state only drives the overlay.
@@ -390,8 +442,15 @@ export function PriceChart({
     );
 
     chart.timeScale().fitContent();
+    refreshGridTop();
+
+    // The price range is fixed in prices but not in pixels, so every resize
+    // moves the gridline the overlay hangs from.
+    const observer = new ResizeObserver(() => refreshGridTop());
+    observer.observe(container);
 
     return () => {
+      observer.disconnect();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -401,7 +460,7 @@ export function PriceChart({
     };
     // resolvedTheme is a dependency because the canvas colors are snapshotted
     // above — without it the chart keeps the old theme's palette.
-  }, [points, positive, resolvedTheme, setMeasure, setHover]);
+  }, [points, positive, resolvedTheme, setMeasure, setHover, refreshGridTop]);
 
   // ---- Touch: two fingers on the chart measure between them ---------------
   useEffect(() => {
@@ -609,6 +668,11 @@ export function PriceChart({
   const seriesSpan =
     points.length > 1 ? points[points.length - 1].time - points[0].time : 0;
 
+  const ruleTop = gridTop ?? PLOT_TOP_FALLBACK;
+  // Kept clear of the plot's own top edge, in case the gridline sits high
+  // enough that there is no room for the figure above it.
+  const priceLabelTop = Math.max(18, (gridTop ?? 0) - 6);
+
   const polyline = measure?.path.map((p) => `${p.x},${p.y}`).join(" ") ?? "";
   const polygon =
     measure && measure.path.length > 1
@@ -677,7 +741,7 @@ export function PriceChart({
               <line
                 x1={hover.x}
                 x2={hover.x}
-                y1={PLOT_TOP}
+                y1={ruleTop}
                 y2="100%"
                 className="stroke-foreground/25"
                 strokeWidth={1}
@@ -704,7 +768,7 @@ export function PriceChart({
             <div
               className="num absolute -translate-x-1/2 -translate-y-full text-sm font-semibold whitespace-nowrap"
               style={{
-                top: `calc(${PLOT_TOP} - 6px)`,
+                top: priceLabelTop,
                 left: `clamp(40px, ${hover.x}px, calc(100% - 40px))`,
               }}
             >
@@ -723,7 +787,7 @@ export function PriceChart({
                   key={index}
                   x1={point.x}
                   x2={point.x}
-                  y1={PLOT_TOP}
+                  y1={ruleTop}
                   y2="100%"
                   className={diffPositive ? "stroke-gain" : "stroke-loss"}
                   strokeWidth={1.5}
