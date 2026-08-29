@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -141,75 +142,95 @@ const HEADER_HEIGHT = 46;
 const CAPTION_HEIGHT = 20;
 
 /**
- * Headroom the price scale leaves above the highest point, as a fraction of
- * the plot. lightweight-charts' own default for an area series, pinned here
- * so the chart cannot silently rescale under the overlay.
+ * The price axis is drawn here rather than by lightweight-charts.
+ *
+ * The overlay has to know exactly where the top gridline is — the scrub rule
+ * stops on it and the price sits above it — and the library exposes no way to
+ * ask. Inferring it from the scale margins failed in both directions: the
+ * rule fell short of the line on some stocks and the price landed under it on
+ * others, because where a round tick falls inside the headroom depends on how
+ * near the range happens to run to that round number. So the ticks are chosen
+ * here, the range is pinned to them, and the library is left to draw only the
+ * series itself.
  */
-const PLOT_TOP_MARGIN = 0.2;
 
-/** Where the scrub rules start if the top gridline cannot be located. */
-const PLOT_TOP_FALLBACK = `${PLOT_TOP_MARGIN * 100}%`;
-
-/**
- * The steps a price axis is allowed to tick in, before scaling by a power of
- * ten. Matches the "nice number" ladder lightweight-charts picks from.
- */
+/** Steps the axis may tick in, before scaling by a power of ten. */
 const TICK_STEPS = [1, 2, 2.5, 5];
 
-/**
- * The narrowest gap, in pixels, the library will leave between two gridlines
- * before it reaches for the next step up.
- *
- * Read off a rendered chart rather than from the library: it exposes no API
- * for tick positions, and the alternative — running the axis a second time
- * from its source — would be far more to keep in step. Being wrong here is
- * cosmetic, and only where it changes which step wins.
- */
-const MIN_TICK_GAP = 30;
+/** Roughly how many gaps to divide the data's own range into. */
+const TARGET_TICK_GAPS = 4;
 
 /**
- * Clearance the anchor gridline needs above it, for the price to sit there.
- * A line's height plus the gap under it.
+ * Where the top and bottom gridlines sit, as fractions of the plot. Held away
+ * from the edges so the top line always has room for the price above it and
+ * its own label can never be clipped — the two things this axis exists to
+ * guarantee. Fractions rather than pixels, so a short chart keeps the same
+ * proportions as a tall one.
  */
-const LABEL_CLEARANCE = 26;
+const TOP_TICK_FRACTION = 0.17;
+const BOTTOM_TICK_FRACTION = 0.06;
 
-/**
- * The y of the gridline the scrub rules hang from.
- *
- * Normally the topmost one. It sits above the plotted data, inside the
- * headroom, so it cannot be derived from the scale margin — the tick has to
- * be found. Where in that headroom it lands is a matter of how close the
- * range happens to run to a round number, so it can come out flush against
- * the top of the plot with no room for the price above it (MSFT over a day
- * does this: $2 steps with 520 a few pixels off the edge). When that
- * happens the next gridline down takes the anchor instead.
- */
-function findTopGridline(
-  series: ISeriesApi<"Area">,
-  plotHeight: number,
-): number | null {
-  if (plotHeight <= 0) return null;
+/** Gutter down the right for the price labels. */
+const AXIS_WIDTH = 58;
 
-  const top = series.coordinateToPrice(0);
-  const bottom = series.coordinateToPrice(plotHeight);
-  if (top === null || bottom === null || top <= bottom) return null;
+type PriceScale = {
+  /** Price at the top and bottom edges of the pane. */
+  low: number;
+  high: number;
+  /** Every gridline, ascending. */
+  ticks: number[];
+  decimals: number;
+};
 
-  const rough = (top - bottom) / Math.max(1, plotHeight / MIN_TICK_GAP);
+function niceStep(range: number, gaps: number): number {
+  const rough = range / gaps;
+  if (!(rough > 0) || !Number.isFinite(rough)) return 1;
   const magnitude = 10 ** Math.floor(Math.log10(rough));
-  const step =
-    (TICK_STEPS.find((candidate) => candidate * magnitude >= rough) ?? 10) *
-    magnitude;
+  const step = TICK_STEPS.find((candidate) => candidate * magnitude >= rough);
+  return (step ?? 10) * magnitude;
+}
 
-  // Gridlines are at least MIN_TICK_GAP apart and that clears LABEL_CLEARANCE,
-  // so one step down is always enough — but bound the walk regardless.
-  let tick = Math.floor(top / step) * step;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const y = series.priceToCoordinate(tick);
-    if (y === null) return null;
-    if (y >= LABEL_CLEARANCE) return y;
-    tick -= step;
+/**
+ * Ticks bracketing the data, and the range that puts them at the fractions
+ * above. Solved rather than guessed: with the top tick at `t` of the pane and
+ * the bottom at `1 - b`, the span between them is `1 - t - b` of the whole,
+ * which fixes the range outright.
+ */
+function computePriceScale(points: CandlePoint[]): PriceScale | null {
+  if (points.length === 0) return null;
+
+  let low = points[0].value;
+  let high = points[0].value;
+  for (const point of points) {
+    if (point.value < low) low = point.value;
+    if (point.value > high) high = point.value;
   }
-  return null;
+  // A dead-flat series has no range to divide; give it one so the axis still
+  // has somewhere to put its ticks.
+  if (high - low < Number.EPSILON) {
+    const pad = Math.max(Math.abs(high) * 0.01, 0.01);
+    low -= pad;
+    high += pad;
+  }
+
+  const step = niceStep(high - low, TARGET_TICK_GAPS);
+  // Strictly outside the data, so the series never touches the outer lines.
+  const topTick = (Math.floor(high / step) + 1) * step;
+  const bottomTick = (Math.ceil(low / step) - 1) * step;
+
+  const span = topTick - bottomTick;
+  const range = span / (1 - TOP_TICK_FRACTION - BOTTOM_TICK_FRACTION);
+  const highEdge = topTick + TOP_TICK_FRACTION * range;
+
+  const count = Math.round(span / step);
+  const ticks = Array.from({ length: count + 1 }, (_, i) => bottomTick + i * step);
+
+  return {
+    low: highEdge - range,
+    high: highEdge,
+    ticks,
+    decimals: step >= 1 ? 2 : Math.min(6, Math.ceil(-Math.log10(step)) + 1),
+  };
 }
 
 function plural(count: number, unit: string) {
@@ -296,18 +317,40 @@ export function PriceChart({
 
   const [measure, setMeasureState] = useState<Measure | null>(null);
   const [hover, setHoverState] = useState<MeasurePoint | null>(null);
-  const [gridTop, setGridTop] = useState<number | null>(null);
+  /** Each gridline's price paired with where it currently sits, in pixels. */
+  const [axis, setAxis] = useState<{ price: number; y: number }[]>([]);
   const coarsePointer = useCoarsePointer();
   const { resolvedTheme } = useTheme();
 
-  const refreshGridTop = useCallback(() => {
-    const chart = chartRef.current;
+  const scale = useMemo(() => computePriceScale(points), [points]);
+  // Read back by the library's autoscale callback and by the resize handler,
+  // both of which run outside render. Kept in step in the chart effect below,
+  // which rebuilds whenever the scale changes.
+  const scaleRef = useRef(scale);
+
+  /**
+   * Ticks are positioned through the library's own price mapping rather than
+   * from the pane height, so the gridlines cannot drift away from the series
+   * drawn against them.
+   */
+  const refreshAxis = useCallback(() => {
     const series = seriesRef.current;
-    if (!chart || !series) return;
-    // paneSize, not the container's height: the container also holds the time
-    // axis, and counting that would stretch the range the tick step is
-    // chosen from.
-    setGridTop(findTopGridline(series, chart.paneSize().height));
+    const current = scaleRef.current;
+    if (!series || !current) return;
+
+    const next: { price: number; y: number }[] = [];
+    for (const price of current.ticks) {
+      const y = series.priceToCoordinate(price);
+      if (y !== null) next.push({ price, y });
+    }
+
+    // Resizing fires in a stream; only a real move is worth a render.
+    setAxis((previous) =>
+      previous.length === next.length &&
+      previous.every((tick, i) => tick.y === next[i].y)
+        ? previous
+        : next,
+    );
   }, []);
 
   // Interaction handlers live outside React's render cycle, so the ref is the
@@ -416,6 +459,8 @@ export function PriceChart({
     if (!container || points.length === 0) return;
 
     pointsRef.current = points;
+    // Before the chart exists, so the first autoscale call already sees it.
+    scaleRef.current = scale;
     const palette =
       resolvedTheme === "dark" ? CHART_THEME.dark : CHART_THEME.light;
     const color = positive ? palette.gain : palette.loss;
@@ -428,14 +473,17 @@ export function PriceChart({
         textColor: palette.text,
         fontFamily: CHART_FONT,
       },
+      // Grid and price axis are drawn by this component instead; see the note
+      // above computePriceScale.
       grid: {
-        horzLines: { color: palette.grid },
+        horzLines: { visible: false },
         vertLines: { visible: false },
       },
       rightPriceScale: {
-        borderVisible: false,
-        // Pinned rather than left to the default so the overlay can rely on it.
-        scaleMargins: { top: PLOT_TOP_MARGIN, bottom: 0.1 },
+        visible: false,
+        // No margins: the range already carries its own headroom, and a
+        // second one applied on top would move the ticks off their fractions.
+        scaleMargins: { top: 0, bottom: 0 },
       },
       timeScale: { borderVisible: false, timeVisible: true },
       // No crosshair: its default style is a dashed rule in both axes, which
@@ -452,6 +500,14 @@ export function PriceChart({
       bottomColor: "transparent",
       priceLineVisible: false,
       lastValueVisible: false,
+      // The range is dictated here so the gridlines drawn over the series land
+      // exactly where this component put them.
+      autoscaleInfoProvider: () => {
+        const current = scaleRef.current;
+        return current
+          ? { priceRange: { minValue: current.low, maxValue: current.high } }
+          : null;
+      },
     });
     seriesRef.current = series;
 
@@ -463,11 +519,11 @@ export function PriceChart({
     );
 
     chart.timeScale().fitContent();
-    refreshGridTop();
+    refreshAxis();
 
-    // The price range is fixed in prices but not in pixels, so every resize
-    // moves the gridline the overlay hangs from.
-    const observer = new ResizeObserver(() => refreshGridTop());
+    // The range is fixed in prices but not in pixels, so every resize moves
+    // the gridlines.
+    const observer = new ResizeObserver(() => refreshAxis());
     observer.observe(container);
 
     return () => {
@@ -481,7 +537,7 @@ export function PriceChart({
     };
     // resolvedTheme is a dependency because the canvas colors are snapshotted
     // above — without it the chart keeps the old theme's palette.
-  }, [points, positive, resolvedTheme, setMeasure, setHover, refreshGridTop]);
+  }, [points, positive, resolvedTheme, scale, setMeasure, setHover, refreshAxis]);
 
   // ---- Touch: two fingers on the chart measure between them ---------------
   useEffect(() => {
@@ -689,10 +745,11 @@ export function PriceChart({
   const seriesSpan =
     points.length > 1 ? points[points.length - 1].time - points[0].time : 0;
 
-  const ruleTop = gridTop ?? PLOT_TOP_FALLBACK;
-  // The anchor is chosen to have LABEL_CLEARANCE above it, so this always
-  // leaves the figure inside the plot.
-  const priceLabelTop = (gridTop ?? LABEL_CLEARANCE) - 6;
+  // The top gridline, which the scrub rules stop on and the price sits above.
+  // Its fraction is fixed by the scale, so there is always room for both.
+  const topTickY = axis.length > 0 ? axis[axis.length - 1].y : null;
+  const ruleTop = topTickY ?? `${TOP_TICK_FRACTION * 100}%`;
+  const priceLabelTop = (topTickY ?? 0) - 6;
 
   const polyline = measure?.path.map((p) => `${p.x},${p.y}`).join(" ") ?? "";
   const polygon =
@@ -754,6 +811,44 @@ export function PriceChart({
         }}
         data-measuring={measure ? "true" : undefined}
       >
+        {/* Price labels live in a gutter down the right. */}
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0"
+          style={{ width: AXIS_WIDTH }}
+        >
+          {axis.map(({ price, y }) => (
+            <span
+              key={price}
+              className="num absolute right-0 -translate-y-1/2 text-[11px] text-muted-foreground"
+              style={{ top: y }}
+            >
+              {price.toFixed(scale?.decimals ?? 2)}
+            </span>
+          ))}
+        </div>
+
+        {/* The plot proper, inset by the gutter so it and every overlay drawn
+            over it share one coordinate box. */}
+        <div
+          className="absolute inset-y-0 left-0"
+          style={{ right: AXIS_WIDTH }}
+        >
+        {/* Behind the series: the chart's own canvas is transparent, and the
+            grid belongs under the line rather than over it. */}
+        <svg className="absolute inset-0 size-full" aria-hidden="true">
+          {axis.map(({ price, y }) => (
+            <line
+              key={price}
+              x1={0}
+              x2="100%"
+              y1={y}
+              y2={y}
+              className="stroke-foreground/10"
+              strokeWidth={1}
+            />
+          ))}
+        </svg>
+
         <div ref={containerRef} className="absolute inset-0" />
 
         {!measure && hover && (
@@ -854,6 +949,7 @@ export function PriceChart({
             </svg>
           </div>
         )}
+        </div>
       </div>
 
       {/* Hidden rather than unmounted while measuring: the numbers above say
