@@ -28,10 +28,12 @@ export default function MyStockPage() {
             Your watchlist — search any stock and add it here.
           </p>
         </div>
-        <RangeSelector value={activeRange} onChange={setRange} />
+        {/* On phones the range lives on the stock page itself — the list just
+            uses the reader's default. */}
+        <div className="hidden sm:block">
+          <RangeSelector value={activeRange} onChange={setRange} />
+        </div>
       </div>
-
-      <AlertList />
 
       {error && (
         <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -77,6 +79,8 @@ export default function MyStockPage() {
       )}
 
       {ready && items.length > 0 && <WatchlistStats />}
+
+      <AlertList />
     </div>
   );
 }

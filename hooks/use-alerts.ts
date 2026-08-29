@@ -12,7 +12,7 @@ export const MAX_ALERTS = 3;
 export type Alert = {
   id: string;
   symbol: string;
-  kind: "earnings" | "price" | "news";
+  kind: "price" | "news";
   title: string;
   detail: string;
   changePercent?: number;
@@ -26,21 +26,16 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json();
 }
 
-/** Headlines the news classifier tagged as earnings coverage. */
-const EARNINGS_REASON = /^Earnings and guidance/;
-
 /**
  * How the three slots are filled, in order:
  *
- *   1. Earnings. Results and guidance reset what a company is worth, so they
- *      outrank anything else that happened today.
- *   2. The biggest percentage move on the watchlist. If two stocks both broke
+ *   1. The biggest percentage move on the watchlist. If two stocks both broke
  *      the threshold, the reader wants the one that moved further.
- *   3. Other significant news, only if there is room left.
+ *   2. Other significant news, only if there is room left.
  *
  * Within a tier, the larger move wins.
  */
-const TIER: Record<Alert["kind"], number> = { earnings: 0, price: 1, news: 2 };
+const TIER: Record<Alert["kind"], number> = { price: 0, news: 1 };
 
 /**
  * Alerts are derived live from the watchlist rather than pushed from a server:
@@ -70,7 +65,7 @@ export function useAlerts() {
     queries: symbols.map((symbol) => ({
       queryKey: ["news", symbol],
       queryFn: () => fetchJson<NewsItem[]>(`/api/news/${symbol}`),
-      enabled: enabled && (settings.notifyEarnings || settings.notifyBigNews),
+      enabled: enabled && settings.notifyBigNews,
       staleTime: 15 * 60 * 1000,
     })),
   });
@@ -101,20 +96,16 @@ export function useAlerts() {
     }
   }
 
-  if (settings.notifyEarnings || settings.notifyBigNews) {
+  if (settings.notifyBigNews) {
     symbols.forEach((symbol, index) => {
       const news = newsQueries[index]?.data;
       if (!news) return;
 
       for (const item of news) {
-        const isEarnings = EARNINGS_REASON.test(item.reason ?? "");
-        if (isEarnings && !settings.notifyEarnings) continue;
-        if (!isEarnings && !settings.notifyBigNews) continue;
-
         alerts.push({
           id: `news-${symbol}-${item.id ?? item.url}`,
           symbol,
-          kind: isEarnings ? "earnings" : "news",
+          kind: "news",
           title: item.headline,
           detail: item.source,
           changePercent: dayChange.get(symbol),

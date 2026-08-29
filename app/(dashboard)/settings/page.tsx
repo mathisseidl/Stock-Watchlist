@@ -159,21 +159,8 @@ export default function SettingsPage() {
         <Separator />
 
         <SettingRow
-          label="Earnings news"
-          description="Earnings results and guidance on stocks you follow."
-          control={
-            <Toggle
-              label="Earnings alerts"
-              disabled={alertsOff}
-              checked={settings.notifyEarnings}
-              onChange={(next) => update({ notifyEarnings: next })}
-            />
-          }
-        />
-
-        <SettingRow
-          label="Other major news"
-          description="Deals, lawsuits, leadership changes and product launches on stocks you follow."
+          label="Major news"
+          description="Earnings, deals, lawsuits, leadership changes and product launches on stocks you follow."
           control={
             <Toggle
               label="Major news alerts"

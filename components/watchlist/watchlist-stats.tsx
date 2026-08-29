@@ -1,17 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useQueries } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChangeBadge } from "@/components/stock/change-badge";
+import { RangeSelector } from "@/components/stock/range-selector";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { seriesChangePercent } from "@/hooks/use-candles";
-import type { CandleSeries } from "@/lib/market-data/types";
+import { RANGES } from "@/lib/ranges";
+import type { CandleRange, CandleSeries } from "@/lib/market-data/types";
 
-async function fetchCandles(symbol: string): Promise<CandleSeries> {
-  const res = await fetch(`/api/candles/${symbol}?range=1M`);
+async function fetchCandles(
+  symbol: string,
+  range: CandleRange,
+): Promise<CandleSeries> {
+  const res = await fetch(`/api/candles/${symbol}?range=${range}`);
   if (!res.ok) throw new Error("Failed to load candles");
   return res.json();
 }
@@ -31,15 +37,20 @@ function Tile({
   );
 }
 
-/** Watchlist performance over the last month, from data the app already polls. */
+/** Watchlist performance over a range the reader picks, from data the app already polls. */
 export function WatchlistStats() {
   const { items, ready } = useWatchlist();
-  const { percent } = useUserSettings();
+  const { percent, settings, ready: settingsReady } = useUserSettings();
+  const [range, setRange] = useState<CandleRange | null>(null);
+
+  const activeRange = range ?? (settingsReady ? settings.defaultRange : "1M");
+  const rangeLabel =
+    RANGES.find((entry) => entry.key === activeRange)?.label ?? "period";
 
   const queries = useQueries({
     queries: items.map((item) => ({
-      queryKey: ["candles", item.symbol, "1M"],
-      queryFn: () => fetchCandles(item.symbol),
+      queryKey: ["candles", item.symbol, activeRange],
+      queryFn: () => fetchCandles(item.symbol, activeRange),
       enabled: items.length > 0,
       staleTime: 5 * 60 * 1000,
     })),
@@ -84,11 +95,14 @@ export function WatchlistStats() {
 
   return (
     <Card className="gap-4 p-6">
-      <div>
-        <h3 className="text-base font-semibold">How your watchlist is doing</h3>
-        <p className="text-sm text-muted-foreground">
-          Performance over the last month.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h3 className="text-base font-semibold">How your watchlist is doing</h3>
+          <p className="text-sm text-muted-foreground">
+            Best performer, weakest and the average over the {rangeLabel}.
+          </p>
+        </div>
+        <RangeSelector value={activeRange} onChange={setRange} size="sm" />
       </div>
 
       {loading ? (
