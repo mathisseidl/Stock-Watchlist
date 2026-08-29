@@ -218,10 +218,12 @@ export function PriceChart({
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
   const pointsRef = useRef(points);
   const measureRef = useRef<Measure | null>(null);
+  const hoverRef = useRef<MeasurePoint | null>(null);
   const pointerXRef = useRef<number | null>(null);
   const hoveringRef = useRef(false);
 
   const [measure, setMeasureState] = useState<Measure | null>(null);
+  const [hover, setHoverState] = useState<MeasurePoint | null>(null);
   const coarsePointer = useCoarsePointer();
   const { resolvedTheme } = useTheme();
 
@@ -230,6 +232,16 @@ export function PriceChart({
   const setMeasure = useCallback((next: Measure | null) => {
     measureRef.current = next;
     setMeasureState(next);
+  }, []);
+
+  const setHover = useCallback((next: MeasurePoint | null) => {
+    // The pointer moves far more often than it crosses from one data point to
+    // the next, so most moves are not worth a render.
+    const current = hoverRef.current;
+    if (next === null && current === null) return;
+    if (next && current && next.index === current.index) return;
+    hoverRef.current = next;
+    setHoverState(next);
   }, []);
 
   /** Pan/zoom has to stand down while a measurement is in progress. */
@@ -369,12 +381,13 @@ export function PriceChart({
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
-      // A new series invalidates any measurement drawn over the old one.
+      // A new series invalidates anything drawn over the old one.
       setMeasure(null);
+      setHover(null);
     };
     // resolvedTheme is a dependency because the canvas colors are snapshotted
     // above — without it the chart keeps the old theme's palette.
-  }, [points, positive, resolvedTheme, setMeasure]);
+  }, [points, positive, resolvedTheme, setMeasure, setHover]);
 
   // ---- Touch: two fingers on the chart measure between them ---------------
   useEffect(() => {
@@ -395,24 +408,72 @@ export function PriceChart({
       if (next) setMeasure(next);
     }
 
+    // A one-finger gesture is either a horizontal scrub or a vertical page
+    // scroll. Which one is decided once, on the first few pixels of travel,
+    // and then held for the rest of the gesture so it cannot flip mid-drag.
+    let start: { x: number; y: number } | null = null;
+    let gesture: "undecided" | "scrub" | "scroll" = "undecided";
+
+    function endScrub() {
+      start = null;
+      if (gesture === "scrub") {
+        setHover(null);
+        setChartInteractive(true);
+      }
+      gesture = "undecided";
+    }
+
     function handleStart(event: TouchEvent) {
+      if (event.touches.length === 1) {
+        // Swallow it so the chart's own one-finger pan never engages. No
+        // preventDefault: a vertical swipe that happens to begin on the chart
+        // still has to scroll the page.
+        event.stopPropagation();
+        start = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+        gesture = "undecided";
+        return;
+      }
+
       if (event.touches.length < 2) return;
       // Capture phase + stopPropagation keeps the chart's own pinch-zoom from
       // firing, and preventDefault keeps the browser from zooming the page.
       event.preventDefault();
       event.stopPropagation();
+      endScrub();
+      setHover(null);
       setChartInteractive(false);
       apply(event);
     }
 
     function handleMove(event: TouchEvent) {
-      if (!measureRef.current || event.touches.length < 2) return;
+      if (event.touches.length >= 2) {
+        if (!measureRef.current) return;
+        event.preventDefault();
+        event.stopPropagation();
+        apply(event);
+        return;
+      }
+
+      if (event.touches.length !== 1 || !start || measureRef.current) return;
+      const touch = event.touches[0];
+
+      if (gesture === "undecided") {
+        const dx = Math.abs(touch.clientX - start.x);
+        const dy = Math.abs(touch.clientY - start.y);
+        // Too little travel to read the intent yet.
+        if (dx < 8 && dy < 8) return;
+        gesture = dx > dy ? "scrub" : "scroll";
+        if (gesture === "scrub") setChartInteractive(false);
+      }
+
+      if (gesture !== "scrub") return;
       event.preventDefault();
       event.stopPropagation();
-      apply(event);
+      setHover(resolveAt(xIn(touch)));
     }
 
     function handleEnd(event: TouchEvent) {
+      if (event.touches.length === 0) endScrub();
       if (!measureRef.current) return;
       if (event.touches.length >= 2) return;
       setMeasure(null);
@@ -431,12 +492,15 @@ export function PriceChart({
       container.removeEventListener("touchend", handleEnd, options);
       container.removeEventListener("touchcancel", handleEnd, options);
     };
-  }, [measureBetween, setMeasure, setChartInteractive]);
+  }, [measureBetween, resolveAt, setHover, setMeasure, setChartInteractive]);
 
-  // ---- Desktop: hold Shift to pin an anchor, then move the mouse ----------
+  // ---- Desktop: hover reads the price, Shift pins an anchor to compare ----
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    // Skipped on touch devices: a tap there synthesises a mousemove with no
+    // matching mouseleave, which would strand the hover marker on the plot.
+    if (coarsePointer) return;
 
     // The pinned end, kept separately from `measure` so that re-ordering the
     // two ends by time never drags the anchor along with the cursor.
@@ -448,14 +512,22 @@ export function PriceChart({
       pointerXRef.current = x;
       hoveringRef.current = true;
 
-      if (measureRef.current?.source !== "shift" || anchorX === null) return;
-      const next = measureBetween(anchorX, x, "shift");
-      if (next) setMeasure(next);
+      if (measureRef.current?.source === "shift" && anchorX !== null) {
+        const next = measureBetween(anchorX, x, "shift");
+        if (next) setMeasure(next);
+        return;
+      }
+
+      // Plain hover reads out the price under the cursor. A measurement in
+      // progress already says more than that, so it wins.
+      if (measureRef.current) return;
+      setHover(resolveAt(x));
     }
 
     function handleMouseLeave() {
       hoveringRef.current = false;
       pointerXRef.current = null;
+      setHover(null);
       if (measureRef.current?.source === "shift") {
         anchorX = null;
         setMeasure(null);
@@ -472,6 +544,7 @@ export function PriceChart({
       const next = measureBetween(anchorX, anchorX, "shift");
       if (next) {
         setChartInteractive(false);
+        setHover(null);
         setMeasure(next);
       }
     }
@@ -482,6 +555,10 @@ export function PriceChart({
       anchorX = null;
       setMeasure(null);
       setChartInteractive(true);
+      // The cursor never left the plot, so fall back to the hover readout.
+      if (hoveringRef.current && pointerXRef.current !== null) {
+        setHover(resolveAt(pointerXRef.current));
+      }
     }
 
     container.addEventListener("mousemove", handleMouseMove);
@@ -498,13 +575,25 @@ export function PriceChart({
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleMouseLeave);
     };
-  }, [measureBetween, setMeasure, setChartInteractive]);
+  }, [
+    coarsePointer,
+    measureBetween,
+    resolveAt,
+    setHover,
+    setMeasure,
+    setChartInteractive,
+  ]);
 
   const diff = measure ? measure.b.value - measure.a.value : 0;
   const diffPercent =
     measure && measure.a.value !== 0 ? (diff / measure.a.value) * 100 : 0;
   const diffPositive = diff >= 0;
   const spanSeconds = measure ? measure.b.time - measure.a.time : 0;
+
+  // A single hovered point has no span of its own, so the stamp's precision
+  // comes from how much time the whole chart covers.
+  const seriesSpan =
+    points.length > 1 ? points[points.length - 1].time - points[0].time : 0;
 
   const polyline = measure?.path.map((p) => `${p.x},${p.y}`).join(" ") ?? "";
   const polygon =
@@ -544,14 +633,58 @@ export function PriceChart({
             </p>
           </>
         )}
+
+        {!measure && hover && (
+          <>
+            <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
+              {formatStamp(hover.time, seriesSpan)}
+            </p>
+            <p className="num text-lg font-semibold whitespace-nowrap">
+              ${hover.value.toFixed(2)}
+            </p>
+          </>
+        )}
       </div>
 
       <div
         className="relative w-full select-none"
-        style={{ height: Math.max(0, height - HEADER_HEIGHT - CAPTION_HEIGHT) }}
+        // Horizontal drags are the scrub gesture and must not scroll the page;
+        // vertical ones still belong to the page.
+        style={{
+          height: Math.max(0, height - HEADER_HEIGHT - CAPTION_HEIGHT),
+          touchAction: "pan-y",
+        }}
         data-measuring={measure ? "true" : undefined}
       >
         <div ref={containerRef} className="absolute inset-0" />
+
+        {!measure && hover && (
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <svg className="size-full" aria-hidden="true">
+              <line
+                x1={hover.x}
+                x2={hover.x}
+                y1={0}
+                y2="100%"
+                className="stroke-foreground/25"
+                strokeWidth={1}
+              />
+              {hover.y !== null && (
+                <circle
+                  cx={hover.x}
+                  cy={hover.y}
+                  r={5}
+                  className={
+                    positive
+                      ? "fill-gain stroke-background"
+                      : "fill-loss stroke-background"
+                  }
+                  strokeWidth={2}
+                />
+              )}
+            </svg>
+          </div>
+        )}
 
         {measure && (
           <div className="pointer-events-none absolute inset-0 z-10">
