@@ -140,6 +140,16 @@ const HEADER_HEIGHT = 46;
 /** Room under the plot for the how-to-use hint. */
 const CAPTION_HEIGHT = 20;
 
+/**
+ * Headroom the price scale leaves above the highest point, as a fraction of
+ * the plot. This is lightweight-charts' own default for an area series, set
+ * explicitly here because the overlay keys off it: the top gridline sits at
+ * this line, so the scrub rules start here rather than running up through the
+ * empty band above it, and the price label hangs just above it.
+ */
+const PLOT_TOP_MARGIN = 0.2;
+const PLOT_TOP = `${PLOT_TOP_MARGIN * 100}%`;
+
 function plural(count: number, unit: string) {
   return `${count} ${unit}${count === 1 ? "" : "s"}`;
 }
@@ -349,7 +359,11 @@ export function PriceChart({
         horzLines: { color: palette.grid },
         vertLines: { visible: false },
       },
-      rightPriceScale: { borderVisible: false },
+      rightPriceScale: {
+        borderVisible: false,
+        // Pinned rather than left to the default so the overlay can rely on it.
+        scaleMargins: { top: PLOT_TOP_MARGIN, bottom: 0.1 },
+      },
       timeScale: { borderVisible: false, timeVisible: true },
       // No crosshair: its default style is a dashed rule in both axes, which
       // clutters the plot and clashes with the solid guides the measurement
@@ -663,7 +677,7 @@ export function PriceChart({
               <line
                 x1={hover.x}
                 x2={hover.x}
-                y1={0}
+                y1={PLOT_TOP}
                 y2="100%"
                 className="stroke-foreground/25"
                 strokeWidth={1}
@@ -683,12 +697,16 @@ export function PriceChart({
               )}
             </svg>
 
-            {/* Rides the vertical line. Clamped in CSS rather than against a
-                measured width so it needs no resize plumbing — 48px clears
-                half of the widest price this label realistically holds. */}
+            {/* Sits loose just above the top of the rule and rides it. Clamped
+                in CSS rather than against a measured width so it needs no
+                resize plumbing — 40px clears half of the widest price this
+                realistically holds. */}
             <div
-              className="num absolute top-2 -translate-x-1/2 rounded-lg bg-popover/95 px-2 py-1 text-sm font-semibold shadow-sm ring-1 ring-border backdrop-blur"
-              style={{ left: `clamp(48px, ${hover.x}px, calc(100% - 48px))` }}
+              className="num absolute -translate-x-1/2 -translate-y-full text-sm font-semibold whitespace-nowrap"
+              style={{
+                top: `calc(${PLOT_TOP} - 6px)`,
+                left: `clamp(40px, ${hover.x}px, calc(100% - 40px))`,
+              }}
             >
               ${hover.value.toFixed(2)}
             </div>
@@ -705,7 +723,7 @@ export function PriceChart({
                   key={index}
                   x1={point.x}
                   x2={point.x}
-                  y1={0}
+                  y1={PLOT_TOP}
                   y2="100%"
                   className={diffPositive ? "stroke-gain" : "stroke-loss"}
                   strokeWidth={1.5}
