@@ -768,28 +768,14 @@ export function PriceChart({
         className="flex flex-col items-center justify-start overflow-hidden text-center"
         style={{ height: HEADER_HEIGHT }}
       >
+        {/* Dates only. The figures sit down on the plot, level with the price
+            a plain hover reads out. */}
         {measure && (
-          <>
-            <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
-              {formatStamp(measure.a.time, spanSeconds)} –{" "}
-              {formatStamp(measure.b.time, spanSeconds)} ·{" "}
-              {formatSpan(spanSeconds)}
-            </p>
-            <p
-              className={
-                "num flex items-baseline gap-6 text-lg font-semibold whitespace-nowrap " +
-                (diffPositive ? "text-gain" : "text-loss")
-              }
-            >
-              <span>
-                {diffPositive ? "+" : "−"}${Math.abs(diff).toFixed(2)}
-              </span>
-              <span>
-                {diffPositive ? "+" : "−"}
-                {Math.abs(diffPercent).toFixed(2)}%
-              </span>
-            </p>
-          </>
+          <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
+            {formatStamp(measure.a.time, spanSeconds)} –{" "}
+            {formatStamp(measure.b.time, spanSeconds)} ·{" "}
+            {formatSpan(spanSeconds)}
+          </p>
         )}
 
         {/* Only the date here — the price rides the vertical line instead, so
@@ -947,6 +933,24 @@ export function PriceChart({
                 ),
               )}
             </svg>
+
+            {/* Level with the hover price — same `top`, same translate — so
+                the readout does not jump between the two modes. */}
+            <div
+              className={
+                "num absolute left-1/2 flex -translate-x-1/2 -translate-y-full items-baseline gap-6 text-lg font-semibold whitespace-nowrap " +
+                (diffPositive ? "text-gain" : "text-loss")
+              }
+              style={{ top: priceLabelTop }}
+            >
+              <span>
+                {diffPositive ? "+" : "−"}${Math.abs(diff).toFixed(2)}
+              </span>
+              <span>
+                {diffPositive ? "+" : "−"}
+                {Math.abs(diffPercent).toFixed(2)}%
+              </span>
+            </div>
           </div>
         )}
         </div>
