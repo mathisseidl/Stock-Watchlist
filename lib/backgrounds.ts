@@ -6,7 +6,7 @@
  *
  * The palettes are lifted from a set of reference screenshots: a soft sunrise,
  * an iridescent wash, a quiet haze, a bold ember, and — for dark — an aurora,
- * a nebula and a warm dusk.
+ * a nebula, a warm dusk, a deep tide, a garnet glow and a graphite onyx.
  */
 
 export type BackgroundMode = "light" | "dark";
@@ -91,6 +91,33 @@ export const BACKGROUND_PRESETS: BackgroundPreset[] = [
     mode: "dark",
     page: "radial-gradient(120% 120% at 82% 82%, #3c2519 0%, #1a1413 46%, #0c0c0e 100%)",
     swatch: "linear-gradient(135deg, #3c2519, #0c0c0e)",
+    ink: WHITE_INK,
+    inkMuted: WHITE_INK_MUTED,
+  },
+  {
+    id: "dark-tide",
+    label: "Tide",
+    mode: "dark",
+    page: "radial-gradient(120% 120% at 25% 15%, #14495e 0%, #0d2a37 50%, #070b0f 100%)",
+    swatch: "linear-gradient(135deg, #1a586f, #070b0f)",
+    ink: WHITE_INK,
+    inkMuted: WHITE_INK_MUTED,
+  },
+  {
+    id: "dark-garnet",
+    label: "Garnet",
+    mode: "dark",
+    page: "radial-gradient(120% 120% at 78% 20%, #4d1a2b 0%, #2b1119 48%, #0c090b 100%)",
+    swatch: "linear-gradient(135deg, #5c2033, #0c090b)",
+    ink: WHITE_INK,
+    inkMuted: WHITE_INK_MUTED,
+  },
+  {
+    id: "dark-onyx",
+    label: "Onyx",
+    mode: "dark",
+    page: "radial-gradient(120% 120% at 50% -5%, #2b2f36 0%, #191b1f 52%, #0a0b0c 100%)",
+    swatch: "linear-gradient(135deg, #333840, #0a0b0c)",
     ink: WHITE_INK,
     inkMuted: WHITE_INK_MUTED,
   },
