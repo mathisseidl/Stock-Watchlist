@@ -92,7 +92,6 @@ export function AuthForm({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
             required
           />
         </div>
@@ -102,7 +101,6 @@ export function AuthForm({
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
             minLength={6}
             required
           />
@@ -113,7 +111,6 @@ export function AuthForm({
             <Input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="yourname"
               autoCapitalize="none"
               required
             />
