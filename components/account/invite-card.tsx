@@ -38,7 +38,7 @@ export function InviteCard({ username }: { username: string | null }) {
         <div>
           <h3 className="text-base font-semibold">Invite a friend</h3>
           <p className="text-sm text-muted-foreground">
-            Share the app and your username so your friend can follow your
+            Share the app and your username so your friends can follow your
             watchlist
           </p>
         </div>
