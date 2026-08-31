@@ -45,7 +45,7 @@ export function UpgradeButton() {
       </Button>
       <p className="text-center text-xs text-muted-foreground">
         {trialEligible
-          ? `Cancel any time before day ${PRO_TRIAL_DAYS} and you won't get charged $1.99.`
+          ? `Cancel before day ${PRO_TRIAL_DAYS} and you won't get charged.`
           : "Billed $1.99/month. Cancel any time."}
       </p>
       {error && <p className="text-sm text-destructive">{error}</p>}

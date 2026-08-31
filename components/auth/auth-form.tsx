@@ -96,6 +96,17 @@ export function AuthForm({
             required
           />
         </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium">Password</label>
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            minLength={6}
+            required
+          />
+        </div>
         {isSignup && (
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Username</label>
@@ -111,17 +122,6 @@ export function AuthForm({
             </p>
           </div>
         )}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">Password</label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            minLength={6}
-            required
-          />
-        </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 

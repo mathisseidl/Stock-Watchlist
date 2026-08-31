@@ -59,12 +59,9 @@ const guestUnlocks: Feature[] = [
 const proFeatures = [
   "Everything in Free",
   "Forecast any stock: best case, likely case and worst case on a date you pick",
-  // Sits directly under the forecast line: it describes that feature, not a
-  // separate one.
-  "Every forecast shows the 14 named methods behind it",
   "News summary for every stock in 6 lines",
   "Test a past investment — Unlimited",
-  "Cancel any time — up to the day before the next payment",
+  "Cancel any time",
 ];
 
 /** A line in a feature list, optionally with its own nested checklist. */
@@ -255,11 +252,12 @@ export default async function AccountPage() {
                   /month
                 </span>
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {isPaid || hadSubscription
-                  ? "Renews monthly. Cancel any time — even the day before the next payment — and you keep the days you've paid for."
-                  : "Starts with a 7-day free trial. Then $1.99/month — cancel any time before the trial ends and you won't be charged."}
-              </p>
+              {(isPaid || hadSubscription) && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Renews monthly. Cancel any time — even the day before the next
+                  payment — and you keep the days you’ve paid for.
+                </p>
+              )}
             </div>
             <FeatureList features={proFeatures} />
 
