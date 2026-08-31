@@ -20,8 +20,8 @@ export function InviteCard({ username }: { username: string | null }) {
 
   async function copy() {
     const message = username
-      ? `Track your stocks with MATMAX Stock: ${link} — add me as @${username}`
-      : `Track your stocks with MATMAX Stock: ${link}`;
+      ? `Track and analyze your stocks with MATMAX Stock: ${link} — add me as @${username}`
+      : `Track and analyze your stocks with MATMAX Stock: ${link}`;
     try {
       await navigator.clipboard.writeText(message);
       setCopied(true);

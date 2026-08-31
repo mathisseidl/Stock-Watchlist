@@ -66,7 +66,7 @@ export function AuthForm({
   const subtitleText =
     subtitle ??
     (isSignup
-      ? "Start tracking your watchlist on MATMAX Stock."
+      ? "Start tracking and analyzing your stocks with MATMAX Stock."
       : "Sign in to your MATMAX Stock watchlist.");
 
   return (
