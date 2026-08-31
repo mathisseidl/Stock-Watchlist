@@ -57,7 +57,9 @@ const guestUnlocks: Feature[] = [
 ];
 
 const proFeatures = [
-  "Everything in Free",
+  // Bold: it carries the whole Free column, so it should read as a heading for
+  // the list rather than as one more bullet.
+  { text: "Everything in Free", bold: true },
   "Forecast any stock: best case, likely case and worst case on a date you pick",
   "News summary for every stock in 6 lines",
   "Test a past investment — Unlimited",
@@ -65,7 +67,7 @@ const proFeatures = [
 ];
 
 /** A line in a feature list, optionally with its own nested checklist. */
-type Feature = string | { text: string; sub: string[] };
+type Feature = string | { text: string; sub?: string[]; bold?: boolean };
 
 function FeatureList({
   features,
@@ -79,10 +81,15 @@ function FeatureList({
       {features.map((feature) => {
         const text = typeof feature === "string" ? feature : feature.text;
         const sub = typeof feature === "string" ? null : feature.sub;
+        const bold = typeof feature === "string" ? false : feature.bold;
         return (
           <li
             key={text}
-            className={cn("text-sm", missing && "text-muted-foreground")}
+            className={cn(
+              "text-sm",
+              missing && "text-muted-foreground",
+              bold && "font-semibold",
+            )}
           >
             <span className="flex items-start gap-2.5">
               {missing ? (
