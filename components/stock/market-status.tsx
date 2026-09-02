@@ -8,6 +8,7 @@ import {
   SESSION_LABELS,
   type Session,
 } from "@/lib/market-session";
+import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { cn } from "@/lib/utils";
 
 const TICK_MS = 30_000;
@@ -41,6 +42,7 @@ function getServerSnapshot(): number | null {
 
 export function MarketStatus({ className }: { className?: string }) {
   const tick = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const { settings } = useUserSettings();
 
   // Rendered only after hydration: the session depends on the clock, and the
   // server's answer would hydrate into a mismatch.
@@ -61,7 +63,9 @@ export function MarketStatus({ className }: { className?: string }) {
     >
       <span className={cn("size-2 shrink-0 rounded-full", DOT[session])} />
       <span className="text-foreground">{label}</span>
-      <span className="text-muted-foreground">{exchangeTime(now)} ET</span>
+      <span className="text-muted-foreground">
+        {exchangeTime(now, settings.numberFormat)} ET
+      </span>
     </span>
   );
 }

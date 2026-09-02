@@ -41,13 +41,29 @@ type YahooMeta = {
     regular?: YahooPeriod;
     post?: YahooPeriod;
   };
-  // Nested two deep: one entry per day, each holding that day's periods.
-  tradingPeriods?: {
-    pre?: YahooPeriod[][];
-    regular?: YahooPeriod[][];
-    post?: YahooPeriod[][];
-  };
+  // Nested two deep — one entry per day, each holding that day's periods —
+  // but the outer shape itself depends on the request: an object keyed by
+  // pre/regular/post when extended hours were asked for (the day chart), or
+  // the regular sessions alone as a bare array when they were not (every
+  // wider range, `includePrePost=false`). `regularPeriods` below normalizes
+  // both to the same shape.
+  tradingPeriods?:
+    | YahooPeriod[][]
+    | { pre?: YahooPeriod[][]; regular?: YahooPeriod[][]; post?: YahooPeriod[][] };
 };
+
+/** `tradingPeriods.regular`, whichever of the two shapes it actually came in. */
+function regularPeriods(meta: YahooMeta | undefined): YahooPeriod[][] | undefined {
+  const periods = meta?.tradingPeriods;
+  if (!periods) return undefined;
+  return Array.isArray(periods) ? periods : periods.regular;
+}
+
+/** `tradingPeriods.post` — only ever present in the object-keyed shape. */
+function postPeriods(meta: YahooMeta | undefined): YahooPeriod[][] | undefined {
+  const periods = meta?.tradingPeriods;
+  return periods && !Array.isArray(periods) ? periods.post : undefined;
+}
 
 type YahooQuoteBlock = {
   open?: (number | null)[];
@@ -81,9 +97,8 @@ function readSession(meta: YahooMeta | undefined): TradingSession | undefined {
   if (!meta) return undefined;
 
   const day = <T,>(nested: T[][] | undefined): T | undefined => nested?.[0]?.[0];
-  const regular =
-    day(meta.tradingPeriods?.regular) ?? meta.currentTradingPeriod?.regular;
-  const post = day(meta.tradingPeriods?.post) ?? meta.currentTradingPeriod?.post;
+  const regular = day(regularPeriods(meta)) ?? meta.currentTradingPeriod?.regular;
+  const post = day(postPeriods(meta)) ?? meta.currentTradingPeriod?.post;
 
   if (
     typeof regular?.start !== "number" ||
@@ -110,6 +125,36 @@ function readSession(meta: YahooMeta | undefined): TradingSession | undefined {
     end: hasAfterHours ? post!.end! : regular.end,
     hasAfterHours,
     timeZone: meta.exchangeTimezoneName ?? "UTC",
+  };
+}
+
+/**
+ * A leading-pad-only session for the week chart: the oldest visible day's
+ * real open, minus half an hour, so every week starts at a round 9 AM
+ * regardless of the exact minute the market opened that particular day.
+ * There is no after-hours stretch here and no right-edge padding — the week
+ * chart already ends on the latest real candle, same as before.
+ *
+ * `tradingPeriods.regular` carries one entry per calendar day for a
+ * multi-day range (unlike the single entry `readSession` reads for `1D`), so
+ * the first entry is the oldest day's own session rather than today's.
+ */
+function buildWeekSession(
+  meta: YahooMeta | undefined,
+  points: { time: number }[],
+): TradingSession | undefined {
+  const oldestDay = regularPeriods(meta)?.[0]?.[0];
+  if (typeof oldestDay?.start !== "number" || points.length === 0) {
+    return undefined;
+  }
+
+  const end = points[points.length - 1].time;
+  return {
+    start: oldestDay.start - 30 * 60,
+    regularEnd: end,
+    end,
+    hasAfterHours: false,
+    timeZone: meta?.exchangeTimezoneName ?? "UTC",
   };
 }
 
@@ -188,13 +233,13 @@ export class YahooProvider {
     const timestamps = result.timestamp;
     const quote = result.indicators.quote[0];
     const closes = quote.close ?? [];
-    const session = range === "1D" ? readSession(result.meta) : undefined;
-
-    // Asking for extended hours also drags in the pre-market, which the day
-    // chart deliberately starts after. Trimming here rather than in the chart
-    // keeps the stats and the plotted line describing the same window.
+    // Only the day chart trims by session — its extended-hours request also
+    // drags in the pre-market, which the chart deliberately starts after.
+    // The week chart's own session (below) describes a leading pad, not a
+    // window to filter to, so it plays no part in keeping or dropping candles.
+    const daySession = range === "1D" ? readSession(result.meta) : undefined;
     const inWindow = (time: number) =>
-      !session || (time >= session.start && time <= session.end);
+      !daySession || (time >= daySession.start && time <= daySession.end);
 
     const kept: number[] = [];
     const points: { time: number; value: number }[] = [];
@@ -212,6 +257,10 @@ export class YahooProvider {
       result.meta?.chartPreviousClose ??
       result.meta?.previousClose ??
       (points.length > 0 ? points[0].value : 0);
+
+    const session =
+      daySession ??
+      (range === "1W" ? buildWeekSession(result.meta, points) : undefined);
 
     return {
       points,

@@ -28,9 +28,14 @@ import { buildTimeline } from "@/lib/chart-timeline";
 import {
   fiveYearRangeTicks,
   monthRangeTicks,
+  weekendGaps,
+  weekRangeTicks,
   yearRangeTicks,
   type AxisTick,
 } from "@/lib/chart-axis-ticks";
+import { localeFor, type NumberFormat } from "@/lib/format";
+import { useUserSettings } from "@/components/settings/user-settings-provider";
+import { cn } from "@/lib/utils";
 
 const COARSE_POINTER = "(pointer: coarse)";
 
@@ -127,19 +132,32 @@ const CHART_FONT =
  * The zone is the exchange's, not the reader's. A day chart is a claim about
  * the market's own hours — "9:30 to 4" means nothing if a reader in Berlin is
  * shown a Tokyo session rendered against their own clock.
+ *
+ * The date itself always reads in en-US order ("Sep 2") regardless of
+ * `format` — only the clock, where a 24-hour reader is genuinely misread as
+ * AM/PM rather than just differently punctuated, follows it.
  */
-function formatStamp(time: number, spanSeconds: number, timeZone?: string) {
+function formatStamp(
+  time: number,
+  spanSeconds: number,
+  format: NumberFormat,
+  timeZone?: string,
+) {
   const date = new Date(time * 1000);
   // Inside a couple of days the clock time is what distinguishes two points;
   // beyond that the calendar date is.
   if (spanSeconds < 3 * 24 * 3600) {
-    return date.toLocaleString("en-US", {
+    const datePart = date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
+      timeZone,
+    });
+    const timePart = date.toLocaleTimeString(localeFor(format), {
       hour: "numeric",
       minute: "2-digit",
       timeZone,
     });
+    return `${datePart}, ${timePart}`;
   }
   return date.toLocaleDateString("en-US", {
     month: "short",
@@ -150,8 +168,8 @@ function formatStamp(time: number, spanSeconds: number, timeZone?: string) {
 }
 
 /** Clock time alone, in the exchange's zone — what the day axis ticks in. */
-function formatClock(time: number, timeZone: string) {
-  return new Date(time * 1000).toLocaleTimeString("en-US", {
+function formatClock(time: number, timeZone: string, format: NumberFormat) {
+  return new Date(time * 1000).toLocaleTimeString(localeFor(format), {
     hour: "numeric",
     minute: "2-digit",
     timeZone,
@@ -359,6 +377,8 @@ export function PriceChart({
   const afterHoursRef = useRef<number | null>(null);
   /** This range's own axis ticks, read back by the resize handler. */
   const axisTicksRef = useRef<AxisTick[]>([]);
+  /** Only on Week: fractional indices the resize handler reads back. */
+  const weekGapsRef = useRef<number[]>([]);
 
   const [measure, setMeasureState] = useState<Measure | null>(null);
   const [hover, setHoverState] = useState<MeasurePoint | null>(null);
@@ -367,13 +387,16 @@ export function PriceChart({
   /** Height of the library's time axis strip, at the bottom of the plot. */
   const [timeAxisHeight, setTimeAxisHeight] = useState(0);
   /** This range's own time-axis labels, positioned in pixels. */
-  const [timeTicks, setTimeTicks] = useState<{ x: number; label: string }[]>(
-    [],
-  );
+  const [timeTicks, setTimeTicks] = useState<
+    { x: number; label: string; bold: boolean }[]
+  >([]);
+  /** Only on Week: where each "Weekend" note sits, in pixels. */
+  const [weekendMarkers, setWeekendMarkers] = useState<{ x: number }[]>([]);
   /** Where the after-hours stretch sits, in pixels. */
   const [band, setBand] = useState<{ x: number; width: number } | null>(null);
   const coarsePointer = useCoarsePointer();
   const { resolvedTheme } = useTheme();
+  const { settings } = useUserSettings();
 
   const scale = useMemo(() => computePriceScale(points), [points]);
   // Read back by the library's autoscale callback and by the resize handler,
@@ -382,13 +405,15 @@ export function PriceChart({
   const scaleRef = useRef(scale);
 
   /**
-   * Month, Year and 5Y each draw their own axis instead of trusting the
-   * library's own tick placement — see chart-axis-ticks.ts for why. Day
-   * keeps the library's axis (formatted to the exchange's clock below); Week
-   * and All are unchanged.
+   * Week, Month, Year and 5Y each draw their own axis instead of trusting
+   * the library's own tick placement — see chart-axis-ticks.ts for why. Day
+   * keeps the library's axis (formatted to the exchange's clock below); All
+   * is unchanged.
    */
   const axisTicks = useMemo(() => {
     switch (range) {
+      case "1W":
+        return weekRangeTicks(points);
       case "1M":
         return monthRangeTicks(points);
       case "1Y":
@@ -399,6 +424,12 @@ export function PriceChart({
         return null;
     }
   }, [points, range]);
+
+  /** Only on Week: the calendar-day gaps a "Weekend" note anchors to. */
+  const weekGaps = useMemo(
+    () => (range === "1W" ? weekendGaps(points) : []),
+    [points, range],
+  );
 
   /**
    * Ticks are positioned through the library's own price mapping rather than
@@ -437,16 +468,39 @@ export function PriceChart({
     // position on the scale rather than to a pixel, so they travel with
     // every resize instead of drifting off the point they belong to.
     const offset = offsetRef.current;
-    const nextTicks: { x: number; label: string }[] = [];
+    const nextTicks: { x: number; label: string; bold: boolean }[] = [];
     for (const tick of axisTicksRef.current) {
       const x = timeScale.logicalToCoordinate((tick.index + offset) as Logical);
-      if (x !== null) nextTicks.push({ x, label: tick.label });
+      if (x !== null) nextTicks.push({ x, label: tick.label, bold: tick.bold });
     }
     setTimeTicks((previous) =>
       previous.length === nextTicks.length &&
-      previous.every((t, i) => t.x === nextTicks[i].x && t.label === nextTicks[i].label)
+      previous.every(
+        (t, i) =>
+          t.x === nextTicks[i].x &&
+          t.label === nextTicks[i].label &&
+          t.bold === nextTicks[i].bold,
+      )
         ? previous
         : nextTicks,
+    );
+
+    // Only on Week: the library maps whole indices to pixels, not the
+    // midpoint directly, so the marker sits halfway between Friday's close
+    // and Monday's open in pixels rather than at a fractional logical index.
+    const nextWeekendMarkers: { x: number }[] = [];
+    for (const gap of weekGapsRef.current) {
+      const before = timeScale.logicalToCoordinate((gap + offset) as Logical);
+      const after = timeScale.logicalToCoordinate((gap + 1 + offset) as Logical);
+      if (before !== null && after !== null) {
+        nextWeekendMarkers.push({ x: (before + after) / 2 });
+      }
+    }
+    setWeekendMarkers((previous) =>
+      previous.length === nextWeekendMarkers.length &&
+      previous.every((m, i) => m.x === nextWeekendMarkers[i].x)
+        ? previous
+        : nextWeekendMarkers,
     );
 
     const next: { price: number; y: number }[] = [];
@@ -586,6 +640,7 @@ export function PriceChart({
     offsetRef.current = timeline.offset;
     afterHoursRef.current = timeline.afterHoursIndex;
     axisTicksRef.current = axisTicks ?? [];
+    weekGapsRef.current = weekGaps;
     const palette =
       resolvedTheme === "dark" ? CHART_THEME.dark : CHART_THEME.light;
     const color = positive ? palette.gain : palette.loss;
@@ -615,13 +670,16 @@ export function PriceChart({
         timeVisible: true,
         // A day chart belongs to one market, so its ticks read in that
         // market's hours; the library places and spaces them, this only
-        // changes how each one is written. Month, Year and 5Y draw their own
-        // labels instead (below), so the library's are blanked rather than
-        // left to double up with them. Week and All keep the library as-is.
-        ...(session
+        // changes how each one is written. Week, Month, Year and 5Y draw
+        // their own labels instead (below), so the library's are blanked
+        // rather than left to double up with them — Week also carries a
+        // `session` (its leading pad to 9 AM), so this checks the range
+        // itself rather than inferring Day from session's presence. All is
+        // unchanged.
+        ...(range === "1D" && session
           ? {
               tickMarkFormatter: (time: UTCTimestamp) =>
-                formatClock(time as number, session.timeZone),
+                formatClock(time as number, session.timeZone, settings.numberFormat),
             }
           : axisTicks
             ? { tickMarkFormatter: () => "" }
@@ -681,7 +739,10 @@ export function PriceChart({
     resolvedTheme,
     scale,
     session,
+    range,
     axisTicks,
+    weekGaps,
+    settings.numberFormat,
     setMeasure,
     setHover,
     refreshAxis,
@@ -926,9 +987,20 @@ export function PriceChart({
             a plain hover reads out. */}
         {measure && (
           <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
-            {formatStamp(measure.a.time, spanSeconds, session?.timeZone)} –{" "}
-            {formatStamp(measure.b.time, spanSeconds, session?.timeZone)} ·{" "}
-            {formatSpan(spanSeconds)}
+            {formatStamp(
+              measure.a.time,
+              spanSeconds,
+              settings.numberFormat,
+              session?.timeZone,
+            )}{" "}
+            –{" "}
+            {formatStamp(
+              measure.b.time,
+              spanSeconds,
+              settings.numberFormat,
+              session?.timeZone,
+            )}{" "}
+            · {formatSpan(spanSeconds)}
           </p>
         )}
 
@@ -936,7 +1008,12 @@ export function PriceChart({
             it stays next to the point it belongs to. */}
         {!measure && hover && (
           <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
-            {formatStamp(hover.time, seriesSpan, session?.timeZone)}
+            {formatStamp(
+              hover.time,
+              seriesSpan,
+              settings.numberFormat,
+              session?.timeZone,
+            )}
           </p>
         )}
       </div>
@@ -1044,7 +1121,10 @@ export function PriceChart({
             {timeTicks.map((tick, index) => (
               <span
                 key={index}
-                className="num absolute text-[11px] whitespace-nowrap text-muted-foreground"
+                className={cn(
+                  "num absolute text-[11px] whitespace-nowrap text-muted-foreground",
+                  tick.bold && "font-semibold",
+                )}
                 style={{
                   left: tick.x,
                   top: "50%",
@@ -1061,6 +1141,24 @@ export function PriceChart({
             ))}
           </div>
         )}
+
+        {/* Only on Week: rides the bottom gridline rather than the date row
+            below the plot, so a "Weekend" pill never lands close enough to a
+            date tick to crowd or cover it. A gap in the plotted line already
+            marks the weekend itself — bars are spaced by position, not
+            elapsed time, so nothing else would — this just names what the
+            gap is, for a reader new enough to wonder why Friday jumps
+            straight to Monday. */}
+        {bottomTickY !== null &&
+          weekendMarkers.map((marker, index) => (
+            <span
+              key={index}
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-card px-1.5 text-[10px] whitespace-nowrap text-muted-foreground"
+              style={{ left: marker.x, top: bottomTickY }}
+            >
+              Weekend
+            </span>
+          ))}
 
         {!measure && hover && (
           <div className="pointer-events-none absolute inset-0 z-10">

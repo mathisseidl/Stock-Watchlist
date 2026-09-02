@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   notifyEarnings: true,
   notifyBigNews: false,
   numberFormat: "us",
-  defaultRange: "1D",
+  defaultRange: "1M",
 };
 
 /** Guests keep preferences on the device; signed-in users keep them on the account. */
@@ -73,7 +73,7 @@ function fromRow(row: SettingsRow): UserSettings {
     notifyEarnings: row.notify_earnings,
     notifyBigNews: row.notify_big_news,
     numberFormat: row.number_format === "eu" ? "eu" : "us",
-    defaultRange: (row.default_range as CandleRange) ?? "1D",
+    defaultRange: (row.default_range as CandleRange) ?? DEFAULT_SETTINGS.defaultRange,
   };
 }
 

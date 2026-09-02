@@ -3,6 +3,7 @@ import {
   MARKET_EARLY_CLOSES,
   HOLIDAY_TABLE_THROUGH,
 } from "./market-holidays";
+import { localeFor, type NumberFormat } from "./format";
 
 export type Session = "pre" | "open" | "after" | "closed" | "holiday";
 
@@ -80,9 +81,13 @@ export function isEarlyClose(now: Date): boolean {
   return MARKET_EARLY_CLOSES.has(exchangeDate(now));
 }
 
-/** Exchange-local clock, e.g. "10:42". */
-export function exchangeTime(now: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
+/**
+ * Exchange-local clock, e.g. "10:42 AM" under the US number format or
+ * "10:42" under the European one — the same locale that already decides
+ * 1,234.56 vs 1.234,56 decides 12- vs 24-hour time here too.
+ */
+export function exchangeTime(now: Date, format: NumberFormat): string {
+  return new Intl.DateTimeFormat(localeFor(format), {
     timeZone: "America/New_York",
     hour: "numeric",
     minute: "2-digit",
