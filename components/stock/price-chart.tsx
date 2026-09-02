@@ -924,8 +924,9 @@ export function PriceChart({
         </svg>
 
         {/* After hours, marked behind the series: a divider at the closing
-            bell and a labelled rule under the stretch that follows it. Faint
-            on purpose — it is context for the line, not a thing to read.
+            bell and a labelled rule under the stretch that follows it. Just
+            the two — no tint — so it reads as context for the line rather
+            than a region of the chart in its own right.
 
             Held above the library's own time axis: dropped to the very bottom
             the label sits in the row of clock times and reads as one of them. */}
@@ -934,7 +935,7 @@ export function PriceChart({
             className="pointer-events-none absolute inset-x-0 top-0"
             style={{ paddingLeft: band.x, bottom: band.axisHeight }}
           >
-            <div className="relative size-full border-l border-dashed border-foreground/20 bg-foreground/[0.035]">
+            <div className="relative size-full border-l border-dashed border-foreground/20">
               <div className="absolute inset-x-0 bottom-2 flex items-center gap-2 px-2">
                 <span
                   className="h-px flex-1 bg-foreground/20"
