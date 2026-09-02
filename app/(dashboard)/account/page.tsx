@@ -11,18 +11,15 @@ import { proDaysRemaining } from "@/lib/pro";
 import { cn } from "@/lib/utils";
 
 /**
- * Eight lines, and no more. Written for someone who has never used the app:
+ * Five lines, and no more. Written for someone who has never used the app:
  * short, plain, and about what they get rather than how it works.
  */
 const freeFeatures = [
-  "Search any stock by name or ticker",
-  "Your own watchlist, saved across your devices",
-  "Live prices and charts",
-  "The 3 best news stories on every stock",
-  "A daily digest of what moved on your list",
-  "Test a past investment — 3 times a day",
   "A free S&P 500 forecast",
-  "Add friends and compare watchlists",
+  "Analyze past investments",
+  "Your own custom Stock Watchlist",
+  "3 accurate and free news articles on every stock",
+  "Add friends",
 ];
 
 /**
@@ -31,9 +28,9 @@ const freeFeatures = [
  * than saying nothing.
  */
 const freeMissing = [
-  "Forecasts on any stock, not just the S&P 500",
-  "News summary for every stock in 6 lines",
-  "Test a past investment — Unlimited",
+  "Forecast any stock, not just the S&P 500",
+  "Analyze past investments unlimited",
+  "News summary of the past 24h on every stock",
 ];
 
 /**
@@ -60,9 +57,9 @@ const proFeatures = [
   // Bold: it carries the whole Free column, so it should read as a heading for
   // the list rather than as one more bullet.
   { text: "Everything in Free", bold: true },
-  "Forecast any stock: best case, likely case and worst case on a date you pick",
-  "News summary for every stock in 6 lines",
-  "Test a past investment — Unlimited",
+  "Forecast any stock, not just the S&P 500",
+  "Analyze past investments unlimited",
+  "News summary of the past 24h on every stock",
   "Cancel any time",
 ];
 

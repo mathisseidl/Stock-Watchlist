@@ -80,13 +80,18 @@ function BriefBody({ symbol }: { symbol: string }) {
       <div className="flex flex-col gap-4">
         {data.sources.map((source, index) => (
           <div key={source.url} className="flex flex-col gap-1.5">
-            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-muted py-0.5 pr-2 pl-1.5 text-xs font-medium text-foreground/75">
+            <a
+              href={source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-fit items-center gap-1.5 rounded-full bg-muted py-0.5 pr-2 pl-1.5 text-xs font-medium text-foreground/75 transition-colors hover:bg-accent hover:text-primary"
+            >
               <SourceLogo source={source.name} />
               {source.name}
               <span className="text-muted-foreground">
                 · {timeAgo(source.datetime)}
               </span>
-            </span>
+            </a>
             <p className="text-[15px] leading-relaxed text-foreground">
               {data.paragraphs[index]}
             </p>
