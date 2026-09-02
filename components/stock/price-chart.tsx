@@ -1182,18 +1182,18 @@ export function PriceChart({
           </div>
         )}
 
-        {/* Only on Week: rides the bottom gridline rather than the date row
-            below the plot, so a "Weekend" pill never lands close enough to a
-            date tick to crowd or cover it. A gap in the plotted line already
-            marks the weekend itself — bars are spaced by position, not
-            elapsed time, so nothing else would — this just names what the
-            gap is, for a reader new enough to wonder why Friday jumps
-            straight to Monday. */}
+        {/* Only on Week, and only from `sm` up: rides the bottom gridline
+            rather than the date row below the plot, so a "Weekend" pill never
+            lands close enough to a date tick to crowd or cover it. A gap in
+            the plotted line already marks the weekend itself — bars are spaced
+            by position, not elapsed time, so nothing else would — this just
+            names what the gap is. A phone's narrower plot has no room for it
+            next to the day numbers, so it is dropped there. */}
         {bottomTickY !== null &&
           weekendMarkers.map((marker, index) => (
             <span
               key={index}
-              className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-card px-1.5 text-[10px] whitespace-nowrap text-muted-foreground"
+              className="pointer-events-none absolute hidden -translate-x-1/2 -translate-y-1/2 rounded-full bg-card px-1.5 text-[10px] whitespace-nowrap text-muted-foreground sm:block"
               style={{ left: marker.x, top: bottomTickY }}
             >
               Weekend

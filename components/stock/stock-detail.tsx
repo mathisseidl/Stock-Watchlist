@@ -12,11 +12,10 @@ import { ChangeBadge } from "@/components/stock/change-badge";
 import { MarketStatus } from "@/components/stock/market-status";
 import { NewsList } from "@/components/stock/news-list";
 import { NewsSummaryLink } from "@/components/stock/news-summary-dialog";
-import { PriceChart } from "@/components/stock/price-chart";
-import { RangeSelector } from "@/components/stock/range-selector";
+import { PriceHistory } from "@/components/stock/price-history";
 import { useQuotes } from "@/hooks/use-quotes";
 import { useProfile } from "@/hooks/use-profile";
-import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
+import { useCandles } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { RANGES, RANGE_PERIOD } from "@/lib/ranges";
@@ -33,7 +32,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
 }
 
 export function StockDetail({ symbol }: { symbol: string }) {
-  const { settings, ready: settingsReady, money, percent } = useUserSettings();
+  const { settings, ready: settingsReady, money } = useUserSettings();
   const signedMoney = (value: number) =>
     `${value >= 0 ? "+" : "−"}${money(Math.abs(value))}`;
   const [range, setRange] = useState<CandleRange | null>(null);
@@ -47,14 +46,14 @@ export function StockDetail({ symbol }: { symbol: string }) {
     range ?? urlRange ?? (settingsReady ? settings.defaultRange : "1D");
   const { data: profile } = useProfile(symbol);
   const { quotes, isLoading } = useQuotes([symbol]);
-  const { data: series, isLoading: chartLoading } = useCandles(symbol, activeRange);
+  // Feeds the stat tiles below; `PriceHistory` fetches the same series through
+  // the shared query cache, so this is not a second request.
+  const { data: series } = useCandles(symbol, activeRange);
   const { has, add, remove } = useWatchlist();
 
   const quote = quotes[symbol];
   const hasQuote = Boolean(quote && quote.currentPrice > 0);
 
-  const rangeChange = seriesChangePercent(series);
-  const rangePositive = rangeChange >= 0;
   const inWatchlist = has(symbol);
 
   // The figures describe the selected range, and are measured over the window
@@ -145,45 +144,11 @@ export function StockDetail({ symbol }: { symbol: string }) {
           </p>
         )}
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            {rangePositive ? "Up" : "Down"}{" "}
-            <span
-              className={"num " + (rangePositive ? "text-gain" : "text-loss")}
-            >
-              {percent(rangeChange)}
-            </span>{" "}
-            over this period
-          </p>
-          <RangeSelector value={activeRange} onChange={setRange} size="sm" />
-        </div>
-
-        {chartLoading ? (
-          <Skeleton className="h-80 w-full rounded-xl" />
-        ) : series && series.points.length > 1 ? (
-          <PriceChart
-            points={series.points}
-            positive={rangePositive}
-            session={series.session}
-            range={activeRange}
-          />
-        ) : (
-          <div className="flex h-80 items-center justify-center text-sm text-muted-foreground">
-            No chart data available for {symbol}.
-          </div>
-        )}
-
-        {series?.convertedFrom && (
-          <p className="text-xs text-muted-foreground">
-            {symbol} trades in {series.convertedFrom}. Every figure here is
-            converted to USD at today&rsquo;s rate
-            {series.convertedRate && !/[a-z]/.test(series.convertedFrom)
-              ? ` (1 ${series.convertedFrom} = ${money(series.convertedRate)})`
-              : ""}
-            , so a run of older prices is valued at the current rate rather than
-            the rate back then.
-          </p>
-        )}
+        <PriceHistory
+          symbol={symbol}
+          range={activeRange}
+          onRangeChange={setRange}
+        />
       </Card>
 
       {stats && (

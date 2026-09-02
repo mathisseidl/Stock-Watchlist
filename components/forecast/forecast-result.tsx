@@ -4,6 +4,7 @@ import { Activity, Landmark, Target } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ForecastDistribution } from "@/components/forecast/forecast-distribution";
 import { ForecastDetails } from "@/components/forecast/forecast-details";
+import { PriceHistory } from "@/components/stock/price-history";
 import { Explain, GLOSSARY } from "@/components/forecast/explain";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { describeHorizon, describeRisk, describeVerdict, oddsPhrase } from "@/lib/forecast/read";
@@ -304,7 +305,19 @@ export function ForecastResultView({
         <ForecastDistribution forecast={forecast} />
       </Card>
 
-      {/* ---- 3. The workings -------------------------------------------- */}
+      {/* ---- 3. Where it has actually been ----------------------------- */}
+      <Card className="gap-4 p-6">
+        <div>
+          <h3 className="text-base font-semibold">{forecast.name} up to now</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            The real price history the simulation was built from — the same
+            chart as on the stock&rsquo;s own page.
+          </p>
+        </div>
+        <PriceHistory symbol={forecast.symbol} />
+      </Card>
+
+      {/* ---- 4. The workings -------------------------------------------- */}
       <ForecastDetails forecast={forecast} />
     </div>
   );
