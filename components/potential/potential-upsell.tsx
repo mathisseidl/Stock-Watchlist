@@ -10,7 +10,7 @@ export function PotentialUpsell() {
       <div className="flex items-start gap-3">
         <Lock className="mt-0.5 size-5 shrink-0 text-primary" />
         <h2 className="text-base font-semibold">
-          The weekly six is a Pro feature
+          The Weekly 6 is a Pro feature
         </h2>
       </div>
 
