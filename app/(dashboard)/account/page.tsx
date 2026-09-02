@@ -138,9 +138,6 @@ export default async function AccountPage() {
                 What signing up{" "}
                 <span className="text-xl">for free</span> unlocks
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Free, no card. Takes a minute.
-              </p>
             </div>
             <FeatureList features={guestUnlocks} />
           </Card>
