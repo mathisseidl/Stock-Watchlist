@@ -9,7 +9,7 @@ import { ChangeBadge } from "@/components/stock/change-badge";
 import { Sparkline } from "@/components/stock/sparkline";
 import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
-import { holdRationale } from "@/lib/potential/read";
+import { HOLD_CAPTION } from "@/lib/potential/read";
 import { cn } from "@/lib/utils";
 import type { PotentialPick } from "@/lib/potential/types";
 
@@ -63,10 +63,7 @@ function OddsLadder({ pick }: { pick: PotentialPick }) {
 
 export function PotentialPickCard({ pick }: { pick: PotentialPick }) {
   const { data: series, isLoading } = useCandles(pick.symbol, "6M");
-  const { money, number } = useUserSettings();
-
-  const annual = pick.suggestedHold.annualizedReturnPercent;
-  const dip = pick.suggestedHold.expectedDrawdownPercent;
+  const { money } = useUserSettings();
 
   const change = seriesChangePercent(series);
   const positive = change >= 0;
@@ -111,41 +108,8 @@ export function PotentialPickCard({ pick }: { pick: PotentialPick }) {
             {pick.suggestedHold.label}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            {holdRationale({
-              horizonDays: pick.suggestedHold.horizonDays,
-              medianAnnualizedPercent: pick.suggestedHold.annualizedReturnPercent,
-              probabilityOfProfitPercent:
-                pick.suggestedHold.probabilityOfProfitPercent,
-              probabilityOfBeatingCashPercent:
-                pick.suggestedHold.probabilityOfBeatingCashPercent,
-              roughDrawdownPercent: pick.suggestedHold.expectedDrawdownPercent,
-            })}
+            {HOLD_CAPTION}
           </p>
-        </div>
-
-        <p className="text-sm">{pick.whyInFocus}</p>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg bg-muted/50 p-3">
-            <p className="text-xs text-muted-foreground">
-              Median return, per year
-            </p>
-            <p
-              className={cn(
-                "num mt-0.5 text-lg font-semibold",
-                annual >= 0 ? "text-gain" : "text-loss",
-              )}
-            >
-              {annual >= 0 ? "+" : "−"}
-              {number(Math.abs(annual), 0)}%
-            </p>
-          </div>
-          <div className="rounded-lg bg-muted/50 p-3">
-            <p className="text-xs text-muted-foreground">Rough-run dip</p>
-            <p className="num mt-0.5 text-lg font-semibold">
-              &minus;{number(dip, 0)}%
-            </p>
-          </div>
         </div>
 
         <OddsLadder pick={pick} />

@@ -1,5 +1,4 @@
 import type { ForecastDrivers } from "@/lib/forecast/engine";
-import { oddsPhrase } from "@/lib/forecast/read";
 import { RISK_FREE_PERCENT, type HorizonScore } from "@/lib/potential/score";
 
 /**
@@ -25,6 +24,15 @@ export function holdPhrase(days: number): string {
   return `${years} year${years === 1 ? "" : "s"}`;
 }
 
+/**
+ * The line under the suggested-hold figure. It is a floor, not a peak — the
+ * shortest horizon where the odds first clear the confidence bar. The odds
+ * keep climbing past it (the ladder shows this), so this reads as "hold at
+ * least this long" rather than "this is the best moment to sell".
+ */
+export const HOLD_CAPTION =
+  "The shortest hold where the odds are already on your side. They keep climbing past this — see below.";
+
 /** One plain sentence on what put this stock in focus, from its drivers. */
 export function whyInFocus(drivers: ForecastDrivers, hold: HorizonScore): string {
   const momentum = drivers.momentum12m1Percent;
@@ -47,13 +55,4 @@ export function whyInFocus(drivers: ForecastDrivers, hold: HorizonScore): string
   // Nothing stands out in the drivers — it earned its place on the balance of
   // the two, not on a single signal.
   return `A balanced profile — the odds and the expected drawdown together score better than the flashier names this week.`;
-}
-
-/** The one-line rationale under the suggested hold time. */
-export function holdRationale(hold: HorizonScore): string {
-  return `Over ${holdPhrase(hold.horizonDays)}, ${oddsPhrase(
-    hold.probabilityOfBeatingCashPercent,
-  )} end ahead of cash; a rough run dips about ${Math.round(
-    hold.roughDrawdownPercent,
-  )}% along the way.`;
 }
