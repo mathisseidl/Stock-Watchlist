@@ -164,6 +164,18 @@ export function StockDetail({ symbol }: { symbol: string }) {
             No chart data available for {symbol}.
           </div>
         )}
+
+        {series?.convertedFrom && (
+          <p className="text-xs text-muted-foreground">
+            {symbol} trades in {series.convertedFrom}. Every figure here is
+            converted to USD at today&rsquo;s rate
+            {series.convertedRate && !/[a-z]/.test(series.convertedFrom)
+              ? ` (1 ${series.convertedFrom} = ${money(series.convertedRate)})`
+              : ""}
+            , so a run of older prices is valued at the current rate rather than
+            the rate back then.
+          </p>
+        )}
       </Card>
 
       {stats && (

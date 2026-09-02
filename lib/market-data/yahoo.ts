@@ -1,11 +1,14 @@
+import { usdConversion } from "./fx";
 import type {
   CandleRange,
   CandleSeries,
   RangeStats,
+  SymbolSearchResult,
   TradingSession,
 } from "./types";
 
 const CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
+const SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search";
 
 // Maps our ranges onto Yahoo's range/interval pairs plus a sensible cache TTL.
 // `1D` asks for extended hours as well, so the day chart can run past the
@@ -42,6 +45,8 @@ type YahooMeta = {
   regularMarketPrice?: number;
   chartPreviousClose?: number;
   previousClose?: number;
+  /** The listing's trading currency — "EUR", "JPY", "GBp" (pence), … */
+  currency?: string;
   exchangeTimezoneName?: string;
   hasPrePostMarketData?: boolean;
   currentTradingPeriod?: {
@@ -244,7 +249,7 @@ export class YahooProvider {
     const result = data.chart.result?.[0];
 
     if (!result || !result.timestamp || !result.indicators?.quote?.[0]?.close) {
-      return { points: [], price: 0, previousClose: 0 };
+      return { points: [], price: 0, previousClose: 0, currency: "USD" };
     }
 
     const timestamps = result.timestamp;
@@ -279,12 +284,103 @@ export class YahooProvider {
       daySession ??
       (range === "1W" ? buildWeekSession(result.meta, points) : undefined);
 
+    const stats = readStats(quote, kept);
+
+    // A non-US listing comes back in its home currency; the rest of the app
+    // reads every figure as USD, so convert here before returning. Timestamps
+    // and the session are currency-agnostic and pass through untouched.
+    const fx = await usdConversion(result.meta?.currency, config.revalidate);
+    const scale = (value: number) => (fx ? value * fx.rate : value);
+
     return {
-      points,
-      price,
-      previousClose,
-      stats: readStats(quote, kept),
+      points: fx
+        ? points.map((point) => ({ time: point.time, value: scale(point.value) }))
+        : points,
+      price: scale(price),
+      previousClose: scale(previousClose),
+      currency: "USD",
+      ...(fx ? { convertedFrom: fx.from, convertedRate: fx.rate } : {}),
+      stats:
+        stats && fx
+          ? {
+              open: scale(stats.open),
+              high: scale(stats.high),
+              low: scale(stats.low),
+              close: scale(stats.close),
+            }
+          : stats,
       ...(session ? { session } : {}),
     };
   }
+
+  async searchSymbols(query: string): Promise<SymbolSearchResult[]> {
+    const url =
+      `${SEARCH_URL}?q=${encodeURIComponent(query)}` +
+      `&quotesCount=20&newsCount=0&enableFuzzyQuery=false`;
+
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+      },
+      next: { revalidate: 3600 },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Yahoo search request failed: ${res.status} ${query}`);
+    }
+
+    const data = (await res.json()) as {
+      quotes?: {
+        symbol?: string;
+        shortname?: string;
+        longname?: string;
+        quoteType?: string;
+        typeDisp?: string;
+        exchange?: string;
+        exchDisp?: string;
+      }[];
+    };
+
+    const results = (data.quotes ?? [])
+      .filter((item) => item.symbol && item.quoteType === "EQUITY")
+      .map((item) => {
+        const us = isUsVenue(item.exchange);
+        return {
+          symbol: item.symbol as string,
+          description: item.longname ?? item.shortname ?? (item.symbol as string),
+          // The rest of the app filters search results to "Common Stock" (the
+          // string Finnhub used); keep that contract so nothing downstream
+          // needs to learn Yahoo's vocabulary.
+          type: "Common Stock",
+          ...(item.exchDisp ? { exchange: item.exchDisp } : {}),
+          us,
+        };
+      });
+
+    // A US reader typing "Siemens" means SIEGY, not the XETRA line Yahoo ranks
+    // first — and that ADR already trades in USD, so no conversion is needed
+    // for it. Float US listings up; the sort is stable, so Yahoo's own
+    // relevance order holds within each group.
+    return results
+      .map((result, index) => ({ result, index }))
+      .sort(
+        (a, b) =>
+          Number(b.result.us) - Number(a.result.us) || a.index - b.index,
+      )
+      .map((entry) => entry.result);
+  }
+}
+
+/**
+ * Yahoo's `exchange` codes for venues that trade and settle in USD — the US
+ * primary listings plus the OTC tiers where most foreign ADRs sit.
+ */
+const US_VENUES = new Set([
+  "NYQ", "NMS", "NGM", "NCM", "NAS", "ASE", "PCX", "BTS", "PSE", "YHD",
+  "PNK", "OTC", "OQB", "OQX", "OID", "OEM",
+]);
+
+function isUsVenue(exchange: string | undefined): boolean {
+  return exchange !== undefined && US_VENUES.has(exchange);
 }

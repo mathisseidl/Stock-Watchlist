@@ -58,12 +58,23 @@ export type CandleSeries = {
   stats?: RangeStats;
   /** Only on `1D`: the session the points belong to. */
   session?: TradingSession;
+  /** Currency every figure here is in — always "USD" (foreign listings are
+   *  converted before they leave the provider). */
+  currency: string;
+  /** Set when the figures were converted: the source currency and the spot
+   *  rate used, so the chart can note it. */
+  convertedFrom?: string;
+  convertedRate?: number;
 };
 
 export type SymbolSearchResult = {
   symbol: string;
   description: string;
   type: string;
+  /** Human-readable venue ("NYSE", "OTC Markets", "XETRA"), when known. */
+  exchange?: string;
+  /** True for a US-traded line (domestic listing or ADR) — ranked first. */
+  us?: boolean;
 };
 
 export type NewsItem = {

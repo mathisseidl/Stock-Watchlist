@@ -25,7 +25,18 @@ export function getMarketDataProvider(): MarketDataProvider {
       cachedProvider = {
         getQuote: (symbol) => finnhub.getQuote(symbol),
         getCandles: (symbol, range) => yahoo.getCandles(symbol, range),
-        searchSymbols: (query) => finnhub.searchSymbols(query),
+        // Yahoo's search reaches the US-listed ADRs of foreign companies
+        // (SIEGY, BMWKY, …) that Finnhub's free tier leaves out and that a US
+        // reader means when they type a name. Finnhub is the fallback if
+        // Yahoo's endpoint is unreachable.
+        searchSymbols: async (query) => {
+          try {
+            return await yahoo.searchSymbols(query);
+          } catch (error) {
+            console.error(`Yahoo search failed for "${query}"; using Finnhub`, error);
+            return finnhub.searchSymbols(query);
+          }
+        },
         getNews: (symbol, companyName) => finnhub.getNews(symbol, companyName),
         getProfile: (symbol) => finnhub.getProfile(symbol),
       };
