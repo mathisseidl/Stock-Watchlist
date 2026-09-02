@@ -515,6 +515,7 @@ export default function AnalyticsPage() {
                     points={visibleGrowth}
                     positive={windowChangePercent >= 0}
                     height={260}
+                    range={chartRange}
                   />
                 </div>
               )}

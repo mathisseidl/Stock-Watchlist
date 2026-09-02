@@ -157,6 +157,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
             points={series.points}
             positive={rangePositive}
             session={series.session}
+            range={activeRange}
           />
         ) : (
           <div className="flex h-80 items-center justify-center text-sm text-muted-foreground">

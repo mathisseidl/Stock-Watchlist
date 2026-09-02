@@ -19,8 +19,18 @@ import {
   type Logical,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { CandlePoint, TradingSession } from "@/lib/market-data/types";
+import type {
+  CandleRange,
+  CandlePoint,
+  TradingSession,
+} from "@/lib/market-data/types";
 import { buildTimeline } from "@/lib/chart-timeline";
+import {
+  fiveYearRangeTicks,
+  monthRangeTicks,
+  yearRangeTicks,
+  type AxisTick,
+} from "@/lib/chart-axis-ticks";
 
 const COARSE_POINTER = "(pointer: coarse)";
 
@@ -321,12 +331,20 @@ export function PriceChart({
   positive,
   height = 320,
   session,
+  range,
 }: {
   points: CandlePoint[];
   positive: boolean;
   height?: number;
   /** Set on a day chart to pin the axis to that market's trading session. */
   session?: TradingSession;
+  /**
+   * Which of the range tabs this is. Month, Year and 5Y draw their own axis
+   * labels (see `axisTicks` below) rather than trusting the library's own
+   * tick placement, which spaces itself out by pixel width and skips
+   * whichever points don't land on a "nice" interval.
+   */
+  range?: CandleRange;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -339,18 +357,21 @@ export function PriceChart({
   /** Leading whitespace count, so screen positions map back to real points. */
   const offsetRef = useRef(0);
   const afterHoursRef = useRef<number | null>(null);
+  /** This range's own axis ticks, read back by the resize handler. */
+  const axisTicksRef = useRef<AxisTick[]>([]);
 
   const [measure, setMeasureState] = useState<Measure | null>(null);
   const [hover, setHoverState] = useState<MeasurePoint | null>(null);
   /** Each gridline's price paired with where it currently sits, in pixels. */
   const [axis, setAxis] = useState<{ price: number; y: number }[]>([]);
+  /** Height of the library's time axis strip, at the bottom of the plot. */
+  const [timeAxisHeight, setTimeAxisHeight] = useState(0);
+  /** This range's own time-axis labels, positioned in pixels. */
+  const [timeTicks, setTimeTicks] = useState<{ x: number; label: string }[]>(
+    [],
+  );
   /** Where the after-hours stretch sits, in pixels. */
-  const [band, setBand] = useState<{
-    x: number;
-    width: number;
-    /** Height of the library's time axis, which the marker stays clear of. */
-    axisHeight: number;
-  } | null>(null);
+  const [band, setBand] = useState<{ x: number; width: number } | null>(null);
   const coarsePointer = useCoarsePointer();
   const { resolvedTheme } = useTheme();
 
@@ -359,6 +380,25 @@ export function PriceChart({
   // both of which run outside render. Kept in step in the chart effect below,
   // which rebuilds whenever the scale changes.
   const scaleRef = useRef(scale);
+
+  /**
+   * Month, Year and 5Y each draw their own axis instead of trusting the
+   * library's own tick placement — see chart-axis-ticks.ts for why. Day
+   * keeps the library's axis (formatted to the exchange's clock below); Week
+   * and All are unchanged.
+   */
+  const axisTicks = useMemo(() => {
+    switch (range) {
+      case "1M":
+        return monthRangeTicks(points);
+      case "1Y":
+        return yearRangeTicks(points);
+      case "5Y":
+        return fiveYearRangeTicks(points);
+      default:
+        return null;
+    }
+  }, [points, range]);
 
   /**
    * Ticks are positioned through the library's own price mapping rather than
@@ -371,28 +411,42 @@ export function PriceChart({
     const current = scaleRef.current;
     if (!series || !chart || !current) return;
 
+    const timeScale = chart.timeScale();
+    const axisHeight = timeScale.height();
+    setTimeAxisHeight((previous) =>
+      previous === axisHeight ? previous : axisHeight,
+    );
+
     // The band is pinned to a position on the scale, so it travels with every
     // resize exactly as the gridlines do.
     const bandIndex = afterHoursRef.current;
     const plotWidth = containerRef.current?.clientWidth ?? 0;
     const bandX =
-      bandIndex === null
-        ? null
-        : chart.timeScale().logicalToCoordinate(bandIndex as Logical);
+      bandIndex === null ? null : timeScale.logicalToCoordinate(bandIndex as Logical);
     const nextBand =
       bandX === null || plotWidth <= 0
         ? null
-        : {
-            x: bandX,
-            width: Math.max(0, plotWidth - bandX),
-            axisHeight: chart.timeScale().height(),
-          };
+        : { x: bandX, width: Math.max(0, plotWidth - bandX) };
     setBand((previous) =>
-      previous?.x === nextBand?.x &&
-      previous?.width === nextBand?.width &&
-      previous?.axisHeight === nextBand?.axisHeight
+      previous?.x === nextBand?.x && previous?.width === nextBand?.width
         ? previous
         : nextBand,
+    );
+
+    // This range's own axis labels, same as the band above: pinned to a
+    // position on the scale rather than to a pixel, so they travel with
+    // every resize instead of drifting off the point they belong to.
+    const offset = offsetRef.current;
+    const nextTicks: { x: number; label: string }[] = [];
+    for (const tick of axisTicksRef.current) {
+      const x = timeScale.logicalToCoordinate((tick.index + offset) as Logical);
+      if (x !== null) nextTicks.push({ x, label: tick.label });
+    }
+    setTimeTicks((previous) =>
+      previous.length === nextTicks.length &&
+      previous.every((t, i) => t.x === nextTicks[i].x && t.label === nextTicks[i].label)
+        ? previous
+        : nextTicks,
     );
 
     const next: { price: number; y: number }[] = [];
@@ -531,6 +585,7 @@ export function PriceChart({
     scaleRef.current = scale;
     offsetRef.current = timeline.offset;
     afterHoursRef.current = timeline.afterHoursIndex;
+    axisTicksRef.current = axisTicks ?? [];
     const palette =
       resolvedTheme === "dark" ? CHART_THEME.dark : CHART_THEME.light;
     const color = positive ? palette.gain : palette.loss;
@@ -559,14 +614,18 @@ export function PriceChart({
         borderVisible: false,
         timeVisible: true,
         // A day chart belongs to one market, so its ticks read in that
-        // market's hours. Wider ranges are dated, not clocked, and keep the
-        // library's own formatting.
+        // market's hours; the library places and spaces them, this only
+        // changes how each one is written. Month, Year and 5Y draw their own
+        // labels instead (below), so the library's are blanked rather than
+        // left to double up with them. Week and All keep the library as-is.
         ...(session
           ? {
               tickMarkFormatter: (time: UTCTimestamp) =>
                 formatClock(time as number, session.timeZone),
             }
-          : {}),
+          : axisTicks
+            ? { tickMarkFormatter: () => "" }
+            : {}),
       },
       // No crosshair: its default style is a dashed rule in both axes, which
       // clutters the plot and clashes with the solid guides the measurement
@@ -622,6 +681,7 @@ export function PriceChart({
     resolvedTheme,
     scale,
     session,
+    axisTicks,
     setMeasure,
     setHover,
     refreshAxis,
@@ -936,7 +996,7 @@ export function PriceChart({
         {band && (
           <div
             className="pointer-events-none absolute inset-x-0 top-0"
-            style={{ paddingLeft: band.x, bottom: band.axisHeight }}
+            style={{ paddingLeft: band.x, bottom: timeAxisHeight }}
           >
             <div className="relative size-full border-l border-dashed border-foreground/20">
               {bottomTickY !== null && (
@@ -970,6 +1030,37 @@ export function PriceChart({
         )}
 
         <div ref={containerRef} className="absolute inset-0" />
+
+        {/* This range's own axis labels, standing in for the library's own
+            (blanked above) — see chart-axis-ticks.ts for why. The first and
+            last labels anchor to their own edge rather than centering, the
+            same accommodation the library's own ticks make, so neither one
+            clips against the price gutter or the left edge of the plot. */}
+        {axisTicks && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0"
+            style={{ height: timeAxisHeight }}
+          >
+            {timeTicks.map((tick, index) => (
+              <span
+                key={index}
+                className="num absolute text-[11px] whitespace-nowrap text-muted-foreground"
+                style={{
+                  left: tick.x,
+                  top: "50%",
+                  transform:
+                    index === 0
+                      ? "translateY(-50%)"
+                      : index === timeTicks.length - 1
+                        ? "translateY(-50%) translateX(-100%)"
+                        : "translateY(-50%) translateX(-50%)",
+                }}
+              >
+                {tick.label}
+              </span>
+            ))}
+          </div>
+        )}
 
         {!measure && hover && (
           <div className="pointer-events-none absolute inset-0 z-10">
