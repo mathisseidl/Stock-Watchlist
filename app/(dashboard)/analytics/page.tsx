@@ -73,6 +73,7 @@ function rangeForDate(dateString: string): CandleRange {
   const yearsBack =
     (Date.now() - new Date(dateString).getTime()) /
     (365.25 * 24 * 60 * 60 * 1000);
+  if (yearsBack <= 0.5) return "6M";
   if (yearsBack <= 1) return "1Y";
   if (yearsBack <= 5) return "5Y";
   return "ALL";

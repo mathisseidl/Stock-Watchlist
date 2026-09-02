@@ -17,7 +17,10 @@ export function RangeSelector({
   disabledKeys?: CandleRange[];
 }) {
   return (
-    <div className="inline-flex items-center gap-1 rounded-full bg-muted p-1">
+    // Scrolls sideways rather than wrapping or overflowing when the row of
+    // pills is wider than its container — the way a phone stock app's range
+    // strip behaves. The scrollbar itself is hidden.
+    <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {RANGES.map((range) => {
         const disabled = disabledKeys?.includes(range.key) ?? false;
         return (
@@ -28,7 +31,7 @@ export function RangeSelector({
             aria-pressed={value === range.key}
             onClick={() => onChange(range.key)}
             className={cn(
-              "rounded-full font-medium text-muted-foreground transition-colors hover:text-foreground",
+              "shrink-0 rounded-full font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground",
               size === "sm" ? "px-2.5 py-1 text-xs" : "px-3.5 py-1.5 text-sm",
               value === range.key && "bg-card text-foreground shadow-sm",
               disabled &&

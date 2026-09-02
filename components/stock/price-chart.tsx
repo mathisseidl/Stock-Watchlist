@@ -26,8 +26,10 @@ import type {
 } from "@/lib/market-data/types";
 import { buildTimeline } from "@/lib/chart-timeline";
 import {
+  allRangeTicks,
   fiveYearRangeTicks,
   monthRangeTicks,
+  thinAxisTicks,
   weekendGaps,
   weekRangeTicks,
   yearRangeTicks,
@@ -364,7 +366,7 @@ export function PriceChart({
   /** Set on a day chart to pin the axis to that market's trading session. */
   session?: TradingSession;
   /**
-   * Which of the range tabs this is. Month, Year and 5Y draw their own axis
+   * Which of the range tabs this is. Every range but Day draws its own axis
    * labels (see `axisTicks` below) rather than trusting the library's own
    * tick placement, which spaces itself out by pixel width and skips
    * whichever points don't land on a "nice" interval.
@@ -386,6 +388,8 @@ export function PriceChart({
   const axisTicksRef = useRef<AxisTick[]>([]);
   /** Only on Week: fractional indices the resize handler reads back. */
   const weekGapsRef = useRef<number[]>([]);
+  /** Whether the series has been fit to the axis at a real (non-zero) width. */
+  const fittedRef = useRef(false);
 
   const [measure, setMeasureState] = useState<Measure | null>(null);
   const [hover, setHoverState] = useState<MeasurePoint | null>(null);
@@ -412,10 +416,11 @@ export function PriceChart({
   const scaleRef = useRef(scale);
 
   /**
-   * Week, Month, Year and 5Y each draw their own axis instead of trusting
-   * the library's own tick placement — see chart-axis-ticks.ts for why. Day
-   * keeps the library's axis (formatted to the exchange's clock below); All
-   * is unchanged.
+   * Every range but Day draws its own axis instead of trusting the library's
+   * own tick placement — see chart-axis-ticks.ts for why. Day keeps the
+   * library's axis (formatted to the exchange's clock below). The full set is
+   * generated here; `refreshAxis` thins it to whatever the current width can
+   * hold.
    */
   const axisTicks = useMemo(() => {
     switch (range) {
@@ -423,10 +428,14 @@ export function PriceChart({
         return weekRangeTicks(points);
       case "1M":
         return monthRangeTicks(points);
+      case "6M":
       case "1Y":
+        // Both read one label a month; 6M just has fewer of them.
         return yearRangeTicks(points);
       case "5Y":
         return fiveYearRangeTicks(points);
+      case "ALL":
+        return allRangeTicks(points);
       default:
         return null;
     }
@@ -450,6 +459,17 @@ export function PriceChart({
     if (!series || !chart || !current) return;
 
     const timeScale = chart.timeScale();
+    const plotWidth = containerRef.current?.clientWidth ?? 0;
+
+    // The setup effect's fitContent() can run before the container has a
+    // width — on mobile especially — which scrunches the whole series into a
+    // sliver at the right and pushes every axis label but the last one off
+    // screen. Re-fit the first time a real width shows up.
+    if (!fittedRef.current && plotWidth > 0) {
+      timeScale.fitContent();
+      fittedRef.current = true;
+    }
+
     const axisHeight = timeScale.height();
     setTimeAxisHeight((previous) =>
       previous === axisHeight ? previous : axisHeight,
@@ -458,7 +478,6 @@ export function PriceChart({
     // The band is pinned to a position on the scale, so it travels with every
     // resize exactly as the gridlines do.
     const bandIndex = afterHoursRef.current;
-    const plotWidth = containerRef.current?.clientWidth ?? 0;
     const bandX =
       bandIndex === null ? null : timeScale.logicalToCoordinate(bandIndex as Logical);
     const nextBand =
@@ -476,7 +495,7 @@ export function PriceChart({
     // every resize instead of drifting off the point they belong to.
     const offset = offsetRef.current;
     const nextTicks: { x: number; label: string; bold: boolean }[] = [];
-    for (const tick of axisTicksRef.current) {
+    for (const tick of thinAxisTicks(axisTicksRef.current, plotWidth)) {
       const x = timeScale.logicalToCoordinate((tick.index + offset) as Logical);
       if (x !== null) nextTicks.push({ x, label: tick.label, bold: tick.bold });
     }
@@ -634,6 +653,8 @@ export function PriceChart({
     const container = containerRef.current;
     if (!container || points.length === 0) return;
 
+    // A fresh chart is about to be built; it has not been fit at a real width.
+    fittedRef.current = false;
     pointsRef.current = points;
     // The clock is read here rather than in render: it is impure, and the
     // axis should settle once per rebuild instead of creeping between paints.
@@ -675,14 +696,18 @@ export function PriceChart({
       timeScale: {
         borderVisible: false,
         timeVisible: true,
+        // Let fitContent() compress the series to any width. The default floor
+        // (0.5px a bar) is wider than a phone can give a year of hourly
+        // candles, so without this the chart overflows its pane and every
+        // axis label but the last is pushed off screen.
+        minBarSpacing: 0.001,
         // A day chart belongs to one market, so its ticks read in that
         // market's hours; the library places and spaces them, this only
-        // changes how each one is written. Week, Month, Year and 5Y draw
-        // their own labels instead (below), so the library's are blanked
-        // rather than left to double up with them — Week also carries a
-        // `session` (its leading pad to 9 AM), so this checks the range
-        // itself rather than inferring Day from session's presence. All is
-        // unchanged.
+        // changes how each one is written. Every other range draws its own
+        // labels instead (below), so the library's are blanked rather than
+        // left to double up with them — Week also carries a `session` (its
+        // leading pad to 9 AM), so this checks the range itself rather than
+        // inferring Day from session's presence.
         ...(range === "1D" && session
           ? {
               tickMarkFormatter: (time: UTCTimestamp) =>
@@ -721,6 +746,8 @@ export function PriceChart({
 
     // fitContent rather than a time range: the blanks already carry the axis
     // out to the session's edges, so fitting them is fitting the session.
+    // `refreshAxis` fits again once the container has a real width, in case
+    // this first pass ran at zero.
     chart.timeScale().fitContent();
     refreshAxis();
 

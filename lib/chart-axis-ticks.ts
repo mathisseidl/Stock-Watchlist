@@ -5,6 +5,12 @@ export type AxisTick = {
   label: string;
   /** Whether this tick reads as the more prominent unit on its axis. */
   bold: boolean;
+  /**
+   * A tick worth keeping when the axis is thinned — the January that carries
+   * the year on a 1Y chart, say. `thinAxisTicks` snaps a nearby kept slot
+   * onto it rather than dropping it.
+   */
+  priority?: boolean;
 };
 
 const MONTH_ABBR = [
@@ -67,6 +73,9 @@ export function yearRangeTicks(points: CandlePoint[]): AxisTick[] {
       index,
       label: month === 0 ? String(year) : MONTH_ABBR[month],
       bold: true,
+      // The year marker survives thinning so a lone "Mar" is never left
+      // without a year anywhere on the axis.
+      priority: month === 0,
     });
   });
   return ticks;
@@ -82,7 +91,10 @@ export function yearRangeTicks(points: CandlePoint[]): AxisTick[] {
  */
 export function fiveYearRangeTicks(points: CandlePoint[]): AxisTick[] {
   const ticks: AxisTick[] = [];
-  let prevYear = -1;
+  // Seed with the first point's year so the opening partial year gets no label
+  // of its own — it would sit right on top of the next January's. The first
+  // tick is that January.
+  let prevYear = points.length ? dateParts(points[0].time).year : -1;
   let julyMarkedFor = -1;
   points.forEach((point, index) => {
     const { month, year } = dateParts(point.time);
@@ -99,11 +111,29 @@ export function fiveYearRangeTicks(points: CandlePoint[]): AxisTick[] {
 }
 
 /**
+ * One tick per calendar year for the All-time chart — `thinAxisTicks` trims
+ * it to a round handful. Kept off the library's own axis so its edge labels
+ * (which it clips against the pane) aren't half-cut at both ends. The opening
+ * partial year is skipped, same as 5Y.
+ */
+export function allRangeTicks(points: CandlePoint[]): AxisTick[] {
+  const ticks: AxisTick[] = [];
+  let prevYear = points.length ? dateParts(points[0].time).year : -1;
+  points.forEach((point, index) => {
+    const { year } = dateParts(point.time);
+    if (year !== prevYear) {
+      prevYear = year;
+      ticks.push({ index, label: String(year), bold: true });
+    }
+  });
+  return ticks;
+}
+
+/**
  * One tick per calendar day — the week chart has only a handful of trading
- * days on screen, so unlike Month there is room to name each one outright
- * ("Aug 27") rather than leaning on a month-boundary label plus bare day
- * numbers. The month is repeated only where the week actually crosses one.
- * Every label carries equal weight, so all of them are bold.
+ * days on screen. Bare day numbers ("27"), the way a phone stock app labels a
+ * week; the month name is prefixed only on the tick where the week actually
+ * crosses into a new one. Every label carries equal weight, so all are bold.
  */
 export function weekRangeTicks(points: CandlePoint[]): AxisTick[] {
   const ticks: AxisTick[] = [];
@@ -112,13 +142,58 @@ export function weekRangeTicks(points: CandlePoint[]): AxisTick[] {
   points.forEach((point, index) => {
     const { month, day } = dateParts(point.time);
     if (day === prevDay && month === prevMonth) return;
-    const label =
-      month === prevMonth ? String(day) : `${MONTH_ABBR[month]} ${day}`;
+    const crossedMonth = prevMonth !== -1 && month !== prevMonth;
+    const label = crossedMonth ? `${MONTH_ABBR[month]} ${day}` : String(day);
     prevMonth = month;
     prevDay = day;
     ticks.push({ index, label, bold: true });
   });
   return ticks;
+}
+
+/**
+ * Trim an axis's ticks down to what actually fits `plotWidth`.
+ *
+ * The generators above hand back one tick per day / per month / per year —
+ * right for a wide desktop axis, an unreadable smear on a phone. This keeps an
+ * evenly spaced subset: the context ticks (a 5Y's "Jul" under its years) are
+ * dropped first, then every Nth of what remains. Called on every resize, so
+ * the axis re-densifies as the window grows.
+ */
+export function thinAxisTicks(
+  ticks: AxisTick[],
+  plotWidth: number,
+): AxisTick[] {
+  if (plotWidth <= 0 || ticks.length <= 2) return ticks;
+
+  const longest = ticks.reduce((max, tick) => Math.max(max, tick.label.length), 0);
+  // Roughly 6px a character plus a fixed gap — tuned against a phone-width
+  // plot so a year row lands ~5 labels, the way Yahoo's does.
+  const perLabel = Math.max(30, longest * 6 + 16);
+  const capacity = Math.max(2, Math.floor(plotWidth / perLabel));
+  if (ticks.length <= capacity) return ticks;
+
+  // Shedding the context ticks (a 5Y's "Jul" under its years) is often enough.
+  const bold = ticks.filter((tick) => tick.bold);
+  if (bold.length >= 2 && bold.length <= capacity) return bold;
+
+  // Otherwise keep an evenly spaced subset. The axis is left to end wherever
+  // the stride lands rather than forcing the last label to the right edge —
+  // Yahoo's does the same — except each slot snaps to a nearby priority tick
+  // (a year marker) when one is within half a step.
+  const base = bold.length >= 2 ? bold : ticks;
+  const stride = Math.ceil(base.length / capacity);
+  const reach = Math.floor(stride / 2);
+  const kept: AxisTick[] = [];
+  for (let i = 0; i < base.length; i += stride) {
+    let pick = i;
+    for (let d = 1; d <= reach; d += 1) {
+      if (base[i - d]?.priority) { pick = i - d; break; }
+      if (base[i + d]?.priority) { pick = i + d; break; }
+    }
+    if (kept[kept.length - 1] !== base[pick]) kept.push(base[pick]);
+  }
+  return kept;
 }
 
 /** Real elapsed time between two candles wide enough to call out as a gap. */

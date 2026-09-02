@@ -26,6 +26,7 @@ const RANGE_CONFIG: Record<
   "1D": { range: "1d", interval: "1m", revalidate: 60, prePost: true },
   "1W": { range: "5d", interval: "1m", revalidate: 300, prePost: false },
   "1M": { range: "1mo", interval: "15m", revalidate: 1800, prePost: false },
+  "6M": { range: "6mo", interval: "1d", revalidate: 3600, prePost: false },
   "1Y": { range: "1y", interval: "60m", revalidate: 3600, prePost: false },
   "5Y": { range: "5y", interval: "1d", revalidate: 86_400, prePost: false },
   // interval only matters here as the fallback `getCandles` builds from —

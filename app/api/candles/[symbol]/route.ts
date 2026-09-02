@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getMarketDataProvider } from "@/lib/market-data";
 import type { CandleRange } from "@/lib/market-data/types";
 
-const VALID_RANGES: CandleRange[] = ["1D", "1W", "1M", "1Y", "5Y", "ALL"];
+const VALID_RANGES: CandleRange[] = ["1D", "1W", "1M", "6M", "1Y", "5Y", "ALL"];
 
 export async function GET(
   request: Request,

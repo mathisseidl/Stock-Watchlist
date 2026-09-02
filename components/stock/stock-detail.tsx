@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, Star, Check, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -18,7 +19,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
-import { RANGE_PERIOD } from "@/lib/ranges";
+import { RANGES, RANGE_PERIOD } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
 import type { CandleRange } from "@/lib/market-data/types";
 
@@ -36,7 +37,14 @@ export function StockDetail({ symbol }: { symbol: string }) {
   const signedMoney = (value: number) =>
     `${value >= 0 ? "+" : "−"}${money(Math.abs(value))}`;
   const [range, setRange] = useState<CandleRange | null>(null);
-  const activeRange = range ?? (settingsReady ? settings.defaultRange : "1D");
+  // `?range=6M` deep-links a specific tab; once the reader picks one, their
+  // choice (state) takes over.
+  const rangeParam = useSearchParams().get("range");
+  const urlRange = RANGES.some((entry) => entry.key === rangeParam)
+    ? (rangeParam as CandleRange)
+    : null;
+  const activeRange =
+    range ?? urlRange ?? (settingsReady ? settings.defaultRange : "1D");
   const { data: profile } = useProfile(symbol);
   const { quotes, isLoading } = useQuotes([symbol]);
   const { data: series, isLoading: chartLoading } = useCandles(symbol, activeRange);
@@ -137,7 +145,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
           </p>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
             {rangePositive ? "Up" : "Down"}{" "}
             <span

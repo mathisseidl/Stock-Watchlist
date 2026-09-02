@@ -9,7 +9,7 @@ export type Quote = {
   open: number;
 };
 
-export type CandleRange = "1D" | "1W" | "1M" | "1Y" | "5Y" | "ALL";
+export type CandleRange = "1D" | "1W" | "1M" | "6M" | "1Y" | "5Y" | "ALL";
 
 export type CandlePoint = {
   time: number;
