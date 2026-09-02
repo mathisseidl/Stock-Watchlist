@@ -78,17 +78,26 @@ export function PotentialPickCard({ pick }: { pick: PotentialPick }) {
             {pick.rank}
           </span>
           <CompanyLogo symbol={pick.symbol} size="md" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">{pick.symbol}</p>
+          <Link
+            href={`/stock/${pick.symbol}`}
+            className="group min-w-0 flex-1"
+          >
+            <p className="text-sm font-semibold group-hover:text-primary">
+              {pick.symbol}
+            </p>
             <p className="truncate text-xs text-muted-foreground">
               {pick.name} &middot; {pick.sector}
             </p>
-          </div>
-          <div className="hidden sm:block">
-            {series && series.points.length > 1 && (
+          </Link>
+          {series && series.points.length > 1 && (
+            <Link
+              href={`/stock/${pick.symbol}`}
+              className="hidden sm:block"
+              aria-label={`${pick.symbol} full page`}
+            >
               <Sparkline points={series.points} positive={positive} />
-            )}
-          </div>
+            </Link>
+          )}
           <div className="flex w-24 flex-col items-end gap-1">
             {isLoading ? (
               <Skeleton className="h-4 w-16" />
