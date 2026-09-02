@@ -60,7 +60,6 @@ const proFeatures = [
   "Forecast any stock, not just the S&P 500",
   "Analyze past investments unlimited",
   "News summary of the past 24h on every stock",
-  "Cancel any time",
 ];
 
 /** A line in a feature list, optionally with its own nested checklist. */
@@ -241,10 +240,6 @@ export default async function AccountPage() {
               </p>
               <FeatureList features={freeMissing} missing />
             </div>
-
-            <p className="mt-auto rounded-full border border-border py-2 text-center text-sm font-medium text-muted-foreground">
-              {isPaid ? "Included" : "Your current plan"}
-            </p>
           </Card>
 
           <Card className="gap-5 border-primary p-6 ring-1 ring-primary/30">
@@ -268,14 +263,20 @@ export default async function AccountPage() {
             {/* Set apart from the feature list on purpose — it's reassurance
                 about the checkout, not another thing the plan includes, and
                 shouldn't read as the last bullet. */}
-            <div className="mt-2 flex items-start gap-2.5 border-t border-border pt-5 text-sm">
-              <Check className="mt-0.5 size-4 shrink-0 text-gain" />
-              <span>
-                Payment provider: <span className="font-medium">Stripe</span>{" "}
-                <span className="text-muted-foreground">
-                  (trusted by Google, Amazon, Shopify, etc.)
+            <div className="mt-2 flex flex-col gap-2 border-t border-border pt-5 text-sm">
+              <div className="flex items-start gap-2.5">
+                <Check className="mt-0.5 size-4 shrink-0 text-gain" />
+                <span>
+                  Payment provider: <span className="font-medium">Stripe</span>{" "}
+                  <span className="text-muted-foreground">
+                    (trusted by Google, Amazon, Shopify, etc.)
+                  </span>
                 </span>
-              </span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Check className="mt-0.5 size-4 shrink-0 text-gain" />
+                <span>Cancel any time</span>
+              </div>
             </div>
 
             <div className="mt-auto">
