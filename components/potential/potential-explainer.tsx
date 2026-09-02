@@ -10,16 +10,18 @@ import {
 } from "@/lib/potential/score";
 import { POTENTIAL_HORIZONS_DAYS } from "@/lib/potential/types";
 import { holdPhrase } from "@/lib/potential/read";
+import { SIMULATIONS_PER_RUN } from "@/lib/forecast/engine";
+import { POTENTIAL_UNIVERSE } from "@/lib/potential/universe";
 import type { PotentialPick } from "@/lib/potential/types";
 
 export function PotentialExplainer({
   example,
-  universeCount,
-  simulations,
+  universeCount = POTENTIAL_UNIVERSE.length,
+  simulations = SIMULATIONS_PER_RUN,
 }: {
   example?: PotentialPick;
-  universeCount: number;
-  simulations: number;
+  universeCount?: number;
+  simulations?: number;
 }) {
   const [open, setOpen] = useState(false);
 

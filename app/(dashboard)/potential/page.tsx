@@ -11,12 +11,18 @@ import { useProStatus } from "@/hooks/use-pro";
 
 export default function PotentialPage() {
   const { data, isLoading } = usePotential();
-  const { isPaid, ready: planReady } = useProStatus();
+  const { ready: planReady } = useProStatus();
 
   const meta = data?.meta;
-  const snapshot = meta && !("building" in meta) ? meta : null;
+  const locked = !!meta && "locked" in meta;
   const building = !!meta && "building" in meta;
+  const snapshot =
+    meta && !("locked" in meta) && !("building" in meta) ? meta : null;
   const hasPicks = !!data && data.picks.length > 0;
+  const universeCount =
+    meta && "universeCount" in meta ? meta.universeCount : undefined;
+  const simulations =
+    meta && "simulations" in meta ? meta.simulations : undefined;
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -24,7 +30,7 @@ export default function PotentialPage() {
         <div>
           <h1 className="text-2xl font-semibold">Potential</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            A hand-picked shortlist, scored by simulation once a week.
+            Five rising stocks, scored by simulation once a week.
           </p>
         </div>
         {snapshot && (
@@ -35,19 +41,16 @@ export default function PotentialPage() {
         )}
       </div>
 
-      {data && snapshot && (
-        <PotentialExplainer
-          example={data.picks[0]}
-          universeCount={snapshot.universeCount}
-          simulations={snapshot.simulations}
-        />
-      )}
-
-      {isLoading ? (
+      {isLoading || !planReady ? (
         <div className="flex flex-col gap-4">
           <Skeleton className="h-64 w-full rounded-xl" />
           <Skeleton className="h-64 w-full rounded-xl" />
         </div>
+      ) : locked ? (
+        <>
+          <PotentialList picks={[]} lockedCount={data.lockedCount || 5} />
+          <PotentialUpsell />
+        </>
       ) : building ? (
         <Card className="items-center gap-2 p-10 text-center">
           <p className="text-sm font-medium">
@@ -58,15 +61,19 @@ export default function PotentialPage() {
           </p>
         </Card>
       ) : hasPicks ? (
-        <PotentialList picks={data.picks} lockedCount={data.lockedCount} />
+        <PotentialList picks={data.picks} lockedCount={0} />
       ) : (
         <Card className="p-10 text-center text-sm text-muted-foreground">
           No picks this week — nothing in the universe cleared the bar.
         </Card>
       )}
 
-      {planReady && !isPaid && hasPicks && (
-        <PotentialUpsell lockedCount={data.lockedCount} />
+      {(locked || snapshot) && (
+        <PotentialExplainer
+          example={hasPicks ? data.picks[0] : undefined}
+          universeCount={universeCount}
+          simulations={simulations}
+        />
       )}
 
       <PotentialDisclaimer className="border-t border-border pt-4" />

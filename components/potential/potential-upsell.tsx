@@ -4,27 +4,23 @@ import { Card } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function PotentialUpsell({ lockedCount }: { lockedCount: number }) {
+export function PotentialUpsell() {
   return (
     <Card className="gap-4 border-primary/40 p-6 ring-1 ring-primary/20">
       <div className="flex items-start gap-3">
         <Lock className="mt-0.5 size-5 shrink-0 text-primary" />
-        <div>
-          <h2 className="text-base font-semibold">
-            {lockedCount > 0
-              ? `${lockedCount} more picks are behind Pro`
-              : "The full list is a Pro feature"}
-          </h2>
-        </div>
+        <h2 className="text-base font-semibold">
+          The weekly five is a Pro feature
+        </h2>
       </div>
 
       <p className="rounded-xl border border-border px-4 py-3 text-sm">
         Free for 7 days, then{" "}
         <span className="num font-semibold">$1.99/month</span> — unlocking the
-        whole weekly list with every suggested hold time, plus forecasts for any
-        stock, news summaries of the last 24h, and unlimited what-if
-        calculations. Cancel any time before the trial ends and you won&apos;t be
-        charged.
+        five rising stocks each week with their suggested hold times, plus
+        forecasts for any stock, a news summary of the last 24h on every stock,
+        and unlimited past-investment analysis. Cancel any time before the trial
+        ends and you won&apos;t be charged.
       </p>
 
       <Link

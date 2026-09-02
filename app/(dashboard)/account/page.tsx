@@ -25,10 +25,11 @@ const freeFeatures = [
 /**
  * What Free does not get. Only claims that are actually true of Free belongs
  * here — a cross against something a free reader already has would be worse
- * than saying nothing.
+ * than saying nothing. Mirrored one-for-one by the Pro list below.
  */
-const freeMissing = [
+const proExtras = [
   "Forecast any stock, not just the S&P 500",
+  "List of 5 rising stocks",
   "Analyze past investments unlimited",
   "News summary of the past 24h on every stock",
 ];
@@ -53,13 +54,11 @@ const guestUnlocks: Feature[] = [
   },
 ];
 
-const proFeatures = [
+const proFeatures: Feature[] = [
   // Bold: it carries the whole Free column, so it should read as a heading for
   // the list rather than as one more bullet.
   { text: "Everything in Free", bold: true },
-  "Forecast any stock, not just the S&P 500",
-  "Analyze past investments unlimited",
-  "News summary of the past 24h on every stock",
+  ...proExtras,
 ];
 
 /** A line in a feature list, optionally with its own nested checklist. */
@@ -166,7 +165,6 @@ export default async function AccountPage() {
   const proExpiresAt = account?.proExpiresAt ?? null;
   const autoRenew = account?.autoRenew ?? false;
   const isTrialing = account?.status === "trialing";
-  const hadSubscription = account?.hasSubscription ?? false;
   const daysLeft = proDaysRemaining(proExpiresAt);
 
   const username = profile?.username ?? null;
@@ -228,9 +226,6 @@ export default async function AccountPage() {
                   / forever
                 </span>
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                No card, no trial clock. It just stays free.
-              </p>
             </div>
             <FeatureList features={freeFeatures} />
 
@@ -238,7 +233,7 @@ export default async function AccountPage() {
               <p className="mb-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Not on Free
               </p>
-              <FeatureList features={freeMissing} missing />
+              <FeatureList features={proExtras} missing />
             </div>
           </Card>
 
@@ -251,12 +246,6 @@ export default async function AccountPage() {
                   /month
                 </span>
               </p>
-              {(isPaid || hadSubscription) && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Renews monthly. Cancel any time — even the day before the next
-                  payment — and you keep the days you’ve paid for.
-                </p>
-              )}
             </div>
             <FeatureList features={proFeatures} />
 
