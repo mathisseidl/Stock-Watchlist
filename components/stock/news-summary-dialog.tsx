@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, ExternalLink, Lock, MoveRight } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,13 +15,6 @@ import { useProStatus } from "@/hooks/use-pro";
 import { SourceLogo } from "@/components/stock/source-logo";
 import { cn } from "@/lib/utils";
 import type { NewsBrief } from "@/lib/news-summary";
-
-/** Why the brief is worth the $1.99, in the reader's own terms. */
-const SELLING_POINTS = [
-  "Top 3 News stories summarized into a few sentences",
-  "All news within 24h of publishing",
-  "Every line sourced, so you can check it in one click.",
-];
 
 function timeAgo(unixSeconds: number) {
   const minutes = Math.max(1, Math.round((Date.now() / 1000 - unixSeconds) / 60));
@@ -135,36 +128,15 @@ function BriefBody({ symbol }: { symbol: string }) {
   );
 }
 
-function ProPitch({ symbol }: { symbol: string }) {
+function ProPitch() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start gap-3 rounded-xl bg-accent p-4">
         <Lock className="mt-0.5 size-4 shrink-0 text-primary" />
         <p className="text-sm font-medium text-accent-foreground">
-          This service is only for Pro users.
+          The news summary is a Pro feature.
         </p>
       </div>
-
-      <p className="text-sm text-muted-foreground">
-        The {symbol} briefing is ready. What you get:
-      </p>
-
-      <ul className="flex flex-col gap-2.5">
-        {SELLING_POINTS.map((point) => (
-          <li key={point} className="flex gap-2.5 text-sm leading-relaxed">
-            <MoveRight className="mt-1 size-3.5 shrink-0 text-primary" />
-            <span>{point}</span>
-          </li>
-        ))}
-      </ul>
-
-      <p className="rounded-xl border border-border px-4 py-3 text-sm">
-        Free for 7 days, then{" "}
-        <span className="num font-semibold">$1.99/month</span> — also unlocking
-        news summaries of the last 24h for every stock, forecast analysis on any
-        stock you wish and many more cool features. Cancel any time before the
-        trial ends and you won&apos;t be charged.
-      </p>
 
       <Link
         href="/account#plans"
@@ -173,6 +145,10 @@ function ProPitch({ symbol }: { symbol: string }) {
         Start your 7-day free trial
         <ArrowUpRight className="size-4" />
       </Link>
+
+      <p className="text-sm text-muted-foreground">
+        Cancel any time before the trial ends and you won&apos;t be charged.
+      </p>
     </div>
   );
 }
@@ -229,7 +205,7 @@ export function NewsSummaryLink({
           ) : isPaid ? (
             <BriefBody symbol={symbol} />
           ) : (
-            <ProPitch symbol={symbol} />
+            <ProPitch />
           )}
         </DialogContent>
       </Dialog>

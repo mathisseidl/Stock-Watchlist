@@ -428,22 +428,12 @@ function ForecastUpsell({ hasRun }: { hasRun: boolean }) {
     <Card className="gap-4 border-primary/40 p-6 ring-1 ring-primary/20">
       <div className="flex items-start gap-3">
         <Lock className="mt-0.5 size-5 shrink-0 text-primary" />
-        <div>
-          <h2 className="text-base font-semibold">
-            {hasRun
-              ? "That was the sample. Pro runs it on anything."
-              : "Forecasting any stock is a Pro feature"}
-          </h2>
-        </div>
+        <h2 className="text-base font-semibold">
+          {hasRun
+            ? "That was the sample. Pro runs it on anything."
+            : "Forecasting any stock is a Pro feature"}
+        </h2>
       </div>
-
-      <p className="rounded-xl border border-border px-4 py-3 text-sm">
-        Free for 7 days, then{" "}
-        <span className="num font-semibold">$1.99/month</span> — also unlocking
-        news summaries of the last 24h for every stock, unlimited what-if
-        calculations, and many more cool features. Cancel any time before the
-        trial ends and you won&apos;t be charged.
-      </p>
 
       <Link
         href="/account#plans"
@@ -452,6 +442,10 @@ function ForecastUpsell({ hasRun }: { hasRun: boolean }) {
         Start your 7-day free trial
         <ArrowUpRight className="size-4" />
       </Link>
+
+      <p className="text-sm text-muted-foreground">
+        Cancel any time before the trial ends and you won&apos;t be charged.
+      </p>
     </Card>
   );
 }

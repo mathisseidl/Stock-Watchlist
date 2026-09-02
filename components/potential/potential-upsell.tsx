@@ -14,15 +14,6 @@ export function PotentialUpsell() {
         </h2>
       </div>
 
-      <p className="rounded-xl border border-border px-4 py-3 text-sm">
-        Free for 7 days, then{" "}
-        <span className="num font-semibold">$1.99/month</span> — unlocking the
-        six rising stocks each week with their suggested hold times, plus
-        forecasts for any stock, a news summary of the last 24h on every stock,
-        and unlimited past-investment analysis. Cancel any time before the trial
-        ends and you won&apos;t be charged.
-      </p>
-
       <Link
         href="/account#plans"
         className={cn(
@@ -33,6 +24,10 @@ export function PotentialUpsell() {
         Start your 7-day free trial
         <ArrowUpRight className="size-4" />
       </Link>
+
+      <p className="text-sm text-muted-foreground">
+        Cancel any time before the trial ends and you won&apos;t be charged.
+      </p>
     </Card>
   );
 }

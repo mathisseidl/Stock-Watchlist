@@ -287,32 +287,25 @@ export default function AnalyticsPage() {
       </div>
 
       {limitReached && (
-        <Card className="flex-row items-center justify-between gap-4 border-primary/40 bg-accent p-5">
-          <div className="flex items-center gap-3">
-            <Lock className="size-5 text-primary" />
-            <div>
-              <p className="text-sm font-semibold">
-                You&apos;ve used all 3 free searches today
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Try Pro free for 7 days to run unlimited what-if calculations.
-              </p>
-            </div>
+        <Card className="gap-4 border-primary/40 bg-accent p-5">
+          <div className="flex items-start gap-3">
+            <Lock className="mt-0.5 size-5 shrink-0 text-primary" />
+            <p className="text-sm font-semibold">
+              Unlimited past-investment analysis is a Pro feature
+            </p>
           </div>
           <Link
-            href="/account"
+            href="/account#plans"
             className={cn(
               buttonVariants(),
-              // Two stacked lines need more room than the button's default
-              // single-line height allows.
-              "h-auto flex-col gap-0 rounded-full py-2",
+              "w-full rounded-full sm:w-auto sm:self-start",
             )}
           >
-            <span>Start free trial</span>
-            <span className="text-[11px] font-normal opacity-70">
-              after that $1.99/month
-            </span>
+            Start your 7-day free trial
           </Link>
+          <p className="text-sm text-muted-foreground">
+            Cancel any time before the trial ends and you won&apos;t be charged.
+          </p>
         </Card>
       )}
 

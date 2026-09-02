@@ -39,17 +39,18 @@ const proExtras = [
  * beside the form. Persistence and Community, not Pro features.
  */
 const guestUnlocks: Feature[] = [
-  "Your watchlist saved to your account",
-  "Notifications, number-format and chart-range preferences saved and synced",
   "Add friends and compare watchlists",
+  "Your watchlist saved to your account",
+  "Notifications, number-format and chart-range preferences saved",
   {
     text: "Option to upgrade to Pro",
     // Named here rather than in a sentence under the card, so the reader can
     // see what the upgrade actually buys at the moment they read about it.
     sub: [
-      "Forecast on any stock",
+      "Forecast any stock",
+      "6 rising stocks",
+      "Unlimited past-investment analysis",
       "A news summary from the past 24h on any stock in your watchlist",
-      "Unlimited Lookbacks",
     ],
   },
 ];
