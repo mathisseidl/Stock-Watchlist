@@ -2,8 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { NewsItem } from "@/lib/market-data/types";
 
 /**
- * The briefing behind "News Summary": up to six lines saying only what the
- * day's stories report happened to the company and its stock — no framing, no
+ * The briefing behind "News Summary": one short paragraph per story saying
+ * only what it reports happened to the company and its stock — no framing, no
  * "why it matters", no takeaway.
  *
  * It is written from the same three curated stories the stock page already
@@ -20,9 +20,6 @@ import type { NewsItem } from "@/lib/market-data/types";
 /** Sentences to lift from each story — enough to actually understand it. */
 const SENTENCES_PER_STORY = 3;
 
-/** Hard ceiling, so a wordy wire summary can't turn the brief into a wall. */
-export const BRIEF_LINES = 12;
-
 /** Preferred window. Falls back to everything curated (48h) if nothing is newer. */
 const RECENT_HOURS = 24;
 
@@ -35,7 +32,8 @@ export type BriefSource = {
 };
 
 export type NewsBrief = {
-  lines: string[];
+  /** One flowing paragraph per story, index-aligned with `sources`. */
+  paragraphs: string[];
   sources: BriefSource[];
   /** Whether Claude wrote the prose or the built-in composer did. */
   writtenBy: "claude" | "composer";
@@ -116,40 +114,26 @@ function ageLabel(datetime: number): string {
 
 /**
  * Assembles the brief from the article text itself: just what the stories say
- * happened, most important first, one story per block. Every sentence is lifted
- * from a story that was actually published — nothing here invents a fact, which
- * is the one property a financial summary cannot compromise on.
+ * happened, most important first, one paragraph per story. Every sentence is
+ * lifted from a story that was actually published — nothing here invents a
+ * fact, which is the one property a financial summary cannot compromise on.
  *
- * Each story gets a few sentences — three normally, more when it is the only
- * story and carries the whole brief. A story's first line holds its source and
- * age ("Reuters, 3 hours ago: …"); every follow-on sentence is a bare line the
- * UI attaches to the same block.
+ * Each paragraph is index-aligned with `sources` in `buildNewsBrief` below, so
+ * neither this nor the AI path needs to name the source or its age inline —
+ * the UI already has both independently and pairs them by position.
  */
 function compose(items: NewsItem[]): string[] {
-  const lines: string[] = [];
   const perStory = items.length === 1 ? 6 : SENTENCES_PER_STORY;
 
-  for (const item of items) {
-    if (lines.length >= BRIEF_LINES) break;
-
+  return items.map((item) => {
     const pool = splitSentences(item.summary ?? "");
     const headline = tidy(item.headline).replace(
       /\s*[-–—|]\s*[^-–—|]{0,40}$/,
       "",
     );
     const picked = pool.length > 0 ? pool.slice(0, perStory) : [headline];
-
-    picked.forEach((sentence, index) => {
-      if (lines.length >= BRIEF_LINES) return;
-      lines.push(
-        index === 0
-          ? `${item.source}, ${ageLabel(item.datetime)}: ${sentence}`
-          : sentence,
-      );
-    });
-  }
-
-  return lines.slice(0, BRIEF_LINES);
+    return picked.join(" ");
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -161,11 +145,11 @@ const SYSTEM_PROMPT = `You write a short news briefing for a stock-watching app.
 You will be given the two or three most credible news stories about one company from the last day, each with its source, age and summary. Write a briefing a busy investor can read in half a minute: only what actually happened to this company and its stock.
 
 Rules:
-- Cover each story in two to four short sentences — enough to understand it, no more — most important story first. One sentence per line. No bullets, numbering, markdown, headings or preamble.
-- Begin each story's first line with its source and age, e.g. "Reuters, 3 hours ago: ...". Continue that same story on the next lines with no prefix.
-- Every fact must come from the supplied stories. Never add a number, name, date or event that is not in them.
-- No "what the news is about" opener, no "why it matters" line, no closing summary, no advice to buy or sell, no invented price targets. Just the news.
-- Plain English, active voice.`;
+- Write one flowing paragraph per story, two to four sentences of normal prose, most important story first. No bullets, numbering, markdown or headings.
+- Do not name the source or say how old the story is inside your writing — that is shown separately. Just write the news itself.
+- Separate each story's paragraph from the next with one blank line and nothing else.
+- Every fact must come from the supplied story. Never add a number, name, date or event that is not in it.
+- No "what the news is about" opener, no "why it matters" line, no closing summary, no advice to buy or sell, no invented price targets. Just the news, in plain English, active voice.`;
 
 async function writeWithClaude(
   items: NewsItem[],
@@ -207,12 +191,21 @@ async function writeWithClaude(
       .map((block) => block.text)
       .join("\n");
 
-    const lines = text
-      .split("\n")
-      .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+    // One paragraph per story, in the same order `items` was sent in — a
+    // count mismatch means the model merged or split a story, which would
+    // mispair citations if salvaged rather than falling back to `compose()`.
+    const paragraphs = text
+      .split(/\n\s*\n/)
+      .map((block) =>
+        block
+          .split("\n")
+          .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+          .filter(Boolean)
+          .join(" "),
+      )
       .filter(Boolean);
 
-    return lines.length >= 2 ? lines.slice(0, BRIEF_LINES) : null;
+    return paragraphs.length === items.length ? paragraphs : null;
   } catch (error) {
     // A model outage should downgrade the brief, never break the feature.
     console.error("Claude briefing failed; falling back to the composer", error);
@@ -240,10 +233,10 @@ export async function buildNewsBrief(
   const items = widened ? curated : recent;
 
   const fromClaude = await writeWithClaude(items, { ...options, widened });
-  const lines = fromClaude ?? compose(items);
+  const paragraphs = fromClaude ?? compose(items);
 
   return {
-    lines,
+    paragraphs,
     sources: items.map((item) => ({
       name: item.source,
       title: tidy(item.headline),

@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNews } from "@/hooks/use-news";
-import { sourceLogoUrl } from "@/lib/market-data/news-sources";
+import { SourceLogo } from "@/components/stock/source-logo";
 
 /** Relative age, e.g. "3 hours ago" — everything here is under 48h old. */
 function timeAgo(unixSeconds: number) {
@@ -18,28 +17,6 @@ function timeAgo(unixSeconds: number) {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
   return "yesterday";
-}
-
-/**
- * The outlet's favicon, sitting inline in the source pill. Decorative — the
- * name is already the text right next to it — so it disappears rather than
- * showing a broken-image icon when the source isn't in the logo list or the
- * favicon fails to load.
- */
-function SourceLogo({ source }: { source: string }) {
-  const [failed, setFailed] = useState(false);
-  const url = sourceLogoUrl(source);
-  if (!url || failed) return null;
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
-      alt=""
-      className="size-3.5 shrink-0 rounded-[3px]"
-      onError={() => setFailed(true)}
-    />
-  );
 }
 
 export function NewsList({ symbol }: { symbol: string }) {

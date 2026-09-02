@@ -3,13 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowUpRight,
-  ExternalLink,
-  Lock,
-  MoveRight,
-  Sparkles,
-} from "lucide-react";
+import { ArrowUpRight, ExternalLink, Lock, MoveRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +12,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { buttonVariants } from "@/components/ui/button";
 import { useProStatus } from "@/hooks/use-pro";
+import { SourceLogo } from "@/components/stock/source-logo";
 import { cn } from "@/lib/utils";
 import type { NewsBrief } from "@/lib/news-summary";
 
@@ -38,41 +33,6 @@ function timeAgo(unixSeconds: number) {
 
 type ErrorBody = { error?: string; requiresPro?: boolean; empty?: boolean };
 
-const AGE_HINT = /(ago|yesterday|hour|today|minute|week)/i;
-
-type BriefItem = { source: string | null; age: string | null; body: string[] };
-
-/**
- * The brief is a flat list of sentences. A "Source, 9 hours ago: …" line opens
- * a story; a plain line adds more detail to the story above it. Grouping them
- * lets each story read as its own short block instead of one run-on paragraph.
- */
-function groupBrief(lines: string[]): BriefItem[] {
-  const items: BriefItem[] = [];
-
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) continue;
-
-    const match = line.match(
-      /^([A-Za-z][\w.&'’ -]{1,38}?),\s*([^:]{2,28}?):\s*(.+)/,
-    );
-    if (match && AGE_HINT.test(match[2])) {
-      items.push({
-        source: match[1].trim(),
-        age: match[2].trim(),
-        body: [match[3].trim()],
-      });
-    } else if (items.length > 0) {
-      items[items.length - 1].body.push(line);
-    } else {
-      items.push({ source: null, age: null, body: [line] });
-    }
-  }
-
-  return items;
-}
-
 function BriefBody({ symbol }: { symbol: string }) {
   const { data, isLoading, error } = useQuery<NewsBrief>({
     queryKey: ["news-brief", symbol],
@@ -92,17 +52,14 @@ function BriefBody({ symbol }: { symbol: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Sparkles className="size-4 animate-pulse text-primary" />
-          Reading today&apos;s coverage…
-        </div>
-        {[0, 1, 2, 3, 4, 5].map((index) => (
-          <Skeleton
-            key={index}
-            className="h-3.5 rounded-full"
-            style={{ width: `${100 - index * 7}%` }}
-          />
+      <div className="flex flex-col gap-4">
+        {[0, 1, 2].map((index) => (
+          <div key={index} className="flex flex-col gap-2">
+            <Skeleton className="h-5 w-28 rounded-full" />
+            <Skeleton className="h-3.5 w-full" />
+            <Skeleton className="h-3.5 w-11/12" />
+            <Skeleton className="h-3.5 w-2/3" />
+          </div>
         ))}
       </div>
     );
@@ -118,31 +75,21 @@ function BriefBody({ symbol }: { symbol: string }) {
     );
   }
 
-  const items = groupBrief(data.lines);
-
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-4">
-        {items.map((item, index) => (
-          <div key={index} className="border-l-2 border-primary/25 pl-4">
-            {(item.source || item.age) && (
-              <p className="text-[11px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
-                {item.source}
-                {item.source && item.age ? " · " : ""}
-                {item.age}
-              </p>
-            )}
-            {item.body.map((sentence, bodyIndex) => (
-              <p
-                key={bodyIndex}
-                className={cn(
-                  "text-[15px] leading-relaxed text-foreground",
-                  bodyIndex === 0 ? "mt-1" : "mt-2",
-                )}
-              >
-                {sentence}
-              </p>
-            ))}
+        {data.sources.map((source, index) => (
+          <div key={source.url} className="flex flex-col gap-1.5">
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-muted py-0.5 pr-2 pl-1.5 text-xs font-medium text-foreground/75">
+              <SourceLogo source={source.name} />
+              {source.name}
+              <span className="text-muted-foreground">
+                · {timeAgo(source.datetime)}
+              </span>
+            </span>
+            <p className="text-[15px] leading-relaxed text-foreground">
+              {data.paragraphs[index]}
+            </p>
           </div>
         ))}
       </div>
@@ -175,8 +122,7 @@ function BriefBody({ symbol }: { symbol: string }) {
       </div>
 
       <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-        Summarised by AI from the sources above. It can miss nuance — open a
-        source before acting on anything here.
+        Summarized by AI from the sources above.
       </p>
     </div>
   );
@@ -257,10 +203,7 @@ export function NewsSummaryLink({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <div className="pr-8">
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="size-4 text-primary" />
-              {symbol} — what happened in the last 24 hours
-            </DialogTitle>
+            <DialogTitle>{symbol} — what happened in the last 24 hours</DialogTitle>
           </div>
 
           {/* Never show the upsell until the plan is actually known — the hook
