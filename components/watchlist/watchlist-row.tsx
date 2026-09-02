@@ -48,41 +48,41 @@ export function WatchlistRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-3 sm:gap-4 sm:px-4",
-        isDragging && "relative z-10 shadow-lg",
+        "relative flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-3 transition-opacity hover:opacity-90 sm:gap-4 sm:px-4",
+        isDragging && "z-10 shadow-lg",
       )}
     >
+      {/* The whole card opens the stock, short of its own controls below — a
+          plain link laid under everything rather than wrapping it, since
+          wrapping would nest the drag handle, remove and summary buttons
+          inside an anchor (invalid HTML, and a screen reader's worst case).
+          Those three are each given `relative` so they win the stacking
+          order — an absolutely-positioned element with no z-index still
+          paints below one that has any, wherever each sits in the DOM. */}
+      <Link
+        href={`/stock/${item.symbol}`}
+        aria-label={`Open ${item.symbol}`}
+        className="absolute inset-0 rounded-xl"
+      />
+
       <button
         type="button"
         aria-label={`Drag to reorder ${item.symbol}`}
         {...attributes}
         {...listeners}
-        className="-ml-1 touch-none p-1 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+        className="relative -ml-1 touch-none p-1 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
       >
         <GripVertical className="size-4" />
       </button>
 
-      {/* The logo and the name link through to the stock; the summary link
-          opens a panel, so it sits outside the anchor rather than inside it. */}
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <Link
-          href={`/stock/${item.symbol}`}
-          aria-label={`Open ${item.symbol}`}
-          className="shrink-0 transition-opacity hover:opacity-70"
-        >
-          <CompanyLogo symbol={item.symbol} size="sm" />
-        </Link>
+        <CompanyLogo symbol={item.symbol} size="sm" />
         <div className="min-w-0">
-          <Link
-            href={`/stock/${item.symbol}`}
-            className="block min-w-0 transition-opacity hover:opacity-70"
-          >
-            <p className="text-sm font-semibold">{item.symbol}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {item.name}
-            </p>
-          </Link>
-          <NewsSummaryLink symbol={item.symbol} className="mt-1" />
+          <p className="text-sm font-semibold">{item.symbol}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {item.name}
+          </p>
+          <NewsSummaryLink symbol={item.symbol} className="relative mt-1" />
         </div>
       </div>
 
@@ -109,7 +109,7 @@ export function WatchlistRow({
         type="button"
         aria-label={`Remove ${item.symbol}`}
         onClick={() => remove(item.symbol)}
-        className="p-1 text-muted-foreground hover:text-destructive"
+        className="relative p-1 text-muted-foreground hover:text-destructive"
       >
         <Trash2 className="size-4" />
       </button>
