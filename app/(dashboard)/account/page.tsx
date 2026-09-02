@@ -15,9 +15,9 @@ import { cn } from "@/lib/utils";
  * short, plain, and about what they get rather than how it works.
  */
 const freeFeatures = [
-  "A free S&P 500 forecast",
-  "Analyze past investments",
-  "Your own custom Stock Watchlist",
+  "Custom stock watchlist",
+  "S&P 500 forecast",
+  "3 past-investment analyses",
   "3 accurate and free news articles on every stock",
   "Add friends",
 ];
@@ -28,10 +28,10 @@ const freeFeatures = [
  * than saying nothing. Mirrored one-for-one by the Pro list below.
  */
 const proExtras = [
-  "Forecast any stock, not just the S&P 500",
-  "List of 6 rising stocks",
-  "Analyze past investments unlimited",
-  "News summary of the past 24h on every stock",
+  "Forecast any stock",
+  "6 rising stocks",
+  "Unlimited past-investment analyses",
+  "News summary from the past 24h on any stock",
 ];
 
 /**
@@ -46,12 +46,8 @@ const guestUnlocks: Feature[] = [
     text: "Option to upgrade to Pro",
     // Named here rather than in a sentence under the card, so the reader can
     // see what the upgrade actually buys at the moment they read about it.
-    sub: [
-      "Forecast any stock",
-      "6 rising stocks",
-      "Unlimited past-investment analysis",
-      "A news summary from the past 24h on any stock in your watchlist",
-    ],
+    // Same list as "Not on Free" / the Pro column.
+    sub: [...proExtras],
   },
 ];
 
