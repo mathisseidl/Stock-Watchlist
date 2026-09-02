@@ -839,6 +839,12 @@ export function PriceChart({
   const ruleTop = topTickY ?? `${TOP_TICK_FRACTION * 100}%`;
   const priceLabelTop = (topTickY ?? 0) - 6;
 
+  // The bottom gridline — `axis` ascends by price, so the first entry is the
+  // lowest price and, on screen, the lowest line. The after-hours rule is
+  // drawn on this exact pixel rather than a fixed offset from the pane's
+  // edge, so the two lines read as one instead of sitting a hair apart.
+  const bottomTickY = axis.length > 0 ? axis[0].y : null;
+
   const polyline = measure?.path.map((p) => `${p.x},${p.y}`).join(" ") ?? "";
   const polygon =
     measure && measure.path.length > 1
@@ -924,39 +930,41 @@ export function PriceChart({
         </svg>
 
         {/* After hours, marked behind the series: a divider at the closing
-            bell and a labelled rule under the stretch that follows it. Just
-            the two — no tint — so it reads as context for the line rather
-            than a region of the chart in its own right.
-
-            Held above the library's own time axis: dropped to the very bottom
-            the label sits in the row of clock times and reads as one of them. */}
+            bell and, riding the bottom gridline itself, a labelled rule for
+            the stretch that follows it — thickening that one line rather
+            than drawing a second one a few pixels off it. */}
         {band && (
           <div
             className="pointer-events-none absolute inset-x-0 top-0"
             style={{ paddingLeft: band.x, bottom: band.axisHeight }}
           >
             <div className="relative size-full border-l border-dashed border-foreground/20">
-              <div className="absolute inset-x-0 bottom-2 flex items-center gap-2 px-2">
-                <span
-                  className="h-px flex-1 bg-foreground/20"
-                  aria-hidden="true"
-                />
-                {band.width > 92 && (
-                  // The rule's own two spans already stop short of this
-                  // label, but a price gridline behind it does not know it
-                  // is there — it runs straight through regardless of where
-                  // the axis happens to tick. The card's own background
-                  // masks whatever crosses underneath, exactly as the gap in
-                  // the rule masks the rule's own two halves.
-                  <span className="rounded-full bg-card px-1.5 text-[10px] whitespace-nowrap text-muted-foreground">
-                    After hours
-                  </span>
-                )}
-                <span
-                  className="h-px flex-1 bg-foreground/20"
-                  aria-hidden="true"
-                />
-              </div>
+              {bottomTickY !== null && (
+                <div
+                  className="absolute inset-x-0 flex -translate-y-1/2 items-center gap-2 px-2"
+                  style={{ top: bottomTickY }}
+                >
+                  <span
+                    className="h-px flex-1 bg-foreground/20"
+                    aria-hidden="true"
+                  />
+                  {band.width > 92 && (
+                    // The rule's own two spans already stop short of this
+                    // label, but the gridline it rides does not know it is
+                    // there — it runs straight through regardless of where
+                    // the axis happens to tick. The card's own background
+                    // masks whatever crosses underneath, exactly as the gap
+                    // in the rule masks the rule's own two halves.
+                    <span className="rounded-full bg-card px-1.5 text-[10px] whitespace-nowrap text-muted-foreground">
+                      After hours
+                    </span>
+                  )}
+                  <span
+                    className="h-px flex-1 bg-foreground/20"
+                    aria-hidden="true"
+                  />
+                </div>
+              )}
             </div>
           </div>
         )}

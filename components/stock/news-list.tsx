@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNews } from "@/hooks/use-news";
+import { sourceLogoUrl } from "@/lib/market-data/news-sources";
 
 /** Relative age, e.g. "3 hours ago" — everything here is under 48h old. */
 function timeAgo(unixSeconds: number) {
@@ -16,6 +18,28 @@ function timeAgo(unixSeconds: number) {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
   return "yesterday";
+}
+
+/**
+ * The outlet's favicon, sitting inline in the source pill. Decorative — the
+ * name is already the text right next to it — so it disappears rather than
+ * showing a broken-image icon when the source isn't in the logo list or the
+ * favicon fails to load.
+ */
+function SourceLogo({ source }: { source: string }) {
+  const [failed, setFailed] = useState(false);
+  const url = sourceLogoUrl(source);
+  if (!url || failed) return null;
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt=""
+      className="size-3.5 shrink-0 rounded-[3px]"
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 export function NewsList({ symbol }: { symbol: string }) {
@@ -61,7 +85,8 @@ export function NewsList({ symbol }: { symbol: string }) {
             className="group block rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground/75">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-muted py-0.5 pr-2 pl-1.5 font-medium text-foreground/75">
+                <SourceLogo source={item.source} />
                 {item.source}
               </span>
               <span>{timeAgo(item.datetime)}</span>

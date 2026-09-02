@@ -177,7 +177,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
       <Card className="gap-3 p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-base font-semibold">Worth reading</h3>
+            <h3 className="text-base font-semibold">News</h3>
             <p className="text-sm text-muted-foreground">
               Three free-to-read stories from the last two days, and why each
               one matters.
