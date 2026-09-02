@@ -1,0 +1,38 @@
+name: Refresh Potential
+
+# Recomputes the weekly "Potential" screen and writes the snapshot to Supabase.
+# The forecast engine is CPU-heavy (~90s for the whole universe), so this runs
+# here rather than in a serverless function.
+
+on:
+  schedule:
+    # Mondays 13:00 UTC (~09:00 New York), after the prior week has settled.
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+    inputs:
+      asOf:
+        description: "Pin the as-of date (YYYY-MM-DD). Blank = today."
+        required: false
+        default: ""
+
+concurrency:
+  group: refresh-potential
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Recompute the weekly snapshot
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: npm run refresh:potential -- "${{ inputs.asOf }}"

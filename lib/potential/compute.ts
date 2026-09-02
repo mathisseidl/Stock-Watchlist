@@ -90,7 +90,7 @@ export async function computeSnapshot(
   opts: ComputeOptions = {},
 ): Promise<PotentialSnapshot> {
   const now = new Date();
-  const asOf = opts.asOf ?? now.toISOString().slice(0, 10);
+  const asOf = opts.asOf || now.toISOString().slice(0, 10);
   const universe = opts.universe ?? POTENTIAL_UNIVERSE;
   const log = opts.onProgress ?? (() => {});
 

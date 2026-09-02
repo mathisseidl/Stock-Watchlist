@@ -20,7 +20,9 @@ try {
 }
 
 async function main() {
-  const asOf = process.argv[2];
+  // `|| undefined` so an empty arg (a schedule-triggered CI run passes "")
+  // falls back to today rather than becoming a blank seed date.
+  const asOf = process.argv[2] || undefined;
   console.log(`Computing Potential snapshot${asOf ? ` as of ${asOf}` : ""}…`);
   const started = Date.now();
 
