@@ -122,7 +122,9 @@ function BriefBody({ symbol }: { symbol: string }) {
       </div>
 
       <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-        Summarized by AI from the sources above.
+        {data.writtenBy === "claude"
+          ? "Summarized by AI from the sources above."
+          : "Assembled from the sources above."}
       </p>
     </div>
   );
