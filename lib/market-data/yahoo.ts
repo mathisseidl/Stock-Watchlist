@@ -11,16 +11,24 @@ const CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
 // `1D` asks for extended hours as well, so the day chart can run past the
 // regular close; the wider ranges stay on regular sessions, where a night of
 // thin after-hours prints would only add noise.
+//
+// Each interval is the finest Yahoo actually serves for that span — verified
+// against the live API rather than assumed, since the documented limits
+// (1m/2m capped near 5-7 days, 5m-30m near 60 days, 60m near 2 years, 1d/1wk
+// unbounded) are Yahoo's own and not published anywhere authoritative.
 const RANGE_CONFIG: Record<
   CandleRange,
   { range: string; interval: string; revalidate: number; prePost: boolean }
 > = {
-  "1D": { range: "1d", interval: "5m", revalidate: 60, prePost: true },
-  "1W": { range: "5d", interval: "15m", revalidate: 300, prePost: false },
-  "1M": { range: "1mo", interval: "1d", revalidate: 1800, prePost: false },
-  "1Y": { range: "1y", interval: "1d", revalidate: 3600, prePost: false },
-  "5Y": { range: "5y", interval: "1wk", revalidate: 86_400, prePost: false },
-  ALL: { range: "max", interval: "1mo", revalidate: 86_400, prePost: false },
+  "1D": { range: "1d", interval: "1m", revalidate: 60, prePost: true },
+  "1W": { range: "5d", interval: "1m", revalidate: 300, prePost: false },
+  "1M": { range: "1mo", interval: "15m", revalidate: 1800, prePost: false },
+  "1Y": { range: "1y", interval: "60m", revalidate: 3600, prePost: false },
+  "5Y": { range: "5y", interval: "1d", revalidate: 86_400, prePost: false },
+  // interval only matters here as the fallback `getCandles` builds from —
+  // ALL always requests explicit period bounds instead of this `range`
+  // keyword, so see the comment there for why.
+  ALL: { range: "max", interval: "1wk", revalidate: 86_400, prePost: false },
 };
 
 type YahooPeriod = {
@@ -206,10 +214,19 @@ function readStats(
 export class YahooProvider {
   async getCandles(symbol: string, range: CandleRange): Promise<CandleSeries> {
     const config = RANGE_CONFIG[range];
+    // The `range=max` keyword silently caps itself to a coarse resolution —
+    // verified live: AAPL's ~46-year history comes back as the same ~168
+    // monthly-ish points whether the interval asked for is `1mo`, `1wk` or
+    // `1d`. Explicit period bounds don't have that cap; period1=0 reaches
+    // back to any listing's actual first trade regardless of its age.
     const url =
-      `${CHART_URL}/${encodeURIComponent(symbol)}` +
-      `?range=${config.range}&interval=${config.interval}` +
-      `&includePrePost=${config.prePost}`;
+      range === "ALL"
+        ? `${CHART_URL}/${encodeURIComponent(symbol)}` +
+          `?period1=0&period2=${Math.floor(Date.now() / 1000)}` +
+          `&interval=${config.interval}&includePrePost=false`
+        : `${CHART_URL}/${encodeURIComponent(symbol)}` +
+          `?range=${config.range}&interval=${config.interval}` +
+          `&includePrePost=${config.prePost}`;
 
     const res = await fetch(url, {
       headers: {

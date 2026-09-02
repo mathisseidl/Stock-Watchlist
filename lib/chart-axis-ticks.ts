@@ -28,18 +28,25 @@ function dateParts(time: number) {
  * One tick per trading day — the library's own auto-placed ticks space
  * themselves out by pixel width and skip whichever days don't land on a
  * "nice" interval, which is what leaves the end of a month looking gapped.
- * Every point gets a label instead: the day number, or the month's name on
- * the day that starts it. Every label carries equal weight, so all of them
- * are bold.
+ * Every day gets a label instead (its own first point, not every point in
+ * it — the chart is intraday now, and one tick per candle would crowd the
+ * axis with dozens of duplicates a day): the day number, or the month's name
+ * on the day that starts it. Every label carries equal weight, so all of
+ * them are bold.
  */
 export function monthRangeTicks(points: CandlePoint[]): AxisTick[] {
+  const ticks: AxisTick[] = [];
   let prevMonth = -1;
-  return points.map((point, index) => {
+  let prevDay = -1;
+  points.forEach((point, index) => {
     const { month, day } = dateParts(point.time);
+    if (day === prevDay && month === prevMonth) return;
     const label = month === prevMonth ? String(day) : MONTH_ABBR[month];
     prevMonth = month;
-    return { index, label, bold: true };
+    prevDay = day;
+    ticks.push({ index, label, bold: true });
   });
+  return ticks;
 }
 
 /**

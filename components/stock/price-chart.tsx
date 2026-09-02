@@ -142,11 +142,15 @@ function formatStamp(
   spanSeconds: number,
   format: NumberFormat,
   timeZone?: string,
+  // Week's own span is several days, past the point where the heuristic
+  // below would show a time on its own — but its candles are still
+  // intraday, so which one a reader is on is still worth naming.
+  showTime = false,
 ) {
   const date = new Date(time * 1000);
   // Inside a couple of days the clock time is what distinguishes two points;
   // beyond that the calendar date is.
-  if (spanSeconds < 3 * 24 * 3600) {
+  if (showTime || spanSeconds < 3 * 24 * 3600) {
     const datePart = date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -992,6 +996,7 @@ export function PriceChart({
               spanSeconds,
               settings.numberFormat,
               session?.timeZone,
+              range === "1W",
             )}{" "}
             –{" "}
             {formatStamp(
@@ -999,13 +1004,17 @@ export function PriceChart({
               spanSeconds,
               settings.numberFormat,
               session?.timeZone,
+              range === "1W",
             )}{" "}
             · {formatSpan(spanSeconds)}
           </p>
         )}
 
         {/* Only the date here — the price rides the vertical line instead, so
-            it stays next to the point it belongs to. */}
+            it stays next to the point it belongs to. Week is the exception:
+            its axis reads in bare dates now, so the hour has nowhere else to
+            show, and its candles are intraday enough that which one a reader
+            is on is still worth naming. */}
         {!measure && hover && (
           <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
             {formatStamp(
@@ -1013,6 +1022,7 @@ export function PriceChart({
               seriesSpan,
               settings.numberFormat,
               session?.timeZone,
+              range === "1W",
             )}
           </p>
         )}
