@@ -19,7 +19,8 @@ import {
   type Logical,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { CandlePoint } from "@/lib/market-data/types";
+import type { CandlePoint, TradingSession } from "@/lib/market-data/types";
+import { buildTimeline } from "@/lib/chart-timeline";
 
 const COARSE_POINTER = "(pointer: coarse)";
 
@@ -110,7 +111,14 @@ const CHART_THEME = {
 const CHART_FONT =
   '"Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
-function formatStamp(time: number, spanSeconds: number) {
+/**
+ * A point's timestamp, in `timeZone` when one is given.
+ *
+ * The zone is the exchange's, not the reader's. A day chart is a claim about
+ * the market's own hours — "9:30 to 4" means nothing if a reader in Berlin is
+ * shown a Tokyo session rendered against their own clock.
+ */
+function formatStamp(time: number, spanSeconds: number, timeZone?: string) {
   const date = new Date(time * 1000);
   // Inside a couple of days the clock time is what distinguishes two points;
   // beyond that the calendar date is.
@@ -120,12 +128,23 @@ function formatStamp(time: number, spanSeconds: number) {
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
+      timeZone,
     });
   }
   return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone,
+  });
+}
+
+/** Clock time alone, in the exchange's zone — what the day axis ticks in. */
+function formatClock(time: number, timeZone: string) {
+  return new Date(time * 1000).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
   });
 }
 
@@ -301,10 +320,13 @@ export function PriceChart({
   points,
   positive,
   height = 320,
+  session,
 }: {
   points: CandlePoint[];
   positive: boolean;
   height?: number;
+  /** Set on a day chart to pin the axis to that market's trading session. */
+  session?: TradingSession;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -314,11 +336,21 @@ export function PriceChart({
   const hoverRef = useRef<MeasurePoint | null>(null);
   const pointerXRef = useRef<number | null>(null);
   const hoveringRef = useRef(false);
+  /** Leading whitespace count, so screen positions map back to real points. */
+  const offsetRef = useRef(0);
+  const afterHoursRef = useRef<number | null>(null);
 
   const [measure, setMeasureState] = useState<Measure | null>(null);
   const [hover, setHoverState] = useState<MeasurePoint | null>(null);
   /** Each gridline's price paired with where it currently sits, in pixels. */
   const [axis, setAxis] = useState<{ price: number; y: number }[]>([]);
+  /** Where the after-hours stretch sits, in pixels. */
+  const [band, setBand] = useState<{
+    x: number;
+    width: number;
+    /** Height of the library's time axis, which the marker stays clear of. */
+    axisHeight: number;
+  } | null>(null);
   const coarsePointer = useCoarsePointer();
   const { resolvedTheme } = useTheme();
 
@@ -335,8 +367,33 @@ export function PriceChart({
    */
   const refreshAxis = useCallback(() => {
     const series = seriesRef.current;
+    const chart = chartRef.current;
     const current = scaleRef.current;
-    if (!series || !current) return;
+    if (!series || !chart || !current) return;
+
+    // The band is pinned to a position on the scale, so it travels with every
+    // resize exactly as the gridlines do.
+    const bandIndex = afterHoursRef.current;
+    const plotWidth = containerRef.current?.clientWidth ?? 0;
+    const bandX =
+      bandIndex === null
+        ? null
+        : chart.timeScale().logicalToCoordinate(bandIndex as Logical);
+    const nextBand =
+      bandX === null || plotWidth <= 0
+        ? null
+        : {
+            x: bandX,
+            width: Math.max(0, plotWidth - bandX),
+            axisHeight: chart.timeScale().height(),
+          };
+    setBand((previous) =>
+      previous?.x === nextBand?.x &&
+      previous?.width === nextBand?.width &&
+      previous?.axisHeight === nextBand?.axisHeight
+        ? previous
+        : nextBand,
+    );
 
     const next: { price: number; y: number }[] = [];
     for (const price of current.ticks) {
@@ -388,12 +445,15 @@ export function PriceChart({
     const logical = chart.timeScale().coordinateToLogical(x);
     if (logical === null) return null;
 
+    const offset = offsetRef.current;
     const index = Math.max(
       0,
-      Math.min(data.length - 1, Math.round(logical as number)),
+      Math.min(data.length - 1, Math.round(logical as number) - offset),
     );
     const point = data[index];
-    const snappedX = chart.timeScale().logicalToCoordinate(index as Logical);
+    const snappedX = chart
+      .timeScale()
+      .logicalToCoordinate((index + offset) as Logical);
 
     return {
       x: snappedX ?? x,
@@ -412,20 +472,21 @@ export function PriceChart({
     if (!chart || !series) return [];
 
     const timeScale = chart.timeScale();
+    const offset = offsetRef.current;
     const path: { x: number; y: number }[] = [];
     // A five-year daily series is well over a thousand points, and this runs on
     // every touchmove. Past a few hundred the extra vertices are sub-pixel.
     const step = Math.max(1, Math.ceil((toIndex - fromIndex + 1) / 400));
 
     for (let index = fromIndex; index <= toIndex; index += step) {
-      const x = timeScale.logicalToCoordinate(index as Logical);
+      const x = timeScale.logicalToCoordinate((index + offset) as Logical);
       const y = series.priceToCoordinate(data[index].value);
       if (x !== null && y !== null) path.push({ x, y });
     }
 
     // Stepping can stop short of the far end, which would leave the highlight
     // visibly detached from the point the reader is touching.
-    const endX = timeScale.logicalToCoordinate(toIndex as Logical);
+    const endX = timeScale.logicalToCoordinate((toIndex + offset) as Logical);
     const endY = series.priceToCoordinate(data[toIndex].value);
     if (endX !== null && endY !== null && path.at(-1)?.x !== endX) {
       path.push({ x: endX, y: endY });
@@ -459,8 +520,17 @@ export function PriceChart({
     if (!container || points.length === 0) return;
 
     pointsRef.current = points;
+    // The clock is read here rather than in render: it is impure, and the
+    // axis should settle once per rebuild instead of creeping between paints.
+    const timeline = buildTimeline(
+      points,
+      session,
+      Math.floor(Date.now() / 1000),
+    );
     // Before the chart exists, so the first autoscale call already sees it.
     scaleRef.current = scale;
+    offsetRef.current = timeline.offset;
+    afterHoursRef.current = timeline.afterHoursIndex;
     const palette =
       resolvedTheme === "dark" ? CHART_THEME.dark : CHART_THEME.light;
     const color = positive ? palette.gain : palette.loss;
@@ -485,7 +555,19 @@ export function PriceChart({
         // second one applied on top would move the ticks off their fractions.
         scaleMargins: { top: 0, bottom: 0 },
       },
-      timeScale: { borderVisible: false, timeVisible: true },
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        // A day chart belongs to one market, so its ticks read in that
+        // market's hours. Wider ranges are dated, not clocked, and keep the
+        // library's own formatting.
+        ...(session
+          ? {
+              tickMarkFormatter: (time: UTCTimestamp) =>
+                formatClock(time as number, session.timeZone),
+            }
+          : {}),
+      },
       // No crosshair: its default style is a dashed rule in both axes, which
       // clutters the plot and clashes with the solid guides the measurement
       // overlay draws.
@@ -511,13 +593,10 @@ export function PriceChart({
     });
     seriesRef.current = series;
 
-    series.setData(
-      points.map((point) => ({
-        time: point.time as UTCTimestamp,
-        value: point.value,
-      })),
-    );
+    series.setData(timeline.data);
 
+    // fitContent rather than a time range: the blanks already carry the axis
+    // out to the session's edges, so fitting them is fitting the session.
     chart.timeScale().fitContent();
     refreshAxis();
 
@@ -537,7 +616,16 @@ export function PriceChart({
     };
     // resolvedTheme is a dependency because the canvas colors are snapshotted
     // above — without it the chart keeps the old theme's palette.
-  }, [points, positive, resolvedTheme, scale, setMeasure, setHover, refreshAxis]);
+  }, [
+    points,
+    positive,
+    resolvedTheme,
+    scale,
+    session,
+    setMeasure,
+    setHover,
+    refreshAxis,
+  ]);
 
   // ---- Touch: two fingers on the chart measure between them ---------------
   useEffect(() => {
@@ -772,8 +860,8 @@ export function PriceChart({
             a plain hover reads out. */}
         {measure && (
           <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
-            {formatStamp(measure.a.time, spanSeconds)} –{" "}
-            {formatStamp(measure.b.time, spanSeconds)} ·{" "}
+            {formatStamp(measure.a.time, spanSeconds, session?.timeZone)} –{" "}
+            {formatStamp(measure.b.time, spanSeconds, session?.timeZone)} ·{" "}
             {formatSpan(spanSeconds)}
           </p>
         )}
@@ -782,7 +870,7 @@ export function PriceChart({
             it stays next to the point it belongs to. */}
         {!measure && hover && (
           <p className="num text-[13px] whitespace-nowrap text-muted-foreground">
-            {formatStamp(hover.time, seriesSpan)}
+            {formatStamp(hover.time, seriesSpan, session?.timeZone)}
           </p>
         )}
       </div>
@@ -834,6 +922,37 @@ export function PriceChart({
             />
           ))}
         </svg>
+
+        {/* After hours, marked behind the series: a divider at the closing
+            bell and a labelled rule under the stretch that follows it. Faint
+            on purpose — it is context for the line, not a thing to read.
+
+            Held above the library's own time axis: dropped to the very bottom
+            the label sits in the row of clock times and reads as one of them. */}
+        {band && (
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0"
+            style={{ paddingLeft: band.x, bottom: band.axisHeight }}
+          >
+            <div className="relative size-full border-l border-dashed border-foreground/20 bg-foreground/[0.035]">
+              <div className="absolute inset-x-0 bottom-2 flex items-center gap-2 px-2">
+                <span
+                  className="h-px flex-1 bg-foreground/20"
+                  aria-hidden="true"
+                />
+                {band.width > 92 && (
+                  <span className="text-[10px] whitespace-nowrap text-muted-foreground">
+                    After hours
+                  </span>
+                )}
+                <span
+                  className="h-px flex-1 bg-foreground/20"
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         <div ref={containerRef} className="absolute inset-0" />
 

@@ -18,6 +18,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useCandles, seriesChangePercent } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
+import { RANGE_PERIOD } from "@/lib/ranges";
 import { cn } from "@/lib/utils";
 import type { CandleRange } from "@/lib/market-data/types";
 
@@ -47,6 +48,21 @@ export function StockDetail({ symbol }: { symbol: string }) {
   const rangeChange = seriesChangePercent(series);
   const rangePositive = rangeChange >= 0;
   const inWatchlist = has(symbol);
+
+  // The figures describe the selected range, and are measured over the window
+  // the chart draws, so a high the reader can see on the line is the high the
+  // tile reports. Before any candles arrive the day still has its live quote.
+  const stats =
+    series?.stats ??
+    (activeRange === "1D" && hasQuote
+      ? {
+          open: quote!.open,
+          high: quote!.high,
+          low: quote!.low,
+          close: quote!.currentPrice,
+        }
+      : null);
+  const period = RANGE_PERIOD[activeRange];
 
   return (
     <div className="flex flex-col gap-6">
@@ -137,7 +153,11 @@ export function StockDetail({ symbol }: { symbol: string }) {
         {chartLoading ? (
           <Skeleton className="h-80 w-full rounded-xl" />
         ) : series && series.points.length > 1 ? (
-          <PriceChart points={series.points} positive={rangePositive} />
+          <PriceChart
+            points={series.points}
+            positive={rangePositive}
+            session={series.session}
+          />
         ) : (
           <div className="flex h-80 items-center justify-center text-sm text-muted-foreground">
             No chart data available for {symbol}.
@@ -145,15 +165,12 @@ export function StockDetail({ symbol }: { symbol: string }) {
         )}
       </Card>
 
-      {hasQuote && (
+      {stats && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatTile label="Open" value={money(quote!.open)} />
-          <StatTile label="Day High" value={money(quote!.high)} />
-          <StatTile label="Day Low" value={money(quote!.low)} />
-          <StatTile
-            label="Prev Close"
-            value={money(quote!.previousClose)}
-          />
+          <StatTile label={`${period} Open`} value={money(stats.open)} />
+          <StatTile label={`${period} High`} value={money(stats.high)} />
+          <StatTile label={`${period} Low`} value={money(stats.low)} />
+          <StatTile label={`${period} Close`} value={money(stats.close)} />
         </div>
       )}
 

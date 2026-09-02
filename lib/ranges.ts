@@ -10,6 +10,19 @@ export const RANGES: { key: CandleRange; label: string }[] = [
 ];
 
 /**
+ * How each range names its own period, for figures that describe it —
+ * "Day High" on the day chart, "Month High" on the month.
+ */
+export const RANGE_PERIOD: Record<CandleRange, string> = {
+  "1D": "Day",
+  "1W": "Week",
+  "1M": "Month",
+  "1Y": "Year",
+  "5Y": "5-Year",
+  ALL: "All-Time",
+};
+
+/**
  * How far back each range looks, in seconds. `ALL` has no bound — callers
  * treat it as "everything available".
  */
