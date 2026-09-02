@@ -29,9 +29,7 @@ export default function PotentialPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Potential</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Five rising stocks, scored by simulation once a week.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Five rising stocks</p>
         </div>
         {snapshot && (
           <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
