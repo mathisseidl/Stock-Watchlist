@@ -942,7 +942,13 @@ export function PriceChart({
                   aria-hidden="true"
                 />
                 {band.width > 92 && (
-                  <span className="text-[10px] whitespace-nowrap text-muted-foreground">
+                  // The rule's own two spans already stop short of this
+                  // label, but a price gridline behind it does not know it
+                  // is there — it runs straight through regardless of where
+                  // the axis happens to tick. The card's own background
+                  // masks whatever crosses underneath, exactly as the gap in
+                  // the rule masks the rule's own two halves.
+                  <span className="rounded-full bg-card px-1.5 text-[10px] whitespace-nowrap text-muted-foreground">
                     After hours
                   </span>
                 )}
