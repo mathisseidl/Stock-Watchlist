@@ -126,7 +126,7 @@ export type SkippedTicker = { ticker: PotentialTicker; reason: string };
 
 /**
  * Score every candidate and order them best-first. `compute.ts` slices the top
- * five off `ranked`; everything below is a runner-up.
+ * `POTENTIAL_PICK_COUNT` off `ranked`; everything below is a runner-up.
  */
 export function rankUniverse(entries: RankEntry[]): {
   ranked: RankedTicker[];

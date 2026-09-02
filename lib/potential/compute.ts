@@ -11,6 +11,7 @@ import { holdPhrase, whyInFocus } from "@/lib/potential/read";
 import { isoWeek } from "@/lib/potential/week";
 import {
   POTENTIAL_HORIZONS_DAYS,
+  POTENTIAL_PICK_COUNT,
   type PotentialHorizon,
   type PotentialPick,
   type PotentialSnapshot,
@@ -23,7 +24,6 @@ import {
 
 /** Simulations run in dollars; amount only scales outcomes, so any positive value works. */
 const SCORING_AMOUNT = 1000;
-const PICK_COUNT = 5;
 
 function toHorizon(h: HorizonScore): PotentialHorizon {
   return {
@@ -101,7 +101,7 @@ export async function computeSnapshot(
   }
 
   const { ranked, skipped } = rankUniverse(entries);
-  const top = ranked.slice(0, PICK_COUNT);
+  const top = ranked.slice(0, POTENTIAL_PICK_COUNT);
 
   const picks: PotentialPick[] = [];
   for (let i = 0; i < top.length; i += 1) {
@@ -142,7 +142,7 @@ export async function computeSnapshot(
     universeCount: universe.length,
     simulations: SIMULATIONS_PER_RUN,
     picks,
-    runnersUp: ranked.slice(PICK_COUNT).map((r) => ({
+    runnersUp: ranked.slice(POTENTIAL_PICK_COUNT).map((r) => ({
       symbol: r.ticker.symbol,
       name: r.ticker.name,
       score: r.scored.score,

@@ -29,7 +29,7 @@ const freeFeatures = [
  */
 const proExtras = [
   "Forecast any stock, not just the S&P 500",
-  "List of 5 rising stocks",
+  "List of 6 rising stocks",
   "Analyze past investments unlimited",
   "News summary of the past 24h on every stock",
 ];

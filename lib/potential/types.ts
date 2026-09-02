@@ -1,5 +1,8 @@
 import type { ForecastDrivers } from "@/lib/forecast/engine";
 
+/** How many stocks the weekly screen surfaces. */
+export const POTENTIAL_PICK_COUNT = 6;
+
 /**
  * The horizons every Potential candidate is simulated at, in calendar days —
  * six months through five years. The suggested hold is chosen from these, and
@@ -22,7 +25,7 @@ export type PotentialHorizon = {
   roughDrawdownPercent: number;
 };
 
-/** A stock that made the weekly top five. */
+/** A stock that made the weekly cut. */
 export type PotentialPick = {
   rank: number;
   symbol: string;
@@ -66,7 +69,7 @@ export type PotentialSnapshot = {
   universeCount: number;
   /** Monte Carlo paths per simulation, for the explainer. */
   simulations: number;
-  /** The five in focus, best first. */
+  /** The stocks in focus, best first. */
   picks: PotentialPick[];
   /** Ranked below the cut. */
   runnersUp: { symbol: string; name: string; score: number }[];

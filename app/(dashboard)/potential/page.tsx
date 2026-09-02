@@ -8,6 +8,7 @@ import { PotentialDisclaimer } from "@/components/potential/potential-disclaimer
 import { PotentialUpsell } from "@/components/potential/potential-upsell";
 import { usePotential } from "@/hooks/use-potential";
 import { useProStatus } from "@/hooks/use-pro";
+import { POTENTIAL_PICK_COUNT } from "@/lib/potential/types";
 
 export default function PotentialPage() {
   const { data, isLoading } = usePotential();
@@ -29,7 +30,7 @@ export default function PotentialPage() {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Potential</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Five rising stocks</p>
+          <p className="mt-1 text-sm text-muted-foreground">Six rising stocks</p>
         </div>
         {snapshot && (
           <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -46,7 +47,10 @@ export default function PotentialPage() {
         </div>
       ) : locked ? (
         <>
-          <PotentialList picks={[]} lockedCount={data.lockedCount || 5} />
+          <PotentialList
+            picks={[]}
+            lockedCount={data.lockedCount || POTENTIAL_PICK_COUNT}
+          />
           <PotentialUpsell />
         </>
       ) : building ? (

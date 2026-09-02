@@ -53,7 +53,7 @@ export function PotentialExplainer({
         <div className="flex flex-col gap-3 border-t border-border p-4 text-sm text-muted-foreground">
           <p>
             The universe is a fixed list of well-known companies, chosen by hand
-            and spread across sectors. Nobody picks the five you see &mdash; each
+            and spread across sectors. Nobody picks the six you see &mdash; each
             week every name is run through the same Monte Carlo simulation the{" "}
             <span className="text-foreground">Forecast</span> page uses, at{" "}
             {horizonList}.

@@ -4,7 +4,11 @@ import { readLatestSnapshot } from "@/lib/potential/store";
 import { currentIsoWeek } from "@/lib/potential/week";
 import { POTENTIAL_UNIVERSE } from "@/lib/potential/universe";
 import { SIMULATIONS_PER_RUN } from "@/lib/forecast/engine";
-import type { PotentialPick, PotentialSnapshot } from "@/lib/potential/types";
+import {
+  POTENTIAL_PICK_COUNT,
+  type PotentialPick,
+  type PotentialSnapshot,
+} from "@/lib/potential/types";
 
 export type PotentialMeta =
   | { building: true }
@@ -22,7 +26,8 @@ export type PotentialMeta =
 export type PotentialResponse = {
   meta: PotentialMeta;
   picks: PotentialPick[];
-  /** How many picks are hidden — 5 for a locked (non-Pro) reader, else 0. */
+  /** How many picks are hidden — the week's pick count for a locked (non-Pro)
+   *  reader, else 0. */
   lockedCount: number;
   runnersUp: PotentialSnapshot["runnersUp"];
   skipped: PotentialSnapshot["skipped"];
@@ -44,7 +49,7 @@ export async function GET() {
         simulations: snapshot?.simulations ?? SIMULATIONS_PER_RUN,
       },
       picks: [],
-      lockedCount: snapshot?.picks.length ?? 5,
+      lockedCount: snapshot?.picks.length ?? POTENTIAL_PICK_COUNT,
       runnersUp: [],
       skipped: [],
     });

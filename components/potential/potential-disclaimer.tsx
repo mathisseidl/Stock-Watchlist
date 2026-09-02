@@ -16,8 +16,8 @@ export function PotentialDisclaimer({ className }: { className?: string }) {
       <span className="font-medium text-foreground">How to read this.</span>{" "}
       Potential is an algorithmic screen, not advice. Each week a fixed,
       hand-picked list of companies is run through the same simulation the
-      Forecast page uses, and the five here simply scored highest on one
-      published formula. No one at MATMAX picks the five, and the order is not a
+      Forecast page uses, and the six here simply scored highest on one
+      published formula. No one at MATMAX picks the six, and the order is not a
       view on which company is &ldquo;best.&rdquo; The model only knows past
       prices &mdash; it cannot see a product, a lawsuit or a recession coming,
       and a stock that screens well can still fall hard. The suggested hold time
