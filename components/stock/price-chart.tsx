@@ -212,14 +212,17 @@ const TICK_STEPS = [1, 2, 2.5, 5];
 const TARGET_TICK_GAPS = 4;
 
 /**
- * Where the top and bottom gridlines sit, as fractions of the plot. Held away
- * from the edges so the top line always has room for the price above it and
- * its own label can never be clipped — the two things this axis exists to
- * guarantee. Fractions rather than pixels, so a short chart keeps the same
- * proportions as a tall one.
+ * Where the top and bottom gridlines sit, as fractions of the plot. Held
+ * just far enough off the edges that the top line still has room for the
+ * price above it and its own label can never be clipped — the one thing this
+ * axis exists to guarantee — and no further: every extra point of headroom
+ * shrinks the price's own swing on screen, which is what made a real week of
+ * movement read as a flat line next to the same week on a phone's stock app.
+ * Fractions rather than pixels, so a short chart keeps the same proportions
+ * as a tall one.
  */
-const TOP_TICK_FRACTION = 0.17;
-const BOTTOM_TICK_FRACTION = 0.06;
+const TOP_TICK_FRACTION = 0.08;
+const BOTTOM_TICK_FRACTION = 0.03;
 
 /** Gutter down the right for the price labels. */
 const AXIS_WIDTH = 58;
