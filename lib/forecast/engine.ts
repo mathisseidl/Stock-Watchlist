@@ -22,7 +22,7 @@
  * Pooling them means neither model's blind spot decides the answer alone.
  */
 
-import { fetchDailyHistory } from "./history";
+import { fetchDailyHistory, type DailyHistory } from "./history";
 import { FORECAST_METHODS } from "./methods";
 import {
   TRADING_DAYS_PER_YEAR,
@@ -285,8 +285,17 @@ export class NotEnoughHistoryError extends Error {
   }
 }
 
+/**
+ * `history` lets a caller that already holds this symbol's 5-year daily closes
+ * skip the fetch — the Potential screen runs a stock through five horizons and
+ * would otherwise pull the same history five times. `asOf` overrides the
+ * calendar day the PRNG is seeded from, so a batch job can pin every run in a
+ * weekly snapshot to the same date and reproduce it. Both default to today's
+ * live behaviour, so `/api/forecast` is unaffected.
+ */
 export async function buildForecast(
   request: ForecastRequest,
+  opts?: { history?: DailyHistory; asOf?: string },
 ): Promise<ForecastResult> {
   const symbol = request.symbol.toUpperCase();
   const horizonDays = Math.round(
@@ -294,7 +303,7 @@ export async function buildForecast(
   );
   const amount = Math.max(1, request.amount);
 
-  const history = await fetchDailyHistory(symbol, HISTORY_RANGE);
+  const history = opts?.history ?? (await fetchDailyHistory(symbol, HISTORY_RANGE));
   // Under a year of daily closes there is no volatility estimate worth
   // simulating, and a made-up band is worse than no band.
   if (history.length < 200) throw new NotEnoughHistoryError(symbol);
@@ -386,9 +395,8 @@ export async function buildForecast(
 
   // Simulation is seeded from the inputs plus the calendar day, so the answer
   // is stable if the user re-runs it and moves on tomorrow's data.
-  const random = makeRandom(
-    seedFrom(`${symbol}|${tradingDays}|${new Date().toISOString().slice(0, 10)}`),
-  );
+  const asOf = opts?.asOf ?? new Date().toISOString().slice(0, 10);
+  const random = makeRandom(seedFrom(`${symbol}|${tradingDays}|${asOf}`));
 
   const dt = 1 / TRADING_DAYS_PER_YEAR;
   const sqrtDt = Math.sqrt(dt);

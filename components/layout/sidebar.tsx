@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import {
   LayoutGrid,
   LineChart,
+  Telescope,
   Users,
   UserRound,
   Settings,
@@ -21,6 +22,7 @@ import { BackgroundPicker } from "@/components/settings/background-picker";
 const nav = [
   { href: "/my-stock", label: "My Stocks", icon: LayoutGrid },
   { href: "/forecast", label: "Forecast", icon: Sparkles },
+  { href: "/potential", label: "Potential", icon: Telescope },
   { href: "/analytics", label: "Lookback", icon: LineChart },
   { href: "/community", label: "Community", icon: Users },
   { href: "/account", label: "Account", icon: UserRound },
