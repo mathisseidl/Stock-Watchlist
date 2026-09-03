@@ -2,44 +2,64 @@
  * The forecast engine.
  *
  * What this is: a probability distribution over where a price could end up,
- * built from the stock's own measured drift and volatility and simulated
- * tens of thousands of times. What it is not: a prediction. Nobody can predict
- * a price. The honest product is the *shape* of the distribution — how wide
- * the good and bad tails are, and how much of the distribution sits above
- * break-even — and that is what every number below describes.
+ * built from the stock's own measured risk and return and simulated tens of
+ * thousands of times. What it is not: a prediction. Nobody can predict a
+ * price. The honest product is the *shape* of the distribution — how wide the
+ * good and bad tails are, and how much of it sits above break-even — and that
+ * is what every number below describes.
  *
- * Two independent simulators run and their results are pooled:
+ * The statistics live in `model.ts` (estimation and path generation) and
+ * `backtest.ts` (whether the resulting bands have historically held). This
+ * file is the orchestration: fetch the history, fit, simulate, score, and turn
+ * the result into the fields the page reads.
  *
- *   1. Geometric Brownian Motion with Student-t shocks. The textbook price
- *      model, but with fat-tailed innovations instead of Gaussian ones,
- *      because real markets produce far more six-sigma days than a normal
- *      distribution allows.
- *   2. A stationary block bootstrap over the stock's actual historical
- *      returns. This makes no distributional assumption at all — it replays
- *      real return sequences in blocks, so genuine volatility clustering and
- *      skew survive into the simulation.
+ * Three choices here are worth knowing before reading the numbers:
  *
- * Pooling them means neither model's blind spot decides the answer alone.
+ *   - Returns are measured on the **dividend-adjusted** series, so a stock's
+ *     yield counts toward its expected return, while prices and technical
+ *     signals stay on the raw closes a reader would recognise.
+ *   - Ten years of daily closes go into every estimate. Estimation error on a
+ *     mean return falls with √T and it is the dominant error in the whole
+ *     model, so the extra five years are worth more than any indicator here.
+ *   - The result carries its own report card. `calibration` is the model
+ *     re-run against this stock's real past, and it is shown whether or not it
+ *     flatters the forecast.
  */
 
-import { fetchDailyHistory, type DailyHistory } from "./history";
+import {
+  alignMarketReturns,
+  fetchBenchmarkHistory,
+  fetchDailyHistory,
+  type DailyHistory,
+} from "./history";
+import { backtestModel, type ForecastCalibration } from "./backtest";
 import { FORECAST_METHODS } from "./methods";
+import {
+  fitModel,
+  makeRandom,
+  MIN_HISTORY_DAYS,
+  RISK_FREE_RATE,
+  seedFrom,
+  simulatePaths,
+  toSortedPrices,
+} from "./model";
 import {
   TRADING_DAYS_PER_YEAR,
   clamp,
   conditionalVaR,
-  ewmaVolatility,
+  excessKurtosis,
   historicalVaR,
   logReturns,
   macd,
   maxDrawdown,
-  mean,
   momentum12m1,
   percentileSorted,
   rsi,
+  skewness,
   sma,
-  stdDev,
 } from "./indicators";
+
+export type { ForecastCalibration } from "./backtest";
 
 /** Longest horizon we'll simulate. Beyond a decade the bands are meaningless. */
 export const MAX_HORIZON_DAYS = 3653; // ~10 years
@@ -50,49 +70,19 @@ export const MIN_HORIZON_DAYS = 7;
  * page advertises it, and a number the UI types in for itself is a number that
  * drifts the first time this changes.
  */
-export const HISTORY_RANGE = "5y" as const;
-export const HISTORY_YEARS = 5;
+export const HISTORY_RANGE = "10y" as const;
+export const HISTORY_YEARS = 10;
 export const HISTORY_TRADING_DAYS = HISTORY_YEARS * TRADING_DAYS_PER_YEAR;
 
 /**
  * Paths per run. Long horizons get fewer, because each one costs proportionally
- * more steps and the extra precision buys nothing a reader can see.
+ * more steps and the extra precision buys nothing a reader can see — the
+ * antithetic pairing in the simulator already recovers more than the shortfall.
  */
 export const SIMULATIONS_PER_RUN = 20_000;
 const SIMULATIONS_LONG_HORIZON = 12_000;
 /** Above this many trading days a run counts as long. */
 const LONG_HORIZON_TRADING_DAYS = 1260;
-
-/**
- * The prior every stock's own measured drift is pulled towards, built the way
- * CAPM builds an expected return: a risk-free anchor plus a premium for how
- * much market risk the stock carries.
- *
- * A single flat prior for every ticker would be worse than it looks — it would
- * quietly say a stock with 80% volatility deserves the same expected return as
- * a utility, which after the variance drag below implies a catastrophic median
- * for anything risky. Scaling the premium with volatility avoids punishing a
- * stock twice for the same risk.
- *
- * Volatility is only a proxy for beta — it counts idiosyncratic risk the market
- * does not actually pay for — so the multiple is capped rather than trusted at
- * face value.
- */
-const RISK_FREE_RATE = 0.04;
-const EQUITY_RISK_PREMIUM = 0.045;
-/** Long-run volatility of the broad market, the yardstick for the beta proxy. */
-const MARKET_VOLATILITY = 0.16;
-const MIN_BETA_PROXY = 0.5;
-const MAX_BETA_PROXY = 2.5;
-
-/**
- * How far true expected returns actually spread across stocks. Small, because
- * almost all of the variation you see in realised returns is noise rather than
- * a difference in underlying expectation. This is the number that makes the
- * shrinkage below aggressive, and it is the single most important guard
- * against extrapolating a lucky three-year run into a decade.
- */
-const PRIOR_DRIFT_SPREAD = 0.06;
 
 export type ForecastOutcome = {
   /** Simulated price at the horizon. */
@@ -108,8 +98,38 @@ export type ForecastOutcome = {
 };
 
 export type ForecastDrivers = {
+  /** The drift the simulation actually ran on, after shrinkage and tilts. */
   annualDriftPercent: number;
+  /** Standard deviation of that drift — how much is genuinely unknown. */
+  driftUncertaintyPercent: number;
+  /** What this stock's own history alone said, before any shrinking. */
+  measuredDriftPercent: number;
+  /** The CAPM anchor it was shrunk toward. */
+  priorDriftPercent: number;
+  /** How much weight the stock's own history earned, 0–100. */
+  driftReliabilityPercent: number;
+  /** Net contribution of the four technical signals, annualised. */
+  signalTiltPercent: number;
+
+  /** Average volatility across *this* horizon — what the bands were drawn with. */
   annualVolatilityPercent: number;
+  /** Today's EWMA level. */
+  spotVolatilityPercent: number;
+  /** Where volatility reverts to over the long run. */
+  longRunVolatilityPercent: number;
+
+  /** Sensitivity to the S&P 500. */
+  beta: number;
+  /** False when beta fell back to the volatility proxy. */
+  betaMeasured: boolean;
+  /** Correlation with the index, or null when it could not be measured. */
+  marketCorrelation: number | null;
+
+  /** Skew of daily returns. Negative means the sharp moves are the falls. */
+  returnSkew: number;
+  /** How much fatter than a bell curve the daily tails are. */
+  excessKurtosis: number;
+
   rsi: number | null;
   macdHistogram: number | null;
   momentum12m1Percent: number | null;
@@ -187,68 +207,17 @@ export type ForecastResult = {
   distribution: ForecastBucket[];
   cash: ForecastCashComparison;
   journey: ForecastJourney;
+  /**
+   * How often this model's 10–90 band actually contained the real price, over
+   * this stock's own past. Null when there is not enough history to test the
+   * horizon honestly.
+   */
+  calibration: ForecastCalibration | null;
   simulations: number;
   historyDays: number;
   drivers: ForecastDrivers;
   methods: string[];
 };
-
-/* ------------------------------------------------------------------ */
-/* Randomness                                                          */
-/* ------------------------------------------------------------------ */
-
-/**
- * Seeded PRNG (mulberry32). Deterministic on purpose: asking for the same
- * stock and horizon twice on the same day must give the same answer, or the
- * feature reads as a slot machine rather than an analysis.
- */
-function makeRandom(seed: number): () => number {
-  let state = seed >>> 0;
-  return function next() {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function seedFrom(text: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-/** Box–Muller. One call, one standard normal — the spare half is discarded. */
-function standardNormal(random: () => number): number {
-  let u = random();
-  if (u < 1e-12) u = 1e-12;
-  const v = random();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
-
-const T_DF = 4;
-/** Var(t_ν) = ν/(ν−2), so dividing by this gives unit variance. */
-const T_SCALE = Math.sqrt(T_DF / (T_DF - 2));
-
-/**
- * Standardised Student-t shock with 4 degrees of freedom.
- *
- * A χ²₄ variate is −2(ln U₁ + ln U₂), which makes the usual Z / √(χ²_ν/ν)
- * construction cheap enough to run fifty million times.
- */
-function studentT(random: () => number): number {
-  let u1 = random();
-  let u2 = random();
-  if (u1 < 1e-12) u1 = 1e-12;
-  if (u2 < 1e-12) u2 = 1e-12;
-  const chiSquare = -2 * (Math.log(u1) + Math.log(u2));
-  const z = standardNormal(random);
-  return z / Math.sqrt(chiSquare / T_DF) / T_SCALE;
-}
 
 /* ------------------------------------------------------------------ */
 /* Engine                                                              */
@@ -285,17 +254,29 @@ export class NotEnoughHistoryError extends Error {
   }
 }
 
-/**
- * `history` lets a caller that already holds this symbol's 5-year daily closes
- * skip the fetch — the Potential screen runs a stock through five horizons and
- * would otherwise pull the same history five times. `asOf` overrides the
- * calendar day the PRNG is seeded from, so a batch job can pin every run in a
- * weekly snapshot to the same date and reproduce it. Both default to today's
- * live behaviour, so `/api/forecast` is unaffected.
- */
+export type ForecastOptions = {
+  /**
+   * Lets a caller that already holds this symbol's daily closes skip the
+   * fetch — the weekly screen runs a stock through five horizons and would
+   * otherwise pull the same history five times.
+   */
+  history?: DailyHistory;
+  /**
+   * Overrides the calendar day the PRNG is seeded from, so a batch job can pin
+   * every run in a weekly snapshot to the same date and reproduce it.
+   */
+  asOf?: string;
+  /**
+   * Whether to run the walk-forward calibration. On by default; the weekly
+   * screen turns it off, because it forecasts a whole universe at five
+   * horizons each and does not display the report card.
+   */
+  backtest?: boolean;
+};
+
 export async function buildForecast(
   request: ForecastRequest,
-  opts?: { history?: DailyHistory; asOf?: string },
+  opts?: ForecastOptions,
 ): Promise<ForecastResult> {
   const symbol = request.symbol.toUpperCase();
   const horizonDays = Math.round(
@@ -303,52 +284,27 @@ export async function buildForecast(
   );
   const amount = Math.max(1, request.amount);
 
-  const history = opts?.history ?? (await fetchDailyHistory(symbol, HISTORY_RANGE));
+  const history =
+    opts?.history ?? (await fetchDailyHistory(symbol, HISTORY_RANGE));
   // Under a year of daily closes there is no volatility estimate worth
   // simulating, and a made-up band is worse than no band.
-  if (history.length < 200) throw new NotEnoughHistoryError(symbol);
+  if (history.length < MIN_HISTORY_DAYS) throw new NotEnoughHistoryError(symbol);
 
-  const { closes } = history;
+  const { closes, adjCloses } = history;
   const entryPrice = history.price > 0 ? history.price : closes[closes.length - 1];
-  const returns = logReturns(closes);
-  const yearsOfData = returns.length / TRADING_DAYS_PER_YEAR;
+  // Total return, not price return: dividends are part of what a holder earns,
+  // and leaving them out understates a mature payer's drift by whole points.
+  const returns = logReturns(adjCloses);
 
-  /* --- Volatility ------------------------------------------------- */
-
-  // EWMA carries today's regime; the full-sample deviation stops one quiet
-  // fortnight from convincing the model that risk has gone away. 70/30 keeps
-  // the reactivity without the amnesia.
-  const dailyVol =
-    0.7 * ewmaVolatility(returns) + 0.3 * stdDev(returns);
-  const annualVol = dailyVol * Math.sqrt(TRADING_DAYS_PER_YEAR);
-
-  /* --- Drift ------------------------------------------------------ */
-
-  // Everything from here on is an *arithmetic* annual drift µ, the expected
-  // return before compounding. The mean of log returns estimates µ − σ²/2, so
-  // the variance term is added back here — the simulation subtracts it again
-  // as the Itô correction, and taking it off twice would invent a downward
-  // bias that is not in the data.
-  const measuredDrift =
-    mean(returns) * TRADING_DAYS_PER_YEAR + (annualVol * annualVol) / 2;
-
-  const betaProxy = clamp(
-    annualVol / MARKET_VOLATILITY,
-    MIN_BETA_PROXY,
-    MAX_BETA_PROXY,
-  );
-  const priorDrift = RISK_FREE_RATE + betaProxy * EQUITY_RISK_PREMIUM;
-
-  // Standard error of a mean-return estimate is σ/√T. Over five years and 30%
-  // vol that is ±13 points a year, which is why the raw number cannot be
-  // taken at face value.
-  const standardError = annualVol / Math.sqrt(Math.max(yearsOfData, 0.25));
-  const reliability =
-    PRIOR_DRIFT_SPREAD ** 2 /
-    (PRIOR_DRIFT_SPREAD ** 2 + standardError ** 2 || 1e-9);
-  let drift = priorDrift + reliability * (measuredDrift - priorDrift);
-
-  /* --- Signal tilts ----------------------------------------------- */
+  // A regression beta beats the volatility proxy it replaces, but the index is
+  // a second network call and a forecast is worth more than a perfect beta.
+  let marketReturns: Float64Array | null = null;
+  try {
+    const benchmark = await fetchBenchmarkHistory(HISTORY_RANGE);
+    marketReturns = alignMarketReturns(history, benchmark);
+  } catch {
+    marketReturns = null;
+  }
 
   const tradingDays = Math.max(
     5,
@@ -356,34 +312,13 @@ export async function buildForecast(
   );
   const years = tradingDays / TRADING_DAYS_PER_YEAR;
 
-  // A signal that speaks to the next quarter should not be steering a ten-year
-  // forecast, so each tilt is scaled down by how far past its useful life the
-  // horizon runs.
-  const decay = (usefulDays: number) => Math.min(1, usefulDays / tradingDays);
-
-  const momentum = momentum12m1(closes);
-  const sma200 = sma(closes, 200);
-  const gap200 = sma200 && sma200 > 0 ? entryPrice / sma200 - 1 : null;
-  const rsiValue = rsi(closes, 14);
-  const macdValue = macd(closes);
-
-  let tilt = 0;
-  if (momentum !== null) {
-    tilt += clamp(momentum, -0.6, 0.6) * 0.05 * decay(TRADING_DAYS_PER_YEAR);
-  }
-  if (gap200 !== null) {
-    // Stretched far above its own trend line, a price has historically given
-    // some of that back — so this one leans against the gap, not with it.
-    tilt += -clamp(gap200, -0.5, 0.5) * 0.05 * decay(TRADING_DAYS_PER_YEAR);
-  }
-  if (rsiValue !== null) {
-    tilt += -((rsiValue - 50) / 50) * 0.03 * decay(63);
-  }
-  if (macdValue) {
-    tilt += clamp(macdValue.normalized * 250, -1, 1) * 0.02 * decay(63);
-  }
-
-  drift = clamp(drift + clamp(tilt, -0.08, 0.08), -0.15, 0.35);
+  const fit = fitModel({
+    closes,
+    returns,
+    marketReturns,
+    entryPrice,
+    tradingDays,
+  });
 
   /* --- Simulation -------------------------------------------------- */
 
@@ -391,71 +326,13 @@ export async function buildForecast(
     tradingDays > LONG_HORIZON_TRADING_DAYS
       ? SIMULATIONS_LONG_HORIZON
       : SIMULATIONS_PER_RUN;
-  const halfPaths = paths / 2;
 
-  // Simulation is seeded from the inputs plus the calendar day, so the answer
-  // is stable if the user re-runs it and moves on tomorrow's data.
+  // Seeded from the inputs plus the calendar day, so the answer is stable if
+  // the user re-runs it and moves on tomorrow's data.
   const asOf = opts?.asOf ?? new Date().toISOString().slice(0, 10);
-  const random = makeRandom(seedFrom(`${symbol}|${tradingDays}|${asOf}`));
-
-  const dt = 1 / TRADING_DAYS_PER_YEAR;
-  const sqrtDt = Math.sqrt(dt);
-  // Itô correction: the −σ²/2 term is what keeps the *median* path honest
-  // when returns compound.
-  const gbmStepDrift = (drift - (annualVol * annualVol) / 2) * dt;
-  const gbmStepVol = annualVol * sqrtDt;
-
-  // Historical returns recentred to zero, so the bootstrap contributes the
-  // real *shape* of the distribution while the drift stays the shrunk one.
-  const centred = new Float64Array(returns.length);
-  const historicalMean = mean(returns);
-  // The per-day log drift, ν/252 = (µ − σ²ₐₙₙ/2)/252. Since σ²_daily = σ²ₐₙₙ/252,
-  // halving the daily variance is exactly that correction.
-  const bootstrapDrift = drift / TRADING_DAYS_PER_YEAR - (dailyVol * dailyVol) / 2;
-  for (let index = 0; index < returns.length; index += 1) {
-    centred[index] = returns[index] - historicalMean + bootstrapDrift;
-  }
-  // Stationary bootstrap: block lengths are geometric with a mean of 20
-  // trading days, which is about how long a volatility regime persists.
-  const restartProbability = 1 / 20;
-
-  const terminal = new Float64Array(paths);
-  // Deepest peak-to-trough fall inside each path. Tracked in log space, where
-  // the running peak is just a running maximum and the drawdown is a
-  // subtraction — no exp() per step.
-  const pathDrawdown = new Float64Array(paths);
-
-  for (let path = 0; path < paths; path += 1) {
-    const useGbm = path < halfPaths;
-    let logPrice = Math.log(entryPrice);
-    let logPeak = logPrice;
-    let worstLogDrop = 0;
-    let cursor = Math.floor(random() * returns.length);
-
-    for (let step = 1; step <= tradingDays; step += 1) {
-      if (useGbm) {
-        logPrice += gbmStepDrift + gbmStepVol * studentT(random);
-      } else {
-        if (random() < restartProbability) {
-          cursor = Math.floor(random() * returns.length);
-        } else {
-          cursor = (cursor + 1) % returns.length;
-        }
-        logPrice += centred[cursor];
-      }
-
-      if (logPrice > logPeak) logPeak = logPrice;
-      else if (logPeak - logPrice > worstLogDrop) worstLogDrop = logPeak - logPrice;
-    }
-
-    terminal[path] = Math.exp(logPrice);
-    // exp(−drop) is the trough as a fraction of the peak, so 1 − that is the
-    // fall itself.
-    pathDrawdown[path] = 1 - Math.exp(-worstLogDrop);
-  }
-
-  terminal.sort();
-  pathDrawdown.sort();
+  const seed = seedFrom(`${symbol}|${tradingDays}|${asOf}`);
+  const { logTerminal, drawdown } = simulatePaths(fit, paths, makeRandom(seed));
+  const terminal = toSortedPrices(logTerminal, entryPrice);
 
   const p10 = percentileSorted(terminal, 0.1);
   const p50 = percentileSorted(terminal, 0.5);
@@ -468,23 +345,19 @@ export async function buildForecast(
     percentiles.push(percentileSorted(terminal, index / 100));
   }
 
-  let winners = 0;
-  let total = 0;
-  for (let index = 0; index < paths; index += 1) {
-    if (terminal[index] > entryPrice) winners += 1;
-    total += terminal[index];
-  }
-  const meanPrice = total / paths;
-
-  /* --- Cash comparison ---------------------------------------------- */
-
   // The price the stock would have to reach just to match a savings account,
   // which is the bar the risk actually has to clear.
   const cashPrice = entryPrice * Math.pow(1 + RISK_FREE_RATE, years);
+  let winners = 0;
   let beatCash = 0;
+  let total = 0;
   for (let index = 0; index < paths; index += 1) {
-    if (terminal[index] > cashPrice) beatCash += 1;
+    const price = terminal[index];
+    if (price > entryPrice) winners += 1;
+    if (price > cashPrice) beatCash += 1;
+    total += price;
   }
+  const meanPrice = total / paths;
 
   /* --- Outcome histogram --------------------------------------------- */
 
@@ -512,7 +385,27 @@ export async function buildForecast(
     share: count / paths,
   }));
 
+  /* --- The report card ------------------------------------------------ */
+
+  const calibration =
+    opts?.backtest === false
+      ? null
+      : backtestModel({
+          closes,
+          adjCloses,
+          returns,
+          marketReturns,
+          tradingDays,
+          // A different stream from the headline run, so the two cannot share
+          // a lucky draw.
+          seed: seed ^ 0x9e3779b9,
+        });
+
   const targetDate = new Date(Date.now() + horizonDays * 86_400_000);
+  const sma200 = sma(closes, 200);
+  const gap200 = sma200 && sma200 > 0 ? entryPrice / sma200 - 1 : null;
+  const momentum = momentum12m1(closes);
+  const macdValue = macd(closes);
 
   return {
     symbol,
@@ -536,16 +429,29 @@ export async function buildForecast(
       probabilityOfBeating: (beatCash / paths) * 100,
     },
     journey: {
-      medianDipPercent: percentileSorted(pathDrawdown, 0.5) * 100,
-      roughDipPercent: percentileSorted(pathDrawdown, 0.9) * 100,
+      medianDipPercent: percentileSorted(drawdown, 0.5) * 100,
+      roughDipPercent: percentileSorted(drawdown, 0.9) * 100,
     },
+    calibration,
     simulations: paths,
     historyDays: closes.length,
     methods: FORECAST_METHODS,
     drivers: {
-      annualDriftPercent: drift * 100,
-      annualVolatilityPercent: annualVol * 100,
-      rsi: rsiValue,
+      annualDriftPercent: fit.driftAnnual * 100,
+      driftUncertaintyPercent: fit.driftPosteriorSd * 100,
+      measuredDriftPercent: fit.measuredDriftAnnual * 100,
+      priorDriftPercent: fit.priorDriftAnnual * 100,
+      driftReliabilityPercent: fit.driftReliability * 100,
+      signalTiltPercent: fit.tiltAnnual * 100,
+      annualVolatilityPercent: fit.horizonAnnualVol * 100,
+      spotVolatilityPercent: fit.spotAnnualVol * 100,
+      longRunVolatilityPercent: fit.longRunAnnualVol * 100,
+      beta: fit.beta,
+      betaMeasured: fit.betaMeasured,
+      marketCorrelation: fit.marketCorrelation,
+      returnSkew: skewness(returns),
+      excessKurtosis: excessKurtosis(returns),
+      rsi: rsi(closes, 14),
       macdHistogram: macdValue?.histogram ?? null,
       momentum12m1Percent: momentum === null ? null : momentum * 100,
       gapToSma200Percent: gap200 === null ? null : gap200 * 100,

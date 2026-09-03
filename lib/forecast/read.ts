@@ -7,6 +7,8 @@
  * wording is decided in one place rather than re-improvised in five.
  */
 
+import type { ForecastCalibration } from "@/lib/forecast/backtest";
+
 /** "45 days" / "8 months" / "3.5 years", whichever reads most naturally. */
 export function describeHorizon(days: number): string {
   if (days < 60) return `${Math.round(days)} days`;
@@ -85,4 +87,66 @@ export function describeVerdict(probabilityOfProfit: number): string {
   if (probabilityOfProfit >= 45) return "It's close to a coin flip";
   if (probabilityOfProfit >= 30) return "The odds lean against you";
   return "Most runs end below where you started";
+}
+
+/**
+ * The report card, in a sentence.
+ *
+ * Read from coverage rather than from whether the forecast looked good: a
+ * model whose bands were too narrow is dangerous even when its median was
+ * right, because everything the reader thinks about risk comes from the width.
+ */
+export function describeCalibration(calibration: ForecastCalibration): {
+  label: string;
+  detail: string;
+  /** "good" | "wide" | "narrow", for colour. */
+  tone: "good" | "wide" | "narrow";
+} {
+  const inside = calibration.insideBandPercent;
+  const target = calibration.expectedInsidePercent;
+
+  if (inside >= target + 8) {
+    return {
+      label: "Cautious",
+      tone: "wide",
+      detail:
+        "The real price stayed inside the range more often than the model claimed it would, so this band is wider than it strictly needs to be.",
+    };
+  }
+  if (inside <= target - 8) {
+    return {
+      label: "Understated",
+      tone: "narrow",
+      detail:
+        "The real price broke out of the range more often than the model claimed, so treat the bad end as the optimistic version of bad.",
+    };
+  }
+  return {
+    label: "Well calibrated",
+    tone: "good",
+    detail:
+      "The real price landed inside the range about as often as the model said it would, which is the most you can ask of a forecast.",
+  };
+}
+
+/** "ran 3% ahead of" / "matched" / "fell 5% short of" the middle forecast. */
+export function describeBias(medianBiasPercent: number): string {
+  const size = Math.abs(medianBiasPercent);
+  if (size < 2) return "landed right on the middle forecast";
+  const rounded = size < 10 ? size.toFixed(1) : Math.round(size).toString();
+  return medianBiasPercent > 0
+    ? `ran about ${rounded}% ahead of the middle forecast`
+    : `fell about ${rounded}% short of the middle forecast`;
+}
+
+/**
+ * What a beta means for someone who has never met the word. The cut-offs are
+ * the conventional ones: 1.0 is the market itself, under 0.8 defensive, over
+ * 1.3 amplified.
+ */
+export function describeBeta(beta: number): string {
+  if (beta < 0.8) return "Moves less than the market";
+  if (beta <= 1.2) return "Moves roughly with the market";
+  if (beta <= 1.6) return "Amplifies the market";
+  return "Strongly amplifies the market";
 }

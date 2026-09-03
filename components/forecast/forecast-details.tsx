@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/table";
 import { Explain, GLOSSARY } from "@/components/forecast/explain";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
+import { describeBeta } from "@/lib/forecast/read";
 import { TRADING_DAYS_PER_YEAR } from "@/lib/forecast/indicators";
 import { cn } from "@/lib/utils";
-import type { ForecastResult } from "@/lib/forecast/engine";
+import { HISTORY_YEARS, type ForecastResult } from "@/lib/forecast/engine";
 
 /** The rungs of the ladder worth printing. Symmetric around the median. */
 const LADDER = [
@@ -88,7 +89,8 @@ export function ForecastDetails({ forecast }: { forecast: ForecastResult }) {
         <span>
           <span className="text-sm font-semibold">Show the full workings</span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
-            Every percentile, the eight measured inputs, and the {forecast.methods.length}{" "}
+            Every percentile, how the expected return was reached, sixteen
+            measured inputs, and the {forecast.methods.length}{" "}
             named methods behind them.
           </span>
         </span>
@@ -194,27 +196,75 @@ export function ForecastDetails({ forecast }: { forecast: ForecastResult }) {
             </p>
           </div>
 
+          {/* ---- How the expected return was arrived at ------------------ */}
+          <div className="rounded-xl border border-border bg-muted/40 p-4">
+            <p className="text-sm font-medium">
+              Where the{" "}
+              <Explain text={GLOSSARY.drift}>expected return</Explain> came from
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Its own{" "}
+              <Explain text={GLOSSARY.totalReturn}>total return</Explain> over
+              the sample worked out at{" "}
+              <span className="num text-foreground">
+                {signed(drivers.measuredDriftPercent)}%
+              </span>{" "}
+              a year — but a single stock&rsquo;s track record is mostly luck,
+              so it is pulled toward{" "}
+              <span className="num text-foreground">
+                {signed(drivers.priorDriftPercent)}%
+              </span>
+              , the return its{" "}
+              <Explain text={GLOSSARY.beta}>market exposure</Explain> alone
+              would earn. Its own history kept{" "}
+              <span className="num text-foreground">
+                {number(drivers.driftReliabilityPercent, 0)}%
+              </span>{" "}
+              of the weight. The four signals below then moved it{" "}
+              <span className="num text-foreground">
+                {signed(drivers.signalTiltPercent, 2)}%
+              </span>
+              , landing at{" "}
+              <span className="num text-foreground">
+                {signed(drivers.annualDriftPercent)}%
+              </span>{" "}
+              — give or take{" "}
+              <span className="num text-foreground">
+                {number(drivers.driftUncertaintyPercent, 1)}%
+              </span>
+              , which every run{" "}
+              <Explain text={GLOSSARY.driftUncertainty}>draws for itself</Explain>{" "}
+              rather than pretending away.
+            </p>
+          </div>
+
           {/* ---- Measured inputs ---------------------------------------- */}
           <div>
             <p className="text-sm font-medium">What the numbers were built on</p>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+
+            <p className="mt-3 text-xs font-medium text-muted-foreground">
+              Return and market exposure
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Driver
                 label="Expected return"
                 value={`${signed(drivers.annualDriftPercent)}% / yr`}
-                hint="Risk-adjusted, shrunk"
+                hint={`± ${number(drivers.driftUncertaintyPercent, 1)}% either way`}
                 explain={GLOSSARY.drift}
               />
               <Driver
-                label="Volatility"
-                value={`${number(drivers.annualVolatilityPercent, 1)}% / yr`}
-                hint="EWMA-weighted"
-                explain={GLOSSARY.volatility}
-              />
-              <Driver
-                label="RSI (14)"
-                value={drivers.rsi === null ? "—" : number(drivers.rsi, 0)}
-                hint={rsiHint}
-                explain={GLOSSARY.rsi}
+                label="Beta to the S&P 500"
+                value={number(drivers.beta, 2)}
+                hint={
+                  drivers.betaMeasured
+                    ? `${describeBeta(drivers.beta)} · r ${
+                        drivers.marketCorrelation === null
+                          ? "—"
+                          : number(drivers.marketCorrelation, 2)
+                      }`
+                    : "Estimated from volatility"
+                }
+                explain={GLOSSARY.beta}
               />
               <Driver
                 label="Momentum 12−1"
@@ -227,6 +277,36 @@ export function ForecastDetails({ forecast }: { forecast: ForecastResult }) {
                 explain={GLOSSARY.momentum}
               />
               <Driver
+                label="Signal tilt"
+                value={`${signed(drivers.signalTiltPercent, 2)}% / yr`}
+                hint="All four signals, netted"
+                explain={GLOSSARY.drift}
+              />
+            </div>
+
+            <p className="mt-4 text-xs font-medium text-muted-foreground">
+              Volatility, and where it is heading
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Driver
+                label="Over this horizon"
+                value={`${number(drivers.annualVolatilityPercent, 1)}% / yr`}
+                hint="What the bands were drawn with"
+                explain={GLOSSARY.volatility}
+              />
+              <Driver
+                label="Right now"
+                value={`${number(drivers.spotVolatilityPercent, 1)}% / yr`}
+                hint="EWMA, λ = 0.94"
+                explain={GLOSSARY.volatility}
+              />
+              <Driver
+                label="Long-run level"
+                value={`${number(drivers.longRunVolatilityPercent, 1)}% / yr`}
+                hint="What it reverts to"
+                explain={GLOSSARY.volatilityTermStructure}
+              />
+              <Driver
                 label="Vs 200-day avg"
                 value={
                   drivers.gapToSma200Percent === null
@@ -236,16 +316,12 @@ export function ForecastDetails({ forecast }: { forecast: ForecastResult }) {
                 hint="Trend anchor"
                 explain={GLOSSARY.sma200}
               />
-              <Driver
-                label="MACD histogram"
-                value={
-                  drivers.macdHistogram === null
-                    ? "—"
-                    : number(drivers.macdHistogram, 2)
-                }
-                hint="12 / 26 / 9"
-                explain={GLOSSARY.macd}
-              />
+            </div>
+
+            <p className="mt-4 text-xs font-medium text-muted-foreground">
+              The shape of the risk
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Driver
                 label="Daily VaR 95%"
                 value={`−${number(drivers.dailyVaR95Percent, 2)}%`}
@@ -259,6 +335,38 @@ export function ForecastDetails({ forecast }: { forecast: ForecastResult }) {
                 explain={GLOSSARY.expectedShortfall}
               />
               <Driver
+                label="Skew"
+                value={signed(drivers.returnSkew, 2)}
+                hint={
+                  drivers.returnSkew < 0
+                    ? "Falls come faster than rises"
+                    : "Rises come faster than falls"
+                }
+                explain={GLOSSARY.skew}
+              />
+              <Driver
+                label="Excess kurtosis"
+                value={number(drivers.excessKurtosis, 1)}
+                hint="0 would be a bell curve"
+                explain={GLOSSARY.fatTails}
+              />
+              <Driver
+                label="RSI (14)"
+                value={drivers.rsi === null ? "—" : number(drivers.rsi, 0)}
+                hint={rsiHint}
+                explain={GLOSSARY.rsi}
+              />
+              <Driver
+                label="MACD histogram"
+                value={
+                  drivers.macdHistogram === null
+                    ? "—"
+                    : number(drivers.macdHistogram, 2)
+                }
+                hint="12 / 26 / 9"
+                explain={GLOSSARY.macd}
+              />
+              <Driver
                 label="Typical dip in a run"
                 value={`−${number(forecast.journey.medianDipPercent, 1)}%`}
                 hint={`Rough run: −${number(forecast.journey.roughDipPercent, 1)}%`}
@@ -267,7 +375,7 @@ export function ForecastDetails({ forecast }: { forecast: ForecastResult }) {
               <Driver
                 label="Deepest real fall"
                 value={`−${number(drivers.maxDrawdownPercent, 1)}%`}
-                hint="Last five years, actual"
+                hint={`Last ${HISTORY_YEARS} years, actual`}
                 explain={GLOSSARY.drawdown}
               />
             </div>

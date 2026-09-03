@@ -147,4 +147,16 @@ export const GLOSSARY = {
     "The same total return restated as a per-year rate, so a 3-month result and a 5-year one can be compared.",
   riskFree:
     "What cash earns sitting safely in a savings account or short government bond.",
+  calibration:
+    "A forecast that says '1 run in 10 ends below this' should be wrong about it 1 time in 10. Checking that against what really happened is what calibration means.",
+  beta: "How hard this stock swings when the whole market moves. 1.0 is exactly with the market, 0.5 is half as hard, 2.0 twice as hard.",
+  driftUncertainty:
+    "Nobody can measure a stock's true expected return exactly, so the simulation runs a spread of plausible ones rather than betting the whole forecast on a single guess.",
+  volatilityTermStructure:
+    "Calm spells and panics both fade. Today's level of turbulence steers the next few weeks; the further out you look, the more the stock's own long-run average takes over.",
+  skew: "Whether the sharp moves tend to be falls or rises. Most stocks fall faster than they rise, which shows up as a negative number.",
+  fatTails:
+    "How much more often huge days happen than a textbook bell curve allows. Zero would be the bell curve; real stocks run far above it.",
+  totalReturn:
+    "Price change plus dividends. Leaving the dividends out would understate what holding the stock actually paid you.",
 } as const;

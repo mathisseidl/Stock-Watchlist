@@ -8,22 +8,30 @@ import { Card } from "@/components/ui/card";
  * How long the analysis is given before its answer is shown.
  *
  * The simulation itself finishes in a couple of seconds, but the work either
- * side of it — five years of daily history, volatility and drift estimation,
- * four signal readings, then tens of thousands of paths through two different
- * models — is genuinely a lot, and showing each stage as it happens is what
- * makes the result legible rather than magic. The wait is capped well under
- * twenty seconds so it still feels like an answer, not a queue.
+ * side of it — a decade of daily history, a beta regression, volatility and
+ * drift estimation, four signal readings, tens of thousands of paths through
+ * two different models, and then a walk-forward backtest of the result — is
+ * genuinely a lot, and showing each stage as it happens is what makes the
+ * result legible rather than magic. The wait is capped well under twenty
+ * seconds so it still feels like an answer, not a queue.
  */
 export const THINK_MS = 18_000;
 
 const STAGES: { at: number; text: string }[] = [
-  { at: 0, text: "Pulling five years of daily closing prices…" },
-  { at: 2_200, text: "Measuring volatility with EWMA weighting (λ = 0.94)…" },
-  { at: 4_600, text: "Estimating drift and shrinking it toward the equity risk premium…" },
-  { at: 7_000, text: "Reading 12−1 momentum, the 200-day average, RSI and MACD…" },
-  { at: 9_400, text: "Running Monte Carlo paths over Geometric Brownian Motion…" },
-  { at: 12_200, text: "Bootstrapping real historical return sequences in blocks…" },
-  { at: 14_600, text: "Scoring the tails — Value at Risk and expected shortfall…" },
+  { at: 0, text: "Pulling ten years of daily closes, dividends counted in…" },
+  { at: 2_000, text: "Measuring volatility with EWMA weighting (λ = 0.94)…" },
+  { at: 4_000, text: "Projecting how that volatility reverts over your horizon…" },
+  { at: 6_000, text: "Regressing against the S&P 500 for this stock's beta…" },
+  { at: 8_000, text: "Shrinking the drift toward its risk-adjusted prior…" },
+  { at: 10_000, text: "Reading 12−1 momentum, the 200-day average, RSI and MACD…" },
+  {
+    at: 12_000,
+    text: "Running Monte Carlo paths — half Brownian, half block bootstrap…",
+  },
+  {
+    at: 14_400,
+    text: "Backtesting the model's own bands against real history…",
+  },
   { at: 16_600, text: "Receiving the best prediction…" },
 ];
 

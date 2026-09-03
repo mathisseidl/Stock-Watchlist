@@ -4,12 +4,13 @@ import { Activity, Landmark, Target } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ForecastDistribution } from "@/components/forecast/forecast-distribution";
 import { ForecastDetails } from "@/components/forecast/forecast-details";
+import { ForecastCalibrationCard } from "@/components/forecast/forecast-calibration";
 import { PriceHistory } from "@/components/stock/price-history";
 import { Explain, GLOSSARY } from "@/components/forecast/explain";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { describeHorizon, describeRisk, describeVerdict, oddsPhrase } from "@/lib/forecast/read";
 import { cn } from "@/lib/utils";
-import type { ForecastResult } from "@/lib/forecast/engine";
+import { HISTORY_YEARS, type ForecastResult } from "@/lib/forecast/engine";
 
 /** Past about eighteen months a total return stops being intuitive on its own. */
 const LONG_HORIZON_DAYS = 550;
@@ -221,7 +222,12 @@ export function ForecastResultView({
         <p className="rounded-xl bg-muted/50 p-4 text-sm leading-relaxed text-muted-foreground">
           We played the next {horizon} out{" "}
           <span className="font-medium text-foreground">{runs} times</span>,
-          using how {forecast.name} has actually moved over the last five years.
+          using how {forecast.name} has actually moved across{" "}
+          <span className="num font-medium text-foreground">
+            {forecast.historyDays.toLocaleString()}
+          </span>{" "}
+          real trading days — up to {HISTORY_YEARS} years of daily closes, with
+          dividends counted in.
         </p>
 
         <div>
@@ -305,7 +311,16 @@ export function ForecastResultView({
         <ForecastDistribution forecast={forecast} />
       </Card>
 
-      {/* ---- 3. Where it has actually been ----------------------------- */}
+      {/* ---- 3. Whether to believe any of it ---------------------------- */}
+      {forecast.calibration && (
+        <ForecastCalibrationCard
+          calibration={forecast.calibration}
+          name={forecast.name}
+          horizonDays={forecast.horizonDays}
+        />
+      )}
+
+      {/* ---- 4. Where it has actually been ----------------------------- */}
       <Card className="gap-4 p-6">
         <div>
           <h3 className="text-base font-semibold">{forecast.name} up to now</h3>
@@ -317,7 +332,7 @@ export function ForecastResultView({
         <PriceHistory symbol={forecast.symbol} />
       </Card>
 
-      {/* ---- 4. The workings -------------------------------------------- */}
+      {/* ---- 5. The workings -------------------------------------------- */}
       <ForecastDetails forecast={forecast} />
     </div>
   );

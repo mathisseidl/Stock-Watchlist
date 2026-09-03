@@ -1,5 +1,6 @@
 import {
   buildForecast,
+  HISTORY_RANGE,
   NotEnoughHistoryError,
   SIMULATIONS_PER_RUN,
   type ForecastResult,
@@ -42,7 +43,7 @@ async function forecastAllHorizons(
   asOf: string,
 ): Promise<RankEntry> {
   try {
-    const history = await fetchDailyHistory(ticker.symbol, "5y");
+    const history = await fetchDailyHistory(ticker.symbol, HISTORY_RANGE);
     if (history.length < 200) {
       return { ticker, error: "under a year of price history" };
     }
@@ -57,7 +58,10 @@ async function forecastAllHorizons(
             amount: SCORING_AMOUNT,
             horizonDays,
           },
-          { history, asOf },
+          // The screen ranks on the bands, not on the report card, and a
+          // walk-forward backtest per ticker per horizon would multiply the
+          // weekly run by an order of magnitude for something never shown.
+          { history, asOf, backtest: false },
         ),
       );
     }
