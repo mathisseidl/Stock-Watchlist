@@ -33,6 +33,9 @@ export function useProStatus() {
       return { ...data, isGuest: false };
     },
     staleTime: 60_000,
+    // Belt and braces with the cache wipe in useAuthActions: even if a stale
+    // entry survives a session change, mounting under the new cookie revalidates.
+    refetchOnMount: "always",
     // Settle fast: callers block their UI until this resolves, and the default
     // three retries would hold a Pro user on a spinner for seconds.
     retry: 1,

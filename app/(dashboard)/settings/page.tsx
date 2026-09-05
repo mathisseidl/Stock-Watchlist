@@ -19,9 +19,10 @@ import {
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { signOut } from "@/lib/actions/auth";
+import { useAuthActions } from "@/hooks/use-auth-actions";
 
 export default function SettingsPage() {
+  const { signOut } = useAuthActions();
   const [supabase] = useState(() => createClient());
   const [email, setEmail] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);

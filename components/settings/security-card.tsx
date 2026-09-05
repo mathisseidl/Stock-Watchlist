@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
-import { signOut } from "@/lib/actions/auth";
+import { useAuthActions } from "@/hooks/use-auth-actions";
 
 type Status = { kind: "ok" | "error"; message: string } | null;
 
 export function SecurityCard({ email }: { email: string | null }) {
+  const { signOut } = useAuthActions();
   const [supabase] = useState(() => createClient());
 
   const [password, setPassword] = useState("");

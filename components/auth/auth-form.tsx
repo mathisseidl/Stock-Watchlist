@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { signIn } from "@/lib/actions/auth";
+import { useAuthActions } from "@/hooks/use-auth-actions";
 import { containsProfanity } from "@/lib/profanity";
 
 export function AuthForm({
@@ -15,6 +15,7 @@ export function AuthForm({
   mode: "login" | "signup";
   subtitle?: string;
 }) {
+  const { signIn } = useAuthActions();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
