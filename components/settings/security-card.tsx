@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
+import { signOut } from "@/lib/actions/auth";
 
 type Status = { kind: "ok" | "error"; message: string } | null;
 
 export function SecurityCard({ email }: { email: string | null }) {
-  const router = useRouter();
   const [supabase] = useState(() => createClient());
 
   const [password, setPassword] = useState("");
@@ -98,8 +97,9 @@ export function SecurityCard({ email }: { email: string | null }) {
         });
         return;
       }
-      router.push("/my-stock");
-      router.refresh();
+      // The API route already cleared the session; redirecting from the
+      // server means no cached view of the deleted account survives.
+      await signOut();
     } catch {
       setDeleteStatus({
         kind: "error",

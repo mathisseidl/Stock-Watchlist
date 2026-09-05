@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
+import { signIn } from "@/lib/actions/auth";
 import { containsProfanity } from "@/lib/profanity";
 
 export function AuthForm({
@@ -16,8 +15,6 @@ export function AuthForm({
   mode: "login" | "signup";
   subtitle?: string;
 }) {
-  const router = useRouter();
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -47,16 +44,15 @@ export function AuthForm({
         }
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      // New sign-ups land on Account to pick Free vs. the paid plan; returning
+      // sign-ins go straight into the app. Signing in on the server ships the
+      // redirect together with the new session instead of racing it.
+      const result = await signIn(
         email,
         password,
-      });
-      if (signInError) throw new Error(signInError.message);
-
-      // New sign-ups land on Account to pick Free vs. the paid plan; returning
-      // sign-ins go straight into the app.
-      router.push(isSignup ? "/account" : "/my-stock");
-      router.refresh();
+        isSignup ? "/account" : "/my-stock",
+      );
+      if (result?.error) throw new Error(result.error);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setLoading(false);

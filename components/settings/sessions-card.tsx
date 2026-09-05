@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Monitor, Smartphone, Tablet } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
+import { signOut } from "@/lib/actions/auth";
 
 type SessionRow = {
   id: string;
@@ -69,7 +69,6 @@ function when(value: string | null) {
 }
 
 export function SessionsCard() {
-  const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [sessions, setSessions] = useState<SessionRow[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -94,9 +93,7 @@ export function SessionsCard() {
 
   async function signOutEverywhere() {
     setSigningOut(true);
-    await supabase.auth.signOut({ scope: "global" });
-    router.push("/my-stock");
-    router.refresh();
+    await signOut("global");
   }
 
   return (
