@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeColorMeta } from "@/components/theme-color-meta";
 import { QueryProvider } from "@/components/query-provider";
 import "./globals.css";
 
@@ -17,6 +18,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "MATMAX Stock",
   description: "Track your stock portfolio, watchlist, and market news.",
+};
+
+// Without this iOS Safari paints the status bar and toolbar its own grey.
+// ThemeColorMeta keeps it in step once the theme is known on the client.
+export const viewport: Viewport = {
+  themeColor: "#f9fafb",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -36,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           enableSystem={false}
           disableTransitionOnChange
         >
+          <ThemeColorMeta />
           <QueryProvider>{children}</QueryProvider>
         </ThemeProvider>
       </body>
