@@ -57,7 +57,7 @@ export function StockSearch() {
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
-        placeholder="Search stocks (e.g. AAPL)"
+        placeholder="Search stocks"
         className="pl-9"
       />
 
