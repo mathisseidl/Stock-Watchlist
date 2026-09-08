@@ -72,15 +72,19 @@ export type CandleSeries = {
  * providers normalise onto ("Common Stock" is the string Finnhub used, and the
  * app kept it).
  *
- * The list is bounded by what the app can actually price: Finnhub serves
- * quotes for US-listed shares and ETFs, and refuses indices ("Market data
- * subscription required for CFD indices") and mutual funds ("You don't have
- * access to this resource"). Letting either through would give the reader a
- * search hit that opens a detail page with no price on it, so index funds are
- * reached through their ETF share class (SPY, QQQ, DIA) instead of the raw
- * index ticker.
+ * The list is bounded by what the app can actually price. Finnhub covers
+ * US-listed shares and ETFs, but answers an index with "Market data
+ * subscription required for CFD indices" — and does so with HTTP 200 and an
+ * error body, so nothing throws and the page would simply show no price.
+ * Indices are still listed here because Yahoo prices them for free: see
+ * `isIndexSymbol`, which routes them there instead. Mutual funds stay out —
+ * neither provider quotes them.
  */
-export const SEARCHABLE_SYMBOL_TYPES = new Set(["Common Stock", "ETF"]);
+export const SEARCHABLE_SYMBOL_TYPES = new Set([
+  "Common Stock",
+  "ETF",
+  "Index",
+]);
 
 export type SymbolSearchResult = {
   symbol: string;

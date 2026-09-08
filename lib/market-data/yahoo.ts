@@ -2,6 +2,7 @@ import { usdConversion } from "./fx";
 import type {
   CandleRange,
   CandleSeries,
+  Quote,
   RangeStats,
   SymbolSearchResult,
   TradingSession,
@@ -314,6 +315,32 @@ export class YahooProvider {
     };
   }
 
+  /**
+   * A quote for the listings Finnhub will not price — the raw indices.
+   *
+   * Built from the day chart rather than a second endpoint, because that
+   * response already carries every field a quote needs: the live price and
+   * previous close from its meta block, and the day's own open/high/low from
+   * `readStats`. An index that has not traded yet today has no candles, so
+   * each figure falls back to the price rather than reporting a zero.
+   */
+  async getQuote(symbol: string): Promise<Quote> {
+    const series = await this.getCandles(symbol, "1D");
+    const { price, previousClose, stats } = series;
+    const change = previousClose ? price - previousClose : 0;
+
+    return {
+      symbol,
+      currentPrice: price,
+      change,
+      changePercent: previousClose ? (change / previousClose) * 100 : 0,
+      previousClose,
+      high: stats?.high ?? price,
+      low: stats?.low ?? price,
+      open: stats?.open ?? price,
+    };
+  }
+
   async searchSymbols(query: string): Promise<SymbolSearchResult[]> {
     const url =
       `${SEARCH_URL}?q=${encodeURIComponent(query)}` +
@@ -373,13 +400,17 @@ export class YahooProvider {
 
 /**
  * Yahoo's `quoteType` values worth showing, translated into the app's own
- * vocabulary. Everything else Yahoo returns for an index name — futures,
- * indices, currencies, crypto, mutual funds — is dropped, because Finnhub
- * quotes none of it; see `SEARCHABLE_SYMBOL_TYPES`.
+ * vocabulary. Everything else it returns for an index name — futures,
+ * currencies, crypto, mutual funds — is dropped, because nothing here quotes
+ * them; see `SEARCHABLE_SYMBOL_TYPES`.
+ *
+ * `INDEX` earns its place because Yahoo prices the indices itself, which is
+ * where `getQuote` above sends them.
  */
 const QUOTE_TYPES: Record<string, string> = {
   EQUITY: "Common Stock",
   ETF: "ETF",
+  INDEX: "Index",
 };
 
 /**
@@ -389,6 +420,9 @@ const QUOTE_TYPES: Record<string, string> = {
 const US_VENUES = new Set([
   "NYQ", "NMS", "NGM", "NCM", "NAS", "ASE", "PCX", "BTS", "PSE", "YHD",
   "PNK", "OTC", "OQB", "OQX", "OID", "OEM",
+  // The US index publishers. Not venues that trade anything, but they quote
+  // in USD and a US reader means them, so they rank with the domestic lines.
+  "DJI", "NIM", "SNP", "WCB",
 ]);
 
 function isUsVenue(exchange: string | undefined): boolean {

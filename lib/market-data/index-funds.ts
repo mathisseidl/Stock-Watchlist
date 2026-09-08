@@ -9,23 +9,30 @@ import type { SymbolSearchResult } from "./types";
  * futures — none of which this app can price. So the well-known index names
  * are answered from this table instead, and the provider's own hits follow it.
  *
- * The raw index tickers (^GSPC, ^IXIC, ^DJI) are deliberately absent; see
- * `SEARCHABLE_SYMBOL_TYPES` for why. Each index is represented by the ETFs
- * that track it, largest first.
+ * Each family leads with the index itself where one can be priced — Yahoo
+ * quotes ^DJI, ^IXIC and ^GSPC for free, and `isIndexSymbol` routes them
+ * there — followed by the ETFs that track it, largest first. Both are worth
+ * listing: the index is the number quoted in the news, while the ETF is the
+ * thing a reader can actually buy.
  */
+type Listing = { symbol: string; description: string };
+
 type IndexFamily = {
   /**
    * Matched as prefixes against the reader's query, so "s&p", "S & P 5" and
-   * "sp500" all reach the same three funds while "dowdupont" reaches none of
+   * "sp500" all reach the same family while "dowdupont" reaches none of
    * them. Written in normalised form — lower case, letters and digits only.
    */
   keywords: string[];
-  funds: { symbol: string; description: string }[];
+  /** The index itself, when a provider prices it. Listed ahead of the funds. */
+  indices?: Listing[];
+  funds: Listing[];
 };
 
 const INDEX_FAMILIES: IndexFamily[] = [
   {
     keywords: ["sp500", "spx", "standardandpoors500"],
+    indices: [{ symbol: "^GSPC", description: "S&P 500 Index" }],
     funds: [
       { symbol: "SPY", description: "SPDR S&P 500 ETF Trust" },
       { symbol: "VOO", description: "Vanguard S&P 500 ETF" },
@@ -34,6 +41,10 @@ const INDEX_FAMILIES: IndexFamily[] = [
   },
   {
     keywords: ["nasdaq", "nasdaq100", "ndx"],
+    indices: [
+      { symbol: "^IXIC", description: "NASDAQ Composite Index" },
+      { symbol: "^NDX", description: "NASDAQ-100 Index" },
+    ],
     funds: [
       { symbol: "QQQ", description: "Invesco QQQ Trust (Nasdaq-100)" },
       { symbol: "QQQM", description: "Invesco Nasdaq-100 ETF" },
@@ -41,6 +52,9 @@ const INDEX_FAMILIES: IndexFamily[] = [
   },
   {
     keywords: ["dow", "dowjones", "djia", "dowjonesindustrialaverage"],
+    indices: [
+      { symbol: "^DJI", description: "Dow Jones Industrial Average" },
+    ],
     funds: [
       { symbol: "DIA", description: "SPDR Dow Jones Industrial Average ETF" },
     ],
@@ -54,6 +68,7 @@ const INDEX_FAMILIES: IndexFamily[] = [
   },
   {
     keywords: ["russell2000", "russell", "smallcap"],
+    indices: [{ symbol: "^RUT", description: "Russell 2000 Index" }],
     funds: [{ symbol: "IWM", description: "iShares Russell 2000 ETF" }],
   },
   {
@@ -95,14 +110,43 @@ export function matchIndexFunds(query: string): SymbolSearchResult[] {
 
   return INDEX_FAMILIES.filter((family) =>
     family.keywords.some((keyword) => keyword.startsWith(term)),
-  ).flatMap((family) =>
-    family.funds.map((fund) => ({
+  ).flatMap((family) => [
+    ...(family.indices ?? []).map((index) => ({
+      ...index,
+      type: "Index",
+      exchange: "Index",
+      us: true,
+    })),
+    ...family.funds.map((fund) => ({
       ...fund,
       type: "ETF",
       exchange: "NYSE Arca",
       us: true,
     })),
-  );
+  ]);
+}
+
+/**
+ * True for the raw index tickers, which Yahoo prices and Finnhub does not.
+ * Yahoo spells every one of them with a leading caret.
+ */
+export function isIndexSymbol(symbol: string): boolean {
+  return symbol.startsWith("^");
+}
+
+/**
+ * The proper name of an index, for the detail page's heading. Finnhub's
+ * profile endpoint answers an index with `{}`, which would leave the page
+ * titled "^DJI" rather than "Dow Jones Industrial Average".
+ */
+export function indexName(symbol: string): string | null {
+  const upper = symbol.toUpperCase();
+  for (const family of INDEX_FAMILIES) {
+    for (const index of family.indices ?? []) {
+      if (index.symbol === upper) return index.description;
+    }
+  }
+  return null;
 }
 
 /**

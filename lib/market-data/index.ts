@@ -1,5 +1,5 @@
 import { FinnhubProvider } from "./finnhub";
-import { withIndexFunds } from "./index-funds";
+import { indexName, isIndexSymbol, withIndexFunds } from "./index-funds";
 import { YahooProvider } from "./yahoo";
 import type { MarketDataProvider } from "./types";
 
@@ -24,7 +24,14 @@ export function getMarketDataProvider(): MarketDataProvider {
       const finnhub = new FinnhubProvider(apiKey);
       const yahoo = new YahooProvider();
       cachedProvider = {
-        getQuote: (symbol) => finnhub.getQuote(symbol),
+        // Finnhub answers an index with "Market data subscription required
+        // for CFD indices" — and answers it with HTTP 200, so nothing throws
+        // and the page would just render an empty price. Yahoo quotes the
+        // indices for free, so they go there instead.
+        getQuote: (symbol) =>
+          isIndexSymbol(symbol)
+            ? yahoo.getQuote(symbol)
+            : finnhub.getQuote(symbol),
         getCandles: (symbol, range) => yahoo.getCandles(symbol, range),
         // Yahoo's search reaches the US-listed ADRs of foreign companies
         // (SIEGY, BMWKY, …) that Finnhub's free tier leaves out and that a US
@@ -45,7 +52,23 @@ export function getMarketDataProvider(): MarketDataProvider {
           }
         },
         getNews: (symbol, companyName) => finnhub.getNews(symbol, companyName),
-        getProfile: (symbol) => finnhub.getProfile(symbol),
+        // An index has no company behind it, and Finnhub returns `{}` for one,
+        // which would leave the detail page headed "^DJI". The name comes from
+        // our own table instead; there is no logo or industry to fill in.
+        getProfile: (symbol) => {
+          const name = indexName(symbol);
+          if (name) {
+            return Promise.resolve({
+              symbol,
+              name,
+              logo: "",
+              exchange: "Index",
+              industry: "",
+              weburl: "",
+            });
+          }
+          return finnhub.getProfile(symbol);
+        },
       };
       return cachedProvider;
     }
