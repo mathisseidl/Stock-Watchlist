@@ -11,15 +11,16 @@ import type { CandleRange } from "@/lib/market-data/types";
  */
 
 /**
- * Ranges a news feed can honestly account for.
+ * The month, and only the month.
  *
- * Beyond six months the answer is not in the headlines: a five-year move is
- * the sum of earnings, rates and sentiment over hundreds of stories, and
- * Finnhub's window does not reach back that far anyway. Offering an
- * explanation there would mean dressing up two months of news as the cause
- * of five years, so those ranges get no answer at all.
+ * A month is the window where recent news genuinely explains the move: long
+ * enough that a story has had time to land, short enough that the headlines
+ * still reach across all of it. A day is usually one headline or none, and
+ * anything past six months is the sum of too much for one reason — so the
+ * feature is offered on the monthly view alone rather than answering badly
+ * everywhere else.
  */
-const EXPLAINABLE: ReadonlySet<string> = new Set(["1D", "1W", "1M", "6M"]);
+const EXPLAINABLE: ReadonlySet<string> = new Set(["1M"]);
 
 const cachedExplanation = unstable_cache(
   async (symbol: string, range: CandleRange) => {
@@ -66,8 +67,7 @@ export async function GET(
   if (!EXPLAINABLE.has(range)) {
     return NextResponse.json(
       {
-        error:
-          "Over a window this long the move is the sum of too many things for one reason to explain it.",
+        error: "This is only offered on the monthly view.",
         unsupported: true,
       },
       { status: 404 },
@@ -77,13 +77,13 @@ export async function GET(
   try {
     const explanation = await cachedExplanation(ticker, range);
 
+    // The explanation is written to always say something, so nothing back
+    // means it could not be produced at all — no model key configured, or the
+    // call failed. That is an outage, not a verdict on the month's news.
     if (!explanation) {
       return NextResponse.json(
-        {
-          error: `No single story accounts for how ${ticker} moved — the news from this period doesn't explain it.`,
-          empty: true,
-        },
-        { status: 404 },
+        { error: `Couldn't work out why ${ticker} moved right now.` },
+        { status: 502 },
       );
     }
 

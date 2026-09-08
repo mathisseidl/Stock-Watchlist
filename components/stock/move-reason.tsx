@@ -21,13 +21,13 @@ const HEADING: Record<Explanation["direction"], string> = {
 };
 
 /**
- * The main reason the price moved over the window the chart is showing.
+ * Why the price moved over the past month, read off that month's news.
  *
- * Follows the selected range rather than always describing a month, so the
- * sentence and the line on screen always talk about the same period. Renders
- * nothing at all when there is no honest answer — a quiet month with no news
- * behind it, or a window too long for headlines to explain — because an empty
- * panel reads better than a made-up cause.
+ * Shown on the monthly view alone, so it never appears next to a chart whose
+ * window it is not describing. The answer itself always says something — a
+ * quiet month gets "no single event drove this, and here is what the news was
+ * about" — so the only silence left is a genuine outage, which is not worth a
+ * panel of its own.
  */
 export function MoveReason({
   symbol,
@@ -36,6 +36,9 @@ export function MoveReason({
   symbol: string;
   range: CandleRange;
 }) {
+  // The month is the only window this is offered on; see the API route.
+  const enabled = range === "1M";
+
   const { data, isLoading, error } = useQuery<Explanation>({
     queryKey: ["why", symbol, range],
     queryFn: async () => {
@@ -51,8 +54,11 @@ export function MoveReason({
     // The server caches the explanation for an hour; there is no point asking
     // again inside that window.
     staleTime: 60 * 60 * 1000,
+    enabled,
     retry: false,
   });
+
+  if (!enabled) return null;
 
   if (isLoading) {
     return (
@@ -66,7 +72,8 @@ export function MoveReason({
     );
   }
 
-  // No answer is a normal outcome, not a failure worth shouting about.
+  // The answer is written to always say something, so reaching here means the
+  // request itself failed. Nothing useful to show, and not the reader's problem.
   if (error || !data) return null;
 
   const Icon =

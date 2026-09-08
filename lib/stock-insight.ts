@@ -8,11 +8,15 @@ import type { CandleRange, NewsItem, RangeStats } from "./market-data/types";
  *
  * Both are free to every reader, so both are written to be cheap: `effort:
  * "low"`, a tight token ceiling, and routes that cache the answer rather than
- * asking again per view. Neither is allowed to invent — the description is
- * bounded by what the provider already knows about the company, and the
- * explanation may only cite the headlines it is handed. When there is nothing
- * to ground an answer in, both return null and the page simply omits the
- * feature rather than guessing.
+ * asking again per view. Neither may invent — the description is bounded by
+ * what the provider already knows about the company, and the explanation may
+ * only cite the headlines it is handed.
+ *
+ * They differ in what they do when the evidence is thin. The description
+ * would rather say nothing than misdescribe a company, so it returns null and
+ * the button reports it. The explanation always answers: a reader who asks
+ * why a stock moved wants the reading done, so a quiet month gets "no single
+ * event drove this, and here is what the news was about" rather than silence.
  */
 
 /** How each range reads in a sentence, so the model names the right window. */
@@ -105,15 +109,16 @@ export async function describeCompany(input: {
   }
 }
 
-const WHY_PROMPT = `You explain, in plain English, the main reason a stock moved over a period.
+const WHY_PROMPT = `You explain, in plain English, why a stock moved over a period.
 
-You are given the size of the move and the headlines published during that period.
+You are given the size of the move and the headlines published during that period. Always give the reader an answer — they asked you to do the reading for them, so never refuse and never reply with a placeholder.
 
 Rules:
-- Name the single biggest driver. Two sentences at most, under 45 words.
+- Lead with the single biggest driver you can actually see in the headlines. Two to three sentences, under 60 words.
 - Ground every claim in the supplied headlines. Never introduce an event, number, date or name that is not in them.
-- The headlines are the only evidence you have. If none of them plausibly accounts for a move of this size, reply with exactly: NO_CLEAR_DRIVER
-- A move can be about the whole market rather than the company (rates, oil, a selloff). Say so when the headlines point that way.
+- When no one story accounts for a move this size, say so plainly and then say what the period's news was actually about — that is the honest answer, and it is still an answer. Phrase it like "No single event drove this. The month's news was mostly X, so the move looks like it tracked the wider market."
+- A move can be about the whole market rather than the company (rates, oil, a selloff, a rotation). Say so when the headlines point that way.
+- Never say "the headlines provided", "the supplied articles", or otherwise mention that you were given anything. Write as though you did the reading.
 - Do not restate the percentage back to the reader; they can already see it.
 - Never give advice, a forecast, or a price target.
 - No preamble. Reply with the explanation alone.`;
@@ -129,12 +134,14 @@ export type MoveExplanation = {
 };
 
 /**
- * Why a listing moved across the visible window, or null when the headlines
- * cannot honestly account for it.
+ * Why a listing moved across the visible window.
  *
- * A move with no news behind it is the normal case for a quiet month, and
- * saying "no single clear driver" is a true answer — far better than dressing
- * up an unrelated headline as the cause.
+ * Always answers, because the reader asked for the reading to be done for
+ * them rather than to be told it was inconclusive. That is not a licence to
+ * invent: a quiet month gets "no single event drove this, here is what the
+ * news was about", which is both an answer and true. Null is reserved for
+ * the cases where there is genuinely nothing to work from — no model key, no
+ * price, or the call failed.
  */
 export async function explainMove(input: {
   symbol: string;
@@ -159,7 +166,16 @@ export async function explainMove(input: {
     Math.abs(changePercent) < 0.5 ? "flat" : changePercent > 0 ? "up" : "down";
   const period = RANGE_WORDS[input.range];
 
-  if (input.headlines.length === 0) return null;
+  // Nothing published all period is itself the answer, and it needs no model
+  // call: whatever moved the price, it was not something the company said.
+  if (input.headlines.length === 0) {
+    return {
+      reason: `No company news was published over ${period}, so nothing ${input.name} announced accounts for this — the move came from the wider market.`,
+      direction,
+      changePercent,
+      period,
+    };
+  }
 
   const articles = input.headlines
     .map((item) => {
@@ -171,7 +187,7 @@ export async function explainMove(input: {
   try {
     const response = await anthropic.messages.create({
       model: "claude-opus-5",
-      max_tokens: 300,
+      max_tokens: 400,
       output_config: { effort: "low" },
       system: WHY_PROMPT,
       messages: [
@@ -191,9 +207,7 @@ export async function explainMove(input: {
     });
 
     const reason = oneParagraph(textOf(response));
-    if (!reason || reason.toUpperCase().includes("NO_CLEAR_DRIVER")) {
-      return null;
-    }
+    if (!reason) return null;
     return { reason, direction, changePercent, period };
   } catch (error) {
     console.error(`Could not explain ${input.symbol}'s move`, error);
