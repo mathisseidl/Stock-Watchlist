@@ -6,34 +6,40 @@ import { Search, UserPlus, Check, X, Clock, Eye } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserLogoBadge } from "@/components/account/user-logo";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-type Friend = { id: string; username: string };
-type Incoming = { requestId: string; id: string; username: string };
+/** The logo columns every list here selects, so all of them can draw one. */
+type LogoFields = {
+  logo_text: string | null;
+  logo_color: string | null;
+  logo_shape: string | null;
+};
+
+const LOGO_COLUMNS = "logo_text, logo_color, logo_shape";
+
+type Friend = { id: string; username: string } & LogoFields;
+type Incoming = { requestId: string; id: string; username: string } & LogoFields;
+
+type ProfileRef = ({ username: string | null } & LogoFields) | null;
 
 type RequestRow = {
   id: string;
   status: string;
   requester_id: string;
   recipient_id: string;
-  requester: { username: string | null } | null;
-  recipient: { username: string | null } | null;
+  requester: ProfileRef;
+  recipient: ProfileRef;
 };
 
-function initialsFor(username: string) {
-  return username.slice(0, 2).toUpperCase();
-}
-
-function UserAvatar({ username }: { username: string }) {
-  return (
-    <Avatar>
-      <AvatarFallback className="bg-accent text-accent-foreground">
-        {initialsFor(username)}
-      </AvatarFallback>
-    </Avatar>
-  );
+/** The logo fields off a joined profile, or empty ones when the join missed. */
+function logoOf(profile: ProfileRef): LogoFields {
+  return {
+    logo_text: profile?.logo_text ?? null,
+    logo_color: profile?.logo_color ?? null,
+    logo_shape: profile?.logo_shape ?? null,
+  };
 }
 
 export function CommunityView() {
@@ -69,7 +75,7 @@ export function CommunityView() {
     const { data } = await supabase
       .from("friend_requests")
       .select(
-        "id, status, requester_id, recipient_id, requester:profiles!requester_id(username), recipient:profiles!recipient_id(username)",
+        `id, status, requester_id, recipient_id, requester:profiles!requester_id(username, ${LOGO_COLUMNS}), recipient:profiles!recipient_id(username, ${LOGO_COLUMNS})`,
       );
 
     const rows = (data ?? []) as unknown as RequestRow[];
@@ -80,12 +86,12 @@ export function CommunityView() {
     for (const row of rows) {
       const iAmRequester = row.requester_id === user.id;
       const otherId = iAmRequester ? row.recipient_id : row.requester_id;
-      const otherName =
-        (iAmRequester ? row.recipient?.username : row.requester?.username) ??
-        "unknown";
+      const otherProfile = iAmRequester ? row.recipient : row.requester;
+      const otherName = otherProfile?.username ?? "unknown";
+      const otherLogo = logoOf(otherProfile);
 
       if (row.status === "accepted") {
-        nextFriends.push({ id: otherId, username: otherName });
+        nextFriends.push({ id: otherId, username: otherName, ...otherLogo });
       } else if (row.status === "pending") {
         if (iAmRequester) {
           nextOutgoing.add(otherId);
@@ -94,6 +100,7 @@ export function CommunityView() {
             requestId: row.id,
             id: otherId,
             username: otherName,
+            ...otherLogo,
           });
         }
       }
@@ -128,7 +135,7 @@ export function CommunityView() {
       setSearching(true);
       const { data } = await supabase
         .from("profiles")
-        .select("id, username")
+        .select(`id, username, ${LOGO_COLUMNS}`)
         .ilike("username", `%${term}%`)
         .neq("id", me ?? "")
         .not("username", "is", null)
@@ -229,7 +236,7 @@ export function CommunityView() {
                     className="flex items-center justify-between rounded-xl px-2 py-2.5 hover:bg-muted/50"
                   >
                     <div className="flex items-center gap-3">
-                      <UserAvatar username={person.username} />
+                      <UserLogoBadge profile={person} />
                       <p className="text-sm font-semibold">
                         @{person.username}
                       </p>
@@ -276,7 +283,7 @@ export function CommunityView() {
                 className="flex items-center justify-between rounded-xl px-2 py-2.5 hover:bg-muted/50"
               >
                 <div className="flex items-center gap-3">
-                  <UserAvatar username={person.username} />
+                  <UserLogoBadge profile={person} />
                   <p className="text-sm">
                     <span className="font-semibold">@{person.username}</span>{" "}
                     <span className="text-muted-foreground">
@@ -326,7 +333,7 @@ export function CommunityView() {
                   className="flex items-center justify-between rounded-xl px-2 py-2.5 hover:bg-muted/50"
                 >
                   <div className="flex items-center gap-3">
-                    <UserAvatar username={friend.username} />
+                    <UserLogoBadge profile={friend} />
                     <p className="text-sm font-semibold">@{friend.username}</p>
                   </div>
                   <Link

@@ -1,13 +1,15 @@
 import { Check, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { UpgradeButton } from "@/components/pricing/upgrade-button";
 import { AuthForm } from "@/components/auth/auth-form";
 import { SubscriptionCard } from "@/components/account/subscription-card";
 import { InviteCard } from "@/components/account/invite-card";
+import { LogoCard } from "@/components/account/logo-card";
+import { UserLogoBadge } from "@/components/account/user-logo";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountSubscription } from "@/lib/subscription";
 import { proDaysRemaining } from "@/lib/pro";
+import { resolveLogo } from "@/lib/logo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -148,7 +150,7 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("username, created_at")
+    .select("username, created_at, logo_text, logo_color, logo_shape")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -163,7 +165,6 @@ export default async function AccountPage() {
 
   const username = profile?.username ?? null;
   const memberSince = profile?.created_at ?? user.created_at;
-  const initials = (user.email ?? "MS").slice(0, 2).toUpperCase();
 
   return (
     <div className="flex flex-col gap-6">
@@ -175,11 +176,7 @@ export default async function AccountPage() {
       {/* ---- Profile ------------------------------------------------- */}
       <Card className="gap-4 p-6">
         <div className="flex flex-wrap items-center gap-4">
-          <Avatar className="size-16">
-            <AvatarFallback className="bg-neutral-900 text-lg font-semibold text-white">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          <UserLogoBadge profile={profile ?? null} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-semibold">{user.email}</p>
             <p className="text-sm text-muted-foreground">
@@ -203,6 +200,8 @@ export default async function AccountPage() {
           </span>
         </div>
       </Card>
+
+      <LogoCard initial={resolveLogo(profile ?? null)} />
 
       <SubscriptionCard initialExpiresAt={proExpiresAt} />
 

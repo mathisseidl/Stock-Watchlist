@@ -52,6 +52,8 @@ export function getMarketDataProvider(): MarketDataProvider {
           }
         },
         getNews: (symbol, companyName) => finnhub.getNews(symbol, companyName),
+        getHeadlines: (symbol, from, to) =>
+          finnhub.getHeadlines(symbol, from, to),
         // An index has no company behind it, and Finnhub returns `{}` for one,
         // which would leave the detail page headed "^DJI". The name comes from
         // our own table instead; there is no logo or industry to fill in.

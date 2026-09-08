@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { RangeSelector } from "@/components/stock/range-selector";
 import { ReadOnlyWatchlistRow } from "@/components/watchlist/read-only-watchlist-row";
+import { UserLogoBadge } from "@/components/account/user-logo";
 import { createClient } from "@/lib/supabase/client";
 import type { CandleRange } from "@/lib/market-data/types";
 import type { WatchlistItem } from "@/lib/mock-data";
@@ -15,6 +16,12 @@ export function FriendWatchlist({ username }: { username: string }) {
   const [supabase] = useState(() => createClient());
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [state, setState] = useState<LoadState>("loading");
+  /** Their logo, so the page they land on is headed the same as the search. */
+  const [logo, setLogo] = useState<{
+    logo_text: string | null;
+    logo_color: string | null;
+    logo_shape: string | null;
+  } | null>(null);
   const [range, setRange] = useState<CandleRange>("1D");
 
   useEffect(() => {
@@ -22,7 +29,7 @@ export function FriendWatchlist({ username }: { username: string }) {
     async function load() {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id")
+        .select("id, logo_text, logo_color, logo_shape")
         .eq("username", username.toLowerCase())
         .maybeSingle();
       if (!active) return;
@@ -30,6 +37,11 @@ export function FriendWatchlist({ username }: { username: string }) {
         setState("not-found");
         return;
       }
+      setLogo({
+        logo_text: profile.logo_text,
+        logo_color: profile.logo_color,
+        logo_shape: profile.logo_shape,
+      });
       // RLS only returns these rows if the viewer is this user or their friend.
       const { data } = await supabase
         .from("watchlist_items")
@@ -63,11 +75,14 @@ export function FriendWatchlist({ username }: { username: string }) {
       </Link>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">@{username}</h1>
-          <p className="text-sm text-muted-foreground">
-            Your friend&apos;s watchlist
-          </p>
+        <div className="flex items-center gap-3">
+          <UserLogoBadge profile={{ ...logo, username }} size="lg" />
+          <div>
+            <h1 className="text-2xl font-semibold">@{username}</h1>
+            <p className="text-sm text-muted-foreground">
+              Your friend&apos;s watchlist
+            </p>
+          </div>
         </div>
         <RangeSelector value={range} onChange={setRange} />
       </div>

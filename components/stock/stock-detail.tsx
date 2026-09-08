@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CompanyLogo } from "@/components/stock/company-logo";
+import { CompanyExplainer } from "@/components/stock/company-explainer";
+import { MoveReason } from "@/components/stock/move-reason";
 import { ChangeBadge } from "@/components/stock/change-badge";
 import { MarketStatus } from "@/components/stock/market-status";
 import { NewsList } from "@/components/stock/news-list";
@@ -90,6 +92,9 @@ export function StockDetail({ symbol }: { symbol: string }) {
               {profile?.name ?? "—"}
               {profile?.exchange ? ` · ${profile.exchange}` : ""}
             </p>
+            <div className="mt-2">
+              <CompanyExplainer symbol={symbol} />
+            </div>
           </div>
         </div>
         {inWatchlist ? (
@@ -159,6 +164,8 @@ export function StockDetail({ symbol }: { symbol: string }) {
           <StatTile label={`${period} Close`} value={money(stats.close)} />
         </div>
       )}
+
+      <MoveReason symbol={symbol} range={activeRange} />
 
       <Card className="gap-3 p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">

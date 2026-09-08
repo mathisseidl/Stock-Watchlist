@@ -122,5 +122,10 @@ export interface MarketDataProvider {
   getCandles(symbol: string, range: CandleRange): Promise<CandleSeries>;
   searchSymbols(query: string): Promise<SymbolSearchResult[]>;
   getNews(symbol: string, companyName?: string): Promise<NewsItem[]>;
+  /**
+   * Every headline across a window, uncurated — what the "why did it move"
+   * explanation reads. Optional because only Finnhub serves it.
+   */
+  getHeadlines?(symbol: string, from: Date, to: Date): Promise<NewsItem[]>;
   getProfile(symbol: string): Promise<CompanyProfile>;
 }

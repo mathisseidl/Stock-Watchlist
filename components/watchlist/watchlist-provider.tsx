@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { defaultWatchlist, type WatchlistItem } from "@/lib/mock-data";
+import type { WatchlistItem } from "@/lib/mock-data";
 
 type WatchlistContextValue = {
   items: WatchlistItem[];
@@ -76,11 +76,12 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
       if (!active) return;
 
       if (!user) {
-        // Guests keep their list on this device. Only seed the defaults the
-        // first time, so a guest who cleared theirs doesn't get it back.
+        // Guests keep their list on this device, and start with nothing in it
+        // — same as a new account. An empty list is not a broken one: the
+        // page's own empty state sends the reader to the search box.
         setUserId(null);
         setIsGuest(true);
-        setItems(readGuestWatchlist() ?? defaultWatchlist);
+        setItems(readGuestWatchlist() ?? []);
         setReady(true);
         return;
       }

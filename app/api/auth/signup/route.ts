@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { defaultWatchlist } from "@/lib/mock-data";
 import { containsProfanity } from "@/lib/profanity";
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
@@ -62,16 +61,6 @@ export async function POST(request: Request) {
     const status = message.toLowerCase().includes("already") ? 409 : 400;
     return NextResponse.json({ error: message }, { status });
   }
-
-  // Seed a starter watchlist so a brand-new account isn't empty.
-  await admin.from("watchlist_items").insert(
-    defaultWatchlist.map((item, index) => ({
-      user_id: data.user.id,
-      symbol: item.symbol,
-      name: item.name,
-      position: index,
-    })),
-  );
 
   return NextResponse.json({ ok: true });
 }

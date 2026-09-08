@@ -136,6 +136,44 @@ export class FinnhubProvider {
     return curateNews(items, { symbol, companyName });
   }
 
+  /**
+   * Every headline Finnhub has for a window, uncurated and in date order.
+   *
+   * `getNews` above is the reader-facing feed, so it curates hard: trusted
+   * desks, last 48 hours, provably about this company. Explaining a month of
+   * price movement needs the opposite — the whole window, so the model can
+   * see which story the move actually sits against. Capped because a busy
+   * month of a mega-cap runs to hundreds of items.
+   */
+  async getHeadlines(
+    symbol: string,
+    from: Date,
+    to: Date,
+    limit = 60,
+  ): Promise<NewsItem[]> {
+    const format = (date: Date) => date.toISOString().slice(0, 10);
+    const data = await this.fetchJson<FinnhubNewsItem[]>(
+      "/company-news",
+      { symbol, from: format(from), to: format(to) },
+      // A window this wide barely shifts within an hour, and the explanation
+      // built from it is cached for about as long.
+      3600,
+    );
+
+    return data
+      .filter((item) => item.headline)
+      .sort((a, b) => b.datetime - a.datetime)
+      .slice(0, limit)
+      .map((item) => ({
+        id: item.id,
+        headline: item.headline,
+        source: item.source,
+        url: item.url,
+        datetime: item.datetime,
+        summary: item.summary,
+      }));
+  }
+
   async getProfile(symbol: string): Promise<CompanyProfile> {
     const data = await this.fetchJson<FinnhubProfileResponse>(
       "/stock/profile2",
