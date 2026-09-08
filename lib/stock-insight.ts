@@ -12,10 +12,19 @@ import type {
  * screen.
  *
  * Both are free to every reader, so both are written to be cheap: `effort:
- * "low"`, a tight token ceiling, and routes that cache the answer rather than
- * asking again per view. Neither may invent — the description is bounded by
- * what the provider already knows about the company, and the explanation may
- * only cite the headlines it is handed.
+ * "low"` and routes that cache the answer rather than asking again per view.
+ *
+ * `max_tokens` is deliberately generous rather than tight, which looks like
+ * the opposite of cheap and is not. Thinking is on by default on this model,
+ * and `max_tokens` caps thinking and the reply together — so a ceiling sized
+ * to the sentence we want leaves the reply truncated to nothing once thinking
+ * has taken its share, and a truncated reply reads here as "no answer" and
+ * shows the reader nothing. Cost follows the tokens actually generated, not
+ * the ceiling, and both prompts cap their own answer in words.
+ *
+ * Neither may invent — the description is bounded by what the provider
+ * already knows about the company, and the explanation may only cite the
+ * headlines it is handed.
  *
  * They differ in what they do when the evidence is thin. The description
  * would rather say nothing than misdescribe a company, so it returns null and
@@ -143,7 +152,7 @@ export async function describeCompany(input: {
   try {
     const response = await anthropic.messages.create({
       model: "claude-opus-5",
-      max_tokens: 200,
+      max_tokens: 1500,
       output_config: { effort: "low" },
       system: DESCRIBE_PROMPT,
       messages: [{ role: "user", content: facts }],
@@ -238,7 +247,7 @@ export async function explainMove(input: {
   try {
     const response = await anthropic.messages.create({
       model: "claude-opus-5",
-      max_tokens: 400,
+      max_tokens: 2000,
       output_config: { effort: "low" },
       system: WHY_PROMPT,
       messages: [
