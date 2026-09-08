@@ -33,7 +33,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background">
+      {/* The dashboard's boot script paints the gradient onto this element's
+          `style` before React hydrates (see `backgroundBootScript`), which is
+          a deliberate mismatch with the server HTML — and the flag on <html>
+          does not reach here, because React only suppresses the element it is
+          written on. Without it every dashboard load logs a hydration error. */}
+      <body
+        className="min-h-full flex flex-col bg-background"
+        suppressHydrationWarning
+      >
         {/* Light is the default, and new accounts start on the Dawn gradient
             tuned for it. Anyone who picked dark before keeps it — next-themes
             reads their stored choice first. */}

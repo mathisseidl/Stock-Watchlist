@@ -343,21 +343,19 @@ export class YahooProvider {
       }[];
     };
 
-    const results = (data.quotes ?? [])
-      .filter((item) => item.symbol && item.quoteType === "EQUITY")
-      .map((item) => {
-        const us = isUsVenue(item.exchange);
-        return {
-          symbol: item.symbol as string,
-          description: item.longname ?? item.shortname ?? (item.symbol as string),
-          // The rest of the app filters search results to "Common Stock" (the
-          // string Finnhub used); keep that contract so nothing downstream
-          // needs to learn Yahoo's vocabulary.
-          type: "Common Stock",
+    const results = (data.quotes ?? []).flatMap((item) => {
+      const type = QUOTE_TYPES[item.quoteType ?? ""];
+      if (!item.symbol || !type) return [];
+      return [
+        {
+          symbol: item.symbol,
+          description: item.longname ?? item.shortname ?? item.symbol,
+          type,
           ...(item.exchDisp ? { exchange: item.exchDisp } : {}),
-          us,
-        };
-      });
+          us: isUsVenue(item.exchange),
+        },
+      ];
+    });
 
     // A US reader typing "Siemens" means SIEGY, not the XETRA line Yahoo ranks
     // first — and that ADR already trades in USD, so no conversion is needed
@@ -372,6 +370,17 @@ export class YahooProvider {
       .map((entry) => entry.result);
   }
 }
+
+/**
+ * Yahoo's `quoteType` values worth showing, translated into the app's own
+ * vocabulary. Everything else Yahoo returns for an index name — futures,
+ * indices, currencies, crypto, mutual funds — is dropped, because Finnhub
+ * quotes none of it; see `SEARCHABLE_SYMBOL_TYPES`.
+ */
+const QUOTE_TYPES: Record<string, string> = {
+  EQUITY: "Common Stock",
+  ETF: "ETF",
+};
 
 /**
  * Yahoo's `exchange` codes for venues that trade and settle in USD — the US

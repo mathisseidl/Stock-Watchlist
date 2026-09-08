@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { SymbolSearchResult } from "@/lib/market-data/types";
+import {
+  SEARCHABLE_SYMBOL_TYPES,
+  type SymbolSearchResult,
+} from "@/lib/market-data/types";
 
 async function fetchSearch(query: string): Promise<SymbolSearchResult[]> {
   const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
@@ -32,8 +35,11 @@ export function useSymbolSearch(term: string, limit = 8) {
     refetchInterval: false,
   });
 
+  // Every type the app can actually price, not just ordinary shares: an ETF
+  // is how an index is reached here (SPY, QQQ, DIA), so filtering to
+  // "Common Stock" alone hid every index fund from both search boxes.
   const results = (data ?? [])
-    .filter((item) => item.type === "Common Stock")
+    .filter((item) => SEARCHABLE_SYMBOL_TYPES.has(item.type))
     .slice(0, limit);
 
   return { results, isFetching, debounced };

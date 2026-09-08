@@ -8,6 +8,19 @@ import type {
 
 const BASE_URL = "https://finnhub.io/api/v1";
 
+/**
+ * Finnhub's `type` values worth showing, translated into the app's own
+ * vocabulary — it labels an ETF "ETP", which matched none of
+ * `SEARCHABLE_SYMBOL_TYPES` and so hid every index fund whenever the search
+ * fell back to this provider. Everything else it returns (indices, mutual
+ * funds, warrants) is dropped, because the free tier quotes none of it.
+ */
+const SEARCH_TYPES: Record<string, string> = {
+  "Common Stock": "Common Stock",
+  ETP: "ETF",
+  ETF: "ETF",
+};
+
 type FinnhubQuoteResponse = {
   c: number;
   d: number | null;
@@ -91,11 +104,11 @@ export class FinnhubProvider {
       3600,
     );
 
-    return data.result.map((item) => ({
-      symbol: item.symbol,
-      description: item.description,
-      type: item.type,
-    }));
+    return data.result.flatMap((item) => {
+      const type = SEARCH_TYPES[item.type];
+      if (!type) return [];
+      return [{ symbol: item.symbol, description: item.description, type }];
+    });
   }
 
   async getNews(symbol: string, companyName?: string): Promise<NewsItem[]> {

@@ -67,9 +67,25 @@ export type CandleSeries = {
   convertedRate?: number;
 };
 
+/**
+ * Instrument types the search is allowed to surface, in the vocabulary the
+ * providers normalise onto ("Common Stock" is the string Finnhub used, and the
+ * app kept it).
+ *
+ * The list is bounded by what the app can actually price: Finnhub serves
+ * quotes for US-listed shares and ETFs, and refuses indices ("Market data
+ * subscription required for CFD indices") and mutual funds ("You don't have
+ * access to this resource"). Letting either through would give the reader a
+ * search hit that opens a detail page with no price on it, so index funds are
+ * reached through their ETF share class (SPY, QQQ, DIA) instead of the raw
+ * index ticker.
+ */
+export const SEARCHABLE_SYMBOL_TYPES = new Set(["Common Stock", "ETF"]);
+
 export type SymbolSearchResult = {
   symbol: string;
   description: string;
+  /** One of `SEARCHABLE_SYMBOL_TYPES`. */
   type: string;
   /** Human-readable venue ("NYSE", "OTC Markets", "XETRA"), when known. */
   exchange?: string;

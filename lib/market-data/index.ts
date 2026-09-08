@@ -1,4 +1,5 @@
 import { FinnhubProvider } from "./finnhub";
+import { withIndexFunds } from "./index-funds";
 import { YahooProvider } from "./yahoo";
 import type { MarketDataProvider } from "./types";
 
@@ -29,12 +30,18 @@ export function getMarketDataProvider(): MarketDataProvider {
         // (SIEGY, BMWKY, …) that Finnhub's free tier leaves out and that a US
         // reader means when they type a name. Finnhub is the fallback if
         // Yahoo's endpoint is unreachable.
+        //
+        // `withIndexFunds` wraps both, because neither provider answers an
+        // index name with anything this app can price: "nasdaq" and "s&p 500"
+        // come back from Yahoo as CME futures alone, which the type filter
+        // then drops to nothing. It runs out here rather than inside either
+        // provider so the index names resolve on the fallback path too.
         searchSymbols: async (query) => {
           try {
-            return await yahoo.searchSymbols(query);
+            return withIndexFunds(query, await yahoo.searchSymbols(query));
           } catch (error) {
             console.error(`Yahoo search failed for "${query}"; using Finnhub`, error);
-            return finnhub.searchSymbols(query);
+            return withIndexFunds(query, await finnhub.searchSymbols(query));
           }
         },
         getNews: (symbol, companyName) => finnhub.getNews(symbol, companyName),
