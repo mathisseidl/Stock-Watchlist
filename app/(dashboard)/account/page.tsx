@@ -4,8 +4,7 @@ import { UpgradeButton } from "@/components/pricing/upgrade-button";
 import { AuthForm } from "@/components/auth/auth-form";
 import { SubscriptionCard } from "@/components/account/subscription-card";
 import { InviteCard } from "@/components/account/invite-card";
-import { LogoCard } from "@/components/account/logo-card";
-import { UserLogoBadge } from "@/components/account/user-logo";
+import { LogoEditor } from "@/components/account/logo-editor";
 import { createClient } from "@/lib/supabase/server";
 import { getAccountSubscription } from "@/lib/subscription";
 import { proDaysRemaining } from "@/lib/pro";
@@ -176,7 +175,7 @@ export default async function AccountPage() {
       {/* ---- Profile ------------------------------------------------- */}
       <Card className="gap-4 p-6">
         <div className="flex flex-wrap items-center gap-4">
-          <UserLogoBadge profile={profile ?? null} size="lg" />
+          <LogoEditor initial={resolveLogo(profile ?? null)} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-semibold">{user.email}</p>
             <p className="text-sm text-muted-foreground">
@@ -200,8 +199,6 @@ export default async function AccountPage() {
           </span>
         </div>
       </Card>
-
-      <LogoCard initial={resolveLogo(profile ?? null)} />
 
       <SubscriptionCard initialExpiresAt={proExpiresAt} />
 
