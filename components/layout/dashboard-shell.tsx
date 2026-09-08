@@ -97,9 +97,18 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           }
         }}
       >
+        {/* `relative z-30` is what keeps the search dropdown on top of the
+            page. Two reasons it cannot be left to the dropdown's own z-50:
+            `backdrop-blur-md` below makes this header a stacking context, so
+            that 50 is only ever compared against its siblings inside here;
+            and <main> is painted after this header either way, being the
+            later sibling. Without a layer of its own the header loses to
+            whatever the page renders — a long list of results would slide
+            under the first watchlist row. Stays under the mobile sidebar
+            (z-40 scrim, z-50 panel) so the menu still covers it. */}
         <header
           className={cn(
-            "flex items-center gap-3 border-b border-border px-4 py-3 md:px-8",
+            "relative z-30 flex items-center gap-3 border-b border-border px-4 py-3 md:px-8",
             gradient
               ? "bg-background/60 backdrop-blur-md"
               : "bg-background",
