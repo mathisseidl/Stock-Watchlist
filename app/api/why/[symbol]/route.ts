@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { getMarketDataProvider } from "@/lib/market-data";
-import { RANGE_DAYS, explainMove } from "@/lib/stock-insight";
+import { RANGE_DAYS, explainMove, listingFacts } from "@/lib/stock-insight";
 import type { CandleRange } from "@/lib/market-data/types";
 
 /**
@@ -26,9 +26,9 @@ const cachedExplanation = unstable_cache(
   async (symbol: string, range: CandleRange) => {
     const provider = getMarketDataProvider();
 
-    const [series, profile] = await Promise.all([
+    const [series, facts] = await Promise.all([
       provider.getCandles(symbol, range),
-      provider.getProfile(symbol).catch(() => null),
+      listingFacts(provider, symbol),
     ]);
 
     if (!provider.getHeadlines) return null;
@@ -43,7 +43,7 @@ const cachedExplanation = unstable_cache(
 
     return explainMove({
       symbol,
-      name: profile?.name && profile.name !== symbol ? profile.name : symbol,
+      name: facts.name,
       range,
       ...(series.stats ? { stats: series.stats } : {}),
       price: series.price,

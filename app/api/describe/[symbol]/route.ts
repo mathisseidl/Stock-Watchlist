@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { getMarketDataProvider } from "@/lib/market-data";
-import { describeCompany } from "@/lib/stock-insight";
+import { describeCompany, listingFacts } from "@/lib/stock-insight";
 
 /**
  * One or two lines on what a company does. Free to every reader.
@@ -19,17 +19,11 @@ const cachedDescription = unstable_cache(
   async (symbol: string) => {
     const provider = getMarketDataProvider();
 
-    // The profile anchors the answer to the right company. A missing one is
-    // no reason to give up — plenty of ETFs and indices have none — so the
-    // ticker alone is still worth asking about.
-    const profile = await provider.getProfile(symbol).catch(() => null);
+    // Falls back to the search for a name when there is no profile, so an ETF
+    // or an index is described as readily as an ordinary share.
+    const facts = await listingFacts(provider, symbol);
 
-    return describeCompany({
-      symbol,
-      name: profile?.name && profile.name !== symbol ? profile.name : symbol,
-      ...(profile?.industry ? { industry: profile.industry } : {}),
-      ...(profile?.weburl ? { weburl: profile.weburl } : {}),
-    });
+    return describeCompany({ symbol, ...facts });
   },
   ["stock-description"],
   { revalidate: 604_800 },

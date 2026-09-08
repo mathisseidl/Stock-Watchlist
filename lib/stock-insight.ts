@@ -1,5 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { CandleRange, NewsItem, RangeStats } from "./market-data/types";
+import type {
+  CandleRange,
+  MarketDataProvider,
+  NewsItem,
+  RangeStats,
+} from "./market-data/types";
 
 /**
  * The two plain-English answers the stock page offers about a listing: what
@@ -30,6 +35,48 @@ const RANGE_WORDS: Record<CandleRange, string> = {
   ALL: "its whole listed history",
 };
 
+export type ListingFacts = {
+  name: string;
+  industry?: string;
+  weburl?: string;
+};
+
+/**
+ * What we know about a listing, for either answer to lean on.
+ *
+ * Finnhub profiles ordinary shares and nothing else: an ETF or an index comes
+ * back as `{}`, which used to leave both features asking the model about a
+ * bare ticker — and "what is SPY" with no other anchor is exactly the sort of
+ * question a model should refuse. The search knows those names perfectly well
+ * ("SPDR S&P 500 ETF Trust"), so it is the fallback, and every listing the
+ * reader can reach through the search box therefore has a name here.
+ */
+export async function listingFacts(
+  provider: MarketDataProvider,
+  symbol: string,
+): Promise<ListingFacts> {
+  const profile = await provider.getProfile(symbol).catch(() => null);
+  if (profile?.name && profile.name !== symbol) {
+    return {
+      name: profile.name,
+      ...(profile.industry ? { industry: profile.industry } : {}),
+      ...(profile.weburl ? { weburl: profile.weburl } : {}),
+    };
+  }
+
+  // Match on the ticker rather than taking the first hit, so a search that
+  // ranks something else above the exact listing cannot rename it.
+  const hits = await provider.searchSymbols(symbol).catch(() => []);
+  const exact = hits.find(
+    (hit) => hit.symbol.toUpperCase() === symbol.toUpperCase(),
+  );
+  if (exact?.description) {
+    return { name: exact.description, industry: exact.type };
+  }
+
+  return { name: symbol };
+}
+
 function client(): Anthropic | null {
   return process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
 }
@@ -53,23 +100,27 @@ function oneParagraph(text: string): string {
     .trim();
 }
 
-const DESCRIBE_PROMPT = `You explain what a company does to someone who has never heard of it.
+const DESCRIBE_PROMPT = `You explain what a listing is to someone who has never heard of it.
+
+The listing may be a company, a fund, or a market index. Answer the right question for what it is:
+- A company: what it sells and who buys it. Lead with the thing a stranger would recognise.
+- A fund or ETF: what it holds or tracks, and what owning it gives you exposure to.
+- An index: what it measures, and roughly which companies are in it.
 
 Rules:
 - Two sentences at most, and under 40 words in total.
-- Say what it sells and who buys it. Lead with the thing a stranger would recognise.
 - Plain English. No jargon, no marketing language, no "leading provider of".
-- State only what you are confident is true of this company. If you are not sure what it does, reply with exactly: UNKNOWN
-- Never mention the share price, the stock, whether it is a good investment, or any figure you were not given.
+- State only what you are confident is true of this listing. If you genuinely do not know what it is, reply with exactly: UNKNOWN
+- Never mention the price, whether it is a good investment, or any figure you were not given.
 - No preamble. Reply with the description alone.`;
 
 /**
- * One or two lines on what a company does, or null when there is nothing
- * trustworthy to say.
+ * One or two lines on what a listing is — a company, a fund or an index —
+ * or null when there is nothing trustworthy to say.
  *
- * The industry and website come from the provider's own profile and are
- * passed in as anchors: they keep the answer on the right company where a
- * ticker is ambiguous, and the model is told to refuse rather than guess.
+ * The name, industry and website come from `listingFacts` and are passed in
+ * as anchors: they keep the answer on the right listing where a ticker is
+ * ambiguous, and the model is told to refuse rather than guess.
  */
 export async function describeCompany(input: {
   symbol: string;
@@ -83,7 +134,7 @@ export async function describeCompany(input: {
   const facts = [
     `Ticker: ${input.symbol}`,
     `Name: ${input.name}`,
-    input.industry ? `Industry (per data provider): ${input.industry}` : null,
+    input.industry ? `Type or industry (per data provider): ${input.industry}` : null,
     input.weburl ? `Website: ${input.weburl}` : null,
   ]
     .filter(Boolean)
