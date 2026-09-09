@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { HelpCircle, Loader2, X } from "lucide-react";
+import { HelpCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -77,12 +77,6 @@ export function CompanyExplainer({ symbol }: { symbol: string }) {
         </p>
       ) : (
         <p className="mt-1.5 text-sm leading-relaxed">{data?.description}</p>
-      )}
-      {isLoading && (
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Loader2 className="size-3 animate-spin" />
-          Writing it in plain English…
-        </p>
       )}
     </div>
   );
