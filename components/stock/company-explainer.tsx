@@ -8,6 +8,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 type ErrorBody = { error?: string; empty?: boolean };
 
+type Description = {
+  description: string;
+  /** Present when the words are someone else's and must be credited. */
+  source?: { name: string; url: string };
+};
+
 /**
  * "What does it do?" — one or two lines on the business behind a ticker,
  * fetched only when the reader asks.
@@ -19,7 +25,7 @@ type ErrorBody = { error?: string; empty?: boolean };
 export function CompanyExplainer({ symbol }: { symbol: string }) {
   const [asked, setAsked] = useState(false);
 
-  const { data, isLoading, error } = useQuery<{ description: string }>({
+  const { data, isLoading, error } = useQuery<Description>({
     queryKey: ["describe", symbol],
     queryFn: async () => {
       const res = await fetch(`/api/describe/${encodeURIComponent(symbol)}`);
@@ -64,7 +70,24 @@ export function CompanyExplainer({ symbol }: { symbol: string }) {
           {(error as Error).message}
         </p>
       ) : (
-        <p className="mt-1.5 text-sm leading-relaxed">{data?.description}</p>
+        <>
+          <p className="mt-1.5 text-sm leading-relaxed">{data?.description}</p>
+          {/* Wikipedia's text is CC BY-SA: shown, it has to be credited. */}
+          {data?.source && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              From{" "}
+              <a
+                href={data.source.url}
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                {data.source.name}
+              </a>
+              , CC BY-SA
+            </p>
+          )}
+        </>
       )}
       {isLoading && (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">

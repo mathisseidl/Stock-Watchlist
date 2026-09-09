@@ -26,7 +26,7 @@ const cachedDescription = unstable_cache(
 
     return describeCompany({ symbol, ...facts });
   },
-  ["stock-description-v2"],
+  ["stock-description-v8"],
   { revalidate: 604_800 },
 );
 
@@ -47,7 +47,11 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ symbol: ticker, description });
+    return NextResponse.json({
+      symbol: ticker,
+      description: description.text,
+      ...(description.source ? { source: description.source } : {}),
+    });
   } catch (error) {
     console.error(`Failed to describe ${ticker}`, error);
     return NextResponse.json(

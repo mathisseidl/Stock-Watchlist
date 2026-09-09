@@ -57,6 +57,12 @@ const RANGE_WORDS: Record<CandleRange, string> = {
   ALL: "its whole listed history",
 };
 
+export type Description = {
+  text: string;
+  /** Where the words came from, when they are someone else's. */
+  source?: { name: string; url: string };
+};
+
 export type ListingFacts = {
   name: string;
   industry?: string;
@@ -146,15 +152,26 @@ Rules:
  *
  * With no key, or when the model declines, Wikipedia answers instead — and it
  * is held to the same standard: an article that does not confidently name this
- * listing is dropped rather than paraphrased at the reader.
+ * listing is dropped rather than paraphrased at the reader. That answer
+ * carries its source, because Wikipedia's licence asks to be credited and a
+ * reader deserves to know whose sentence they are reading either way.
  */
 export async function describeCompany(input: {
   symbol: string;
   name: string;
   industry?: string;
   weburl?: string;
-}): Promise<string | null> {
-  return (await describeWithClaude(input)) ?? wikipediaDescription(input.name);
+}): Promise<Description | null> {
+  const fromClaude = await describeWithClaude(input);
+  if (fromClaude) return { text: fromClaude };
+
+  const fromWikipedia = await wikipediaDescription(input.name);
+  if (!fromWikipedia) return null;
+
+  return {
+    text: fromWikipedia.text,
+    source: { name: "Wikipedia", url: fromWikipedia.url },
+  };
 }
 
 async function describeWithClaude(input: {
