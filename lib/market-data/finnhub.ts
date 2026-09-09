@@ -149,7 +149,7 @@ export class FinnhubProvider {
     symbol: string,
     from: Date,
     to: Date,
-    limit = 60,
+    limit = 250,
   ): Promise<NewsItem[]> {
     const format = (date: Date) => date.toISOString().slice(0, 10);
     const data = await this.fetchJson<FinnhubNewsItem[]>(

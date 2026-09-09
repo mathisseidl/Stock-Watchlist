@@ -167,47 +167,62 @@ function recencyScore(datetimeSeconds: number, nowSeconds: number): number {
  * keyword is word-bounded, otherwise "operating" reads as an analyst "rating"
  * and "aim" as "AI".
  */
-const REASON_RULES: { test: RegExp; reason: (symbol: string) => string }[] = [
+const REASON_RULES: {
+  test: RegExp;
+  reason: (symbol: string) => string;
+  /** How a month of this kind of story reads in a sentence. */
+  topic: string;
+}[] = [
   {
     test: /\bearnings\b|quarterly results|\bq[1-4]\b|\brevenues?\b|\bprofits?\b|\beps\b|\bguidance\b|\bforecasts?\b|\boutlook\b/,
+    topic: "earnings and guidance",
     reason: (symbol) => `Earnings and guidance move ${symbol} more than anything else.`,
   },
   {
     test: /\bupgrades?\b|\bdowngrades?\b|price target|\banalysts?\b|\bratings?\b|initiated coverage|\boverweight\b|\bunderweight\b/,
+    topic: "analyst ratings",
     reason: (symbol) => `Analysts have just changed their price targets on ${symbol}.`,
   },
   {
     test: /\bacquisitions?\b|\bacquires?\b|\bmergers?\b|\bbuyout\b|\btakeover\b|\bstake\b|\bdivest\w*|\bspin-?offs?\b/,
+    topic: "deals and acquisitions",
     reason: () => `A deal like this changes what you own as a shareholder.`,
   },
   {
     test: /\blawsuits?\b|\bsued\b|\binvestigation\b|\bprobe\b|\bantitrust\b|\bregulators?\b|\bfines?\b|\bsettlement\b|\brecall\b/,
+    topic: "legal and regulatory pressure",
     reason: () => `A legal or regulatory risk that can hang over the stock.`,
   },
   {
     test: /\blaunch\w*|\bunveil\w*|new product|\bpartnerships?\b|\bcontracts?\b|\bchips?\b|data center|\bexpansion\b|\bevent\b/,
+    topic: "products and contracts",
     reason: () => `Product news is the clearest sign of where growth comes from next.`,
   },
   {
     // Only an actual transition counts — a quote from the sitting CEO is not
     // a leadership change.
     test: /\b(new|incoming|outgoing|former|next|interim) (ceo|cfo|chief executive)\b|\b(ceo|cfo|chief executive)\b[^.]{0,40}\b(steps? down|resign\w*|depart\w*|succeed\w*|appointed|to retire)\b|\bnames?\b[^.]{0,30}\b(ceo|cfo)\b/,
+    topic: "changes in leadership",
     reason: () => `A change at the top usually means a change in strategy.`,
   },
   {
     test: /\bdividends?\b|\bbuybacks?\b|\brepurchase\w*|stock split|\bpayouts?\b/,
+    topic: "dividends and buybacks",
     reason: () => `This affects what shareholders actually get paid.`,
   },
   {
     test: /\blayoffs?\b|job cuts|restructur\w*|cost cutting|plant closure/,
+    topic: "cost cuts and job losses",
     reason: () => `Cost cuts feed straight into future profit margins.`,
   },
   {
     test: /\bsurge\w*|\bsoar\w*|\bplunge\w*|\btumbl\w*|\bslides?\b|\brall(y|ies|ied)\b|\bjumps?\b|\bsinks?\b|\bslump\w*|record high|\bsell-?off\b/,
+    topic: "the stock's own swings",
     reason: () => `Explains the story behind the recent price swing.`,
   },
   {
     test: /\binflation\b|\bfed\b|interest rates?|\btariffs?\b|\brecession\b|jobs report|\btreasury\b/,
+    topic: "rates, inflation and tariffs",
     reason: (symbol) => `Wider market forces that move the whole sector ${symbol} trades in.`,
   },
 ];
@@ -280,4 +295,71 @@ export function curateNews(
       ...item,
       reason: reasonForNews(item, options.symbol),
     }));
+}
+
+/**
+ * What a stretch of coverage was mostly about, most common first — "earnings
+ * and guidance", "rates, inflation and tariffs". Classified off the same rules
+ * that explain why a single story is worth reading, so the two never disagree
+ * about what a headline is.
+ *
+ * Headlines that match no rule are simply not counted; they are the ones with
+ * nothing specific to say, and naming them would pad the answer with noise.
+ */
+export function newsTopics(items: NewsItem[], limit = 2): string[] {
+  const counts = new Map<string, number>();
+
+  for (const item of items) {
+    const hit = matchRule(normalize(item.headline));
+    if (!hit) continue;
+    counts.set(hit.topic, (counts.get(hit.topic) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([topic]) => topic);
+}
+
+/**
+ * Headlines ordered by how much weight to give them: a credible desk, and
+ * genuinely about this company rather than mentioning it in passing.
+ *
+ * Unlike `curateNews` this applies no freshness window, because the caller is
+ * reading a whole month rather than today — but it drops paywalled stories the
+ * same way, since a source the reader cannot open cannot be quoted at them,
+ * and it pushes down the headlines that report nothing.
+ */
+export function rankHeadlines(
+  items: NewsItem[],
+  symbol: string,
+  companyName?: string,
+): NewsItem[] {
+  const tokens = companyTokens(companyName);
+
+  return items
+    .filter((item) => !isPaywalled(item.source, item.url))
+    .map((item) => {
+      const clickbait = CLICKBAIT_PATTERNS.some((pattern) =>
+        pattern.test(item.headline),
+      );
+      const opinion = OPINION_PATTERNS.some((pattern) =>
+        pattern.test(item.headline),
+      );
+      // A headline that asks a question reports nothing. It is fine to read
+      // and useless as an answer to "what happened that day".
+      const speculation = /\?\s*$/.test(item.headline);
+
+      return {
+        item,
+        score:
+          trustScore(item.source) +
+          relevanceScore(item, symbol, tokens) -
+          (clickbait ? 25 : 0) -
+          (opinion ? 12 : 0) -
+          (speculation ? 15 : 0),
+      };
+    })
+    .sort((a, b) => b.score - a.score || b.item.datetime - a.item.datetime)
+    .map((entry) => entry.item);
 }

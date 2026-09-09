@@ -7,9 +7,10 @@ import { describeCompany, listingFacts } from "@/lib/stock-insight";
  * One or two lines on what a company does. Free to every reader.
  *
  * What a company sells does not change week to week, so the answer is cached
- * for a week per ticker — the model is asked once and every later reader is
- * served that same sentence. Without this, a free feature on a page anyone
- * can open would bill a model call per view.
+ * for a week per ticker — it is written once and every later reader is served
+ * that same sentence. Without this, a page anyone can open would bill a model
+ * call per view where a key is configured, and hit Wikipedia per view where
+ * one is not.
  *
  * `unstable_cache` rather than `use cache`: the latter needs Cache Components
  * turned on for the whole app, which would change caching everywhere else.
@@ -25,7 +26,7 @@ const cachedDescription = unstable_cache(
 
     return describeCompany({ symbol, ...facts });
   },
-  ["stock-description"],
+  ["stock-description-v2"],
   { revalidate: 604_800 },
 );
 

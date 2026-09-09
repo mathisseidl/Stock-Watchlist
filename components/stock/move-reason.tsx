@@ -103,8 +103,8 @@ export function MoveReason({
       </div>
       <p className="mt-2 text-sm leading-relaxed">{data.reason}</p>
       <p className="mt-2.5 text-xs text-muted-foreground">
-        Written from the news published over {data.period}, and only ever the
-        news — not advice, and not a forecast.
+        Read off the price itself and the news published over {data.period} —
+        not advice, and not a forecast.
       </p>
     </div>
   );

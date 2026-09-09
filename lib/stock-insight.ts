@@ -1,5 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { newsTopics, rankHeadlines } from "./market-data/news-curation";
+import { wikipediaDescription } from "./wikipedia";
 import type {
+  CandlePoint,
   CandleRange,
   MarketDataProvider,
   NewsItem,
@@ -11,8 +14,18 @@ import type {
  * the company actually does, and why its price moved over the window on
  * screen.
  *
- * Both are free to every reader, so both are written to be cheap: `effort:
- * "low"` and routes that cache the answer rather than asking again per view.
+ * Both are free to every reader and both must keep working with no model key
+ * configured at all, so each has two writers: Claude when a key is set, and a
+ * composer that assembles the same answer from free data when it is not. This
+ * is the shape `buildNewsBrief` already uses for the Pro briefings.
+ *
+ * The composers cost nothing to run. The description falls back to
+ * Wikipedia's public API, and the explanation is assembled from prices and
+ * headlines the app has already paid nothing for — so an unfunded deployment
+ * degrades in prose quality and never in whether the feature answers.
+ *
+ * The Claude path is written to be cheap in turn: `effort: "low"` and routes
+ * that cache the answer rather than asking again per view.
  *
  * `max_tokens` is deliberately generous rather than tight, which looks like
  * the opposite of cheap and is not. Thinking is on by default on this model,
@@ -130,8 +143,21 @@ Rules:
  * The name, industry and website come from `listingFacts` and are passed in
  * as anchors: they keep the answer on the right listing where a ticker is
  * ambiguous, and the model is told to refuse rather than guess.
+ *
+ * With no key, or when the model declines, Wikipedia answers instead — and it
+ * is held to the same standard: an article that does not confidently name this
+ * listing is dropped rather than paraphrased at the reader.
  */
 export async function describeCompany(input: {
+  symbol: string;
+  name: string;
+  industry?: string;
+  weburl?: string;
+}): Promise<string | null> {
+  return (await describeWithClaude(input)) ?? wikipediaDescription(input.name);
+}
+
+async function describeWithClaude(input: {
   symbol: string;
   name: string;
   industry?: string;
@@ -191,7 +217,223 @@ export type MoveExplanation = {
   changePercent: number;
   /** The window this explains, e.g. "the past month". */
   period: string;
+  /** Whether Claude wrote the prose or the built-in composer did. */
+  writtenBy: "claude" | "composer";
 };
+
+/** How a benchmark did over the same window, for market-wide moves. */
+export type Benchmark = {
+  /** What to call it in a sentence, e.g. "the S&P 500". */
+  name: string;
+  changePercent: number;
+};
+
+function percent(value: number): string {
+  return `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(1)}%`;
+}
+
+const DAY = 24 * 60 * 60;
+
+/**
+ * A listing's name as you would say it out loud: the legal suffix a data
+ * provider carries ("Apple Inc", "NVIDIA Corp") reads as clutter mid-sentence.
+ */
+function spoken(name: string): string {
+  // Repeatedly, because they stack: "ExxonMobil Holdings Corporation".
+  const SUFFIX =
+    /[,\s]+(inc|incorporated|corp|corporation|co|company|ltd|limited|plc|llc|lp|nv|sa|ag|se|holdings?|group|class [abc])\.?$/i;
+
+  let trimmed = name.trim();
+  while (SUFFIX.test(trimmed)) {
+    const shorter = trimmed.replace(SUFFIX, "").trim();
+    if (!shorter) break;
+    trimmed = shorter;
+  }
+  return trimmed || name;
+}
+
+/** "Tesla's", but "Meta Platforms'". */
+function possessive(name: string): string {
+  return /s$/i.test(name) ? `${name}'` : `${name}'s`;
+}
+
+/** "12 August", so the day reads as a date rather than a timestamp. */
+function dayLabel(seconds: number): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(seconds * 1000));
+}
+
+/**
+ * The single sharpest session inside the window, from the intraday points the
+ * chart is already drawn from.
+ *
+ * A month of 15-minute bars is collapsed to one close per calendar day first,
+ * because the question is which *day* moved the stock — an afternoon slide is
+ * only news if the day ended there.
+ */
+function sharpestDay(
+  points: CandlePoint[],
+): { time: number; changePercent: number } | null {
+  const closes = new Map<string, CandlePoint>();
+  for (const point of points) {
+    const day = new Date(point.time * 1000).toISOString().slice(0, 10);
+    closes.set(day, point);
+  }
+
+  const days = [...closes.values()].sort((a, b) => a.time - b.time);
+  if (days.length < 3) return null;
+
+  let sharpest: { time: number; changePercent: number } | null = null;
+  for (let index = 1; index < days.length; index += 1) {
+    const previous = days[index - 1].value;
+    if (!previous) continue;
+    const changePercent = ((days[index].value - previous) / previous) * 100;
+    if (
+      !sharpest ||
+      Math.abs(changePercent) > Math.abs(sharpest.changePercent)
+    ) {
+      sharpest = { time: days[index].time, changePercent };
+    }
+  }
+  return sharpest;
+}
+
+/**
+ * How far back the headlines we were handed actually reach, in words.
+ *
+ * The free news tier serves about a week however wide a window is asked for,
+ * so a sentence saying "coverage over the past month" would routinely
+ * describe seven days of it. The answer says what it can see instead.
+ */
+function coverageWords(headlines: NewsItem[], fallback: string): string {
+  if (headlines.length === 0) return fallback;
+
+  const oldest = Math.min(...headlines.map((item) => item.datetime));
+  const days = (Date.now() / 1000 - oldest) / DAY;
+
+  if (days <= 3) return "the last few days";
+  if (days <= 10) return "the past week";
+  if (days <= 45) return "the past month";
+  return fallback;
+}
+
+/** Whether the headlines reach back to a given day at all. */
+function coverageReaches(headlines: NewsItem[], time: number): boolean {
+  if (headlines.length === 0) return false;
+  return Math.min(...headlines.map((item) => item.datetime)) <= time + DAY;
+}
+
+/** The story most likely to be the one behind a given day. */
+function headlineNear(
+  headlines: NewsItem[],
+  time: number,
+  symbol: string,
+  name: string,
+): NewsItem | null {
+  // The day itself and the one before it: a story that breaks after the close
+  // or overnight is priced into the session that follows, not the one it was
+  // published in.
+  const window = headlines.filter(
+    (item) => item.datetime >= time - DAY && item.datetime <= time + DAY,
+  );
+  return rankHeadlines(window, symbol, name)[0] ?? null;
+}
+
+/**
+ * The explanation, assembled rather than written — what runs when there is no
+ * model key.
+ *
+ * It says only what the numbers and the headlines actually show, and it is
+ * careful about the difference between the two: the sharpest day is a fact,
+ * and the story published alongside it is *what the news was that day*, never
+ * "the reason", because nothing here can establish that it caused anything.
+ *
+ * The benchmark is what makes this genuinely useful rather than a list of
+ * facts. A reader asking why a stock fell is usually asking whether it was
+ * this company or everything at once, and comparing the two answers that
+ * outright — something the model cannot do, since it only ever sees
+ * headlines.
+ */
+function composeExplanation(input: {
+  symbol: string;
+  name: string;
+  period: string;
+  changePercent: number;
+  direction: "up" | "down" | "flat";
+  points: CandlePoint[];
+  headlines: NewsItem[];
+  benchmark?: Benchmark;
+}): string {
+  const sentences: string[] = [];
+  const name = spoken(input.name);
+  const move = Math.abs(input.changePercent);
+  const sharpest = sharpestDay(input.points);
+
+  // Worth singling out only when the day carried a real share of the window's
+  // move; otherwise the price drifted and no one session explains it.
+  const standsOut =
+    sharpest !== null &&
+    (Math.abs(sharpest.changePercent) >= 2 ||
+      Math.abs(sharpest.changePercent) >= move * 0.5);
+
+  if (sharpest && standsOut) {
+    const story = headlineNear(
+      input.headlines,
+      sharpest.time,
+      input.symbol,
+      input.name,
+    );
+    const day = `${percent(sharpest.changePercent)} on ${dayLabel(sharpest.time)}`;
+    sentences.push(
+      story
+        ? `The sharpest single day was ${day}, and that day's news was "${story.headline}" (${story.source}).`
+        : coverageReaches(input.headlines, sharpest.time)
+          ? `The sharpest single day was ${day}, with no company news published around it.`
+          : `The sharpest single day was ${day}, which is further back than the news here reaches.`,
+    );
+  } else if (input.direction === "flat") {
+    sentences.push(
+      `${name} ended ${input.period} close to where it started, with no single session moving it far.`,
+    );
+  } else {
+    sentences.push(
+      `No single day accounts for this — the move built up gradually across ${input.period}.`,
+    );
+  }
+
+  const topics = newsTopics(input.headlines);
+  if (topics.length > 0) {
+    const covered = coverageWords(input.headlines, input.period);
+    sentences.push(
+      `Coverage over ${covered} was mostly about ${topics.join(", and ")}.`,
+    );
+  } else if (input.headlines.length === 0) {
+    sentences.push(
+      `No company news was published over ${input.period}, so nothing ${name} announced accounts for it.`,
+    );
+  }
+
+  const benchmark = input.benchmark;
+  if (benchmark) {
+    const sameWay =
+      Math.sign(benchmark.changePercent) === Math.sign(input.changePercent);
+    const marketMove = Math.abs(benchmark.changePercent);
+    // Half the move or more coming from the index is the point at which this
+    // stops being a story about the company at all.
+    const marketDriven = sameWay && marketMove >= move * 0.5;
+
+    sentences.push(
+      marketDriven
+        ? `${benchmark.name} was ${percent(benchmark.changePercent)} over the same stretch, so much of this was the wider market rather than ${name} itself.`
+        : `${benchmark.name} was ${percent(benchmark.changePercent)} over the same stretch, so this was mostly ${possessive(name)} own move.`,
+    );
+  }
+
+  return sentences.join(" ");
+}
 
 /**
  * Why a listing moved across the visible window.
@@ -199,9 +441,12 @@ export type MoveExplanation = {
  * Always answers, because the reader asked for the reading to be done for
  * them rather than to be told it was inconclusive. That is not a licence to
  * invent: a quiet month gets "no single event drove this, here is what the
- * news was about", which is both an answer and true. Null is reserved for
- * the cases where there is genuinely nothing to work from — no model key, no
- * price, or the call failed.
+ * news was about", which is both an answer and true.
+ *
+ * Claude writes it where a key is configured; otherwise, and whenever the
+ * model call fails, the composer above answers from the same prices and
+ * headlines. Null is left for the one case neither can speak to — a window
+ * with no prices in it at all.
  */
 export async function explainMove(input: {
   symbol: string;
@@ -210,11 +455,10 @@ export async function explainMove(input: {
   stats?: RangeStats;
   price: number;
   previousClose: number;
+  points?: CandlePoint[];
   headlines: NewsItem[];
+  benchmark?: Benchmark;
 }): Promise<MoveExplanation | null> {
-  const anthropic = client();
-  if (!anthropic) return null;
-
   // The window's own open, not yesterday's close: over a month the reader is
   // asking about the whole span on the chart, not the last session.
   const open = input.stats?.open ?? input.previousClose;
@@ -226,18 +470,49 @@ export async function explainMove(input: {
     Math.abs(changePercent) < 0.5 ? "flat" : changePercent > 0 ? "up" : "down";
   const period = RANGE_WORDS[input.range];
 
-  // Nothing published all period is itself the answer, and it needs no model
-  // call: whatever moved the price, it was not something the company said.
-  if (input.headlines.length === 0) {
-    return {
-      reason: `No company news was published over ${period}, so nothing ${input.name} announced accounts for this — the move came from the wider market.`,
-      direction,
-      changePercent,
+  const fromClaude = await explainWithClaude({
+    ...input,
+    changePercent,
+    period,
+  });
+
+  const reason =
+    fromClaude ??
+    composeExplanation({
+      symbol: input.symbol,
+      name: input.name,
       period,
-    };
-  }
+      changePercent,
+      direction,
+      points: input.points ?? [],
+      headlines: input.headlines,
+      ...(input.benchmark ? { benchmark: input.benchmark } : {}),
+    });
+
+  return {
+    reason,
+    direction,
+    changePercent,
+    period,
+    writtenBy: fromClaude ? "claude" : "composer",
+  };
+}
+
+async function explainWithClaude(input: {
+  symbol: string;
+  name: string;
+  stats?: RangeStats;
+  headlines: NewsItem[];
+  changePercent: number;
+  period: string;
+}): Promise<string | null> {
+  const anthropic = client();
+  // Nothing published all period leaves the model nothing to read, and the
+  // composer says so plainly without a call.
+  if (!anthropic || input.headlines.length === 0) return null;
 
   const articles = input.headlines
+    .slice(0, 60)
     .map((item) => {
       const day = new Date(item.datetime * 1000).toISOString().slice(0, 10);
       return `- [${day}] ${item.source}: ${item.headline}`;
@@ -255,8 +530,8 @@ export async function explainMove(input: {
           role: "user",
           content: [
             `Company: ${input.name} (${input.symbol})`,
-            `Period: ${period}`,
-            `Move over the period: ${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(1)}%`,
+            `Period: ${input.period}`,
+            `Move over the period: ${input.changePercent >= 0 ? "+" : ""}${input.changePercent.toFixed(1)}%`,
             `Range high/low: ${input.stats ? `${input.stats.high} / ${input.stats.low}` : "not available"}`,
             "",
             `Headlines published during the period (newest first):`,
@@ -266,9 +541,7 @@ export async function explainMove(input: {
       ],
     });
 
-    const reason = oneParagraph(textOf(response));
-    if (!reason) return null;
-    return { reason, direction, changePercent, period };
+    return oneParagraph(textOf(response)) || null;
   } catch (error) {
     console.error(`Could not explain ${input.symbol}'s move`, error);
     return null;
