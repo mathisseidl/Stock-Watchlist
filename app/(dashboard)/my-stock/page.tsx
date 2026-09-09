@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Star } from "lucide-react";
 import { RangeSelector } from "@/components/stock/range-selector";
 import { WatchlistList } from "@/components/watchlist/watchlist-list";
@@ -12,7 +11,7 @@ import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import type { CandleRange } from "@/lib/market-data/types";
 
 export default function MyStockPage() {
-  const { items, ready, isGuest, error } = useWatchlist();
+  const { items, ready, error } = useWatchlist();
   const { settings, ready: settingsReady } = useUserSettings();
   const [range, setRange] = useState<CandleRange | null>(null);
 
@@ -39,7 +38,7 @@ export default function MyStockPage() {
           <Star className="size-6 text-muted-foreground" />
           <p className="text-sm font-medium">Your watchlist is empty</p>
           <p className="text-sm text-muted-foreground">
-            Use the search box up top to find a stock and add it.
+            Use the search box to find a stock and add it.
           </p>
         </div>
       ) : (
@@ -50,21 +49,6 @@ export default function MyStockPage() {
             <RangeSelector value={activeRange} onChange={setRange} size="sm" />
           </div>
           <WatchlistList range={activeRange} />
-        </div>
-      )}
-
-      {isGuest && (
-        <div className="flex flex-col gap-2 rounded-xl border border-primary/30 bg-accent px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-accent-foreground">
-            You&apos;re not signed. This watchlist is saved on this local device
-            only.
-          </span>
-          <Link
-            href="/account"
-            className="font-semibold text-primary hover:underline"
-          >
-            Sign in for free →
-          </Link>
         </div>
       )}
 
