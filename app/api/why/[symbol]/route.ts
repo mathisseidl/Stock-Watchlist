@@ -86,7 +86,7 @@ const cachedExplanation = unstable_cache(
       ...(benchmark ? { benchmark } : {}),
     });
   },
-  ["stock-why-v2"],
+  ["stock-why-v5"],
   { revalidate: 3600 },
 );
 

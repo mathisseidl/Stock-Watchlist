@@ -1,5 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { newsTopics, rankHeadlines } from "./market-data/news-curation";
+import { newsBetween } from "./market-data/google-news";
+import {
+  isTrustedSource,
+  newsTopics,
+  rankHeadlines,
+} from "./market-data/news-curation";
 import { wikipediaDescription } from "./wikipedia";
 import type {
   CandlePoint,
@@ -284,97 +289,190 @@ function dayLabel(seconds: number): string {
 }
 
 /**
- * The single sharpest session inside the window, from the intraday points the
- * chart is already drawn from.
- *
- * A month of 15-minute bars is collapsed to one close per calendar day first,
- * because the question is which *day* moved the stock — an afternoon slide is
- * only news if the day ended there.
+ * A day worth explaining. Below this the move is noise or drift, and a
+ * headline set beside it would imply a connection nobody can support.
  */
-function sharpestDay(
+const NOTABLE_PERCENT = 5;
+
+/** When nothing cleared that bar, the month's biggest day still counts here. */
+const WORTH_MENTIONING_PERCENT = 2.5;
+
+/** How many days one paragraph can carry before it stops being readable. */
+const MAX_DAYS_EXPLAINED = 2;
+
+/**
+ * Every session in the window, with how far it moved from the day before.
+ *
+ * A month arrives as 15-minute bars, so it is collapsed to one close per
+ * calendar day first: an afternoon slide only counts if the day ended there.
+ */
+function dailyMoves(
   points: CandlePoint[],
-): { time: number; changePercent: number } | null {
+): { time: number; changePercent: number }[] {
   const closes = new Map<string, CandlePoint>();
   for (const point of points) {
-    const day = new Date(point.time * 1000).toISOString().slice(0, 10);
-    closes.set(day, point);
+    closes.set(new Date(point.time * 1000).toISOString().slice(0, 10), point);
   }
 
   const days = [...closes.values()].sort((a, b) => a.time - b.time);
-  if (days.length < 3) return null;
+  const moves: { time: number; changePercent: number }[] = [];
 
-  let sharpest: { time: number; changePercent: number } | null = null;
   for (let index = 1; index < days.length; index += 1) {
     const previous = days[index - 1].value;
     if (!previous) continue;
-    const changePercent = ((days[index].value - previous) / previous) * 100;
-    if (
-      !sharpest ||
-      Math.abs(changePercent) > Math.abs(sharpest.changePercent)
-    ) {
-      sharpest = { time: days[index].time, changePercent };
-    }
+    moves.push({
+      time: days[index].time,
+      changePercent: ((days[index].value - previous) / previous) * 100,
+    });
   }
-  return sharpest;
+  return moves;
+}
+
+/** The days this explanation should go and read the news for. */
+function daysToExplain(
+  moves: { time: number; changePercent: number }[],
+): { time: number; changePercent: number }[] {
+  const bySize = [...moves].sort(
+    (a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent),
+  );
+
+  const notable = bySize
+    .filter((move) => Math.abs(move.changePercent) >= NOTABLE_PERCENT)
+    .slice(0, MAX_DAYS_EXPLAINED);
+
+  // Read in the order they happened, whichever set is used.
+  if (notable.length > 0) return notable.sort((a, b) => a.time - b.time);
+
+  const biggest = bySize[0];
+  return biggest && Math.abs(biggest.changePercent) >= WORTH_MENTIONING_PERCENT
+    ? [biggest]
+    : [];
 }
 
 /**
- * How far back the headlines we were handed actually reach, in words.
+ * A headline that reports why something happened rather than that it happened:
+ * "…tumbles 9% after outlook disappoints", not "…is down today".
  *
- * The free news tier serves about a week however wide a window is asked for,
- * so a sentence saying "coverage over the past month" would routinely
- * describe seven days of it. The answer says what it can see instead.
+ * The cue is the joint — after, as, amid — which is where a news desk puts the
+ * cause. Ranked ahead of the rest rather than filtering them out, so a day
+ * whose coverage is all bare movement reporting still gets an answer.
  */
-function coverageWords(headlines: NewsItem[], fallback: string): string {
-  if (headlines.length === 0) return fallback;
+const GIVES_A_REASON =
+  /\b(after|as|amid|following|on (?:news|reports|fears)|beats|misses|warns|slows|disappoints)\b/i;
 
-  const oldest = Math.min(...headlines.map((item) => item.datetime));
-  const days = (Date.now() / 1000 - oldest) / DAY;
+/**
+ * Which way a headline says the price went, where it says at all.
+ *
+ * A search around a date returns the days either side of it too, so a story
+ * about Thursday's fall can surface next to Wednesday's rally. Quoting one
+ * beside the wrong day contradicts the sentence it sits in — "NVIDIA rose 8.6%
+ * on 27 August: 'Nvidia Shares Fall 3 Percent'" — which is worse than saying
+ * nothing at all, so those are dropped rather than ranked down.
+ */
+const SAYS_UP =
+  /\b(rise|rises|rose|rising|gains?|gained|jumps?|jumped|surges?|surged|soars?|soared|rall(?:y|ies|ied)|climbs?|climbed|higher|pops?|popped|beats?|record high)\b/i;
+const SAYS_DOWN =
+  /\b(falls?|fell|falling|drops?|dropped|slumps?|slumped|slides?|slid|sinks?|sank|plunges?|plunged|tumbles?|tumbled|lower|crash(?:es|ed)?|slips?|slipped|sells? off|selloff|misses?)\b/i;
 
-  if (days <= 3) return "the last few days";
-  if (days <= 10) return "the past week";
-  if (days <= 45) return "the past month";
-  return fallback;
+function contradicts(headline: string, rose: boolean): boolean {
+  const up = SAYS_UP.test(headline);
+  const down = SAYS_DOWN.test(headline);
+  // Only when it is unambiguous: a headline carrying both is about something
+  // more complicated than a direction, and is left to the ranking.
+  if (up === down) return false;
+  return rose ? down : up;
 }
 
-/** Whether the headlines reach back to a given day at all. */
-function coverageReaches(headlines: NewsItem[], time: number): boolean {
-  if (headlines.length === 0) return false;
-  return Math.min(...headlines.map((item) => item.datetime)) <= time + DAY;
-}
-
-/** The story most likely to be the one behind a given day. */
-function headlineNear(
-  headlines: NewsItem[],
+/** The best few stories from the days around one session. */
+async function storiesAround(
+  input: { symbol: string; name: string; headlines: NewsItem[] },
   time: number,
-  symbol: string,
-  name: string,
-): NewsItem | null {
-  // The day itself and the one before it: a story that breaks after the close
-  // or overnight is priced into the session that follows, not the one it was
-  // published in.
-  const window = headlines.filter(
-    (item) => item.datetime >= time - DAY && item.datetime <= time + DAY,
+  rose: boolean,
+  wanted: number,
+): Promise<NewsItem[]> {
+  const day = new Date(time * 1000);
+  const from = new Date(day.getTime() - DAY * 1000);
+  const to = new Date(day.getTime() + DAY * 1000);
+
+  // The archive first, because it reaches back past the free news tier's week.
+  // Its own failures return nothing, and then the app's headlines stand in.
+  const archived = await newsBetween(input.name, from, to);
+  const pool =
+    archived.length > 0
+      ? archived
+      : input.headlines.filter(
+          (item) =>
+            item.datetime >= from.getTime() / 1000 &&
+            item.datetime <= to.getTime() / 1000,
+        );
+
+  const ranked = rankHeadlines(pool, input.symbol, input.name).filter(
+    (item) => !contradicts(item.headline, rose),
   );
-  return rankHeadlines(window, symbol, name)[0] ?? null;
+
+  // A known desk over an unknown one, always: a web search for a company on a
+  // given day surfaces far more republishers than reporters, and the trust
+  // table is the only thing separating them.
+  const known = ranked.filter((item) => isTrustedSource(item.source));
+  const best = known.length > 0 ? known : ranked;
+
+  const sameDay = new Date(time * 1000).toISOString().slice(0, 10);
+  const onTheDay = best.filter(
+    (item) =>
+      new Date(item.datetime * 1000).toISOString().slice(0, 10) === sameDay,
+  );
+  const ordered = [...onTheDay, ...best.filter((item) => !onTheDay.includes(item))];
+
+  const explaining = ordered.filter((item) => GIVES_A_REASON.test(item.headline));
+  if (explaining.length > 0) return explaining.slice(0, wanted);
+
+  // Nothing on the day said why, so quote the best single story and stop. A
+  // second one here would only be filler, and two weak headlines read as less
+  // trustworthy than one.
+  return ordered.slice(0, 1);
+}
+
+function quote(stories: NewsItem[]): string {
+  return stories
+    .map((story) => `"${story.headline}" (${story.source})`)
+    .join(", and ");
+}
+
+/** One session, said plainly, with the day's reporting behind it. */
+function dayLine(
+  name: string,
+  move: { time: number; changePercent: number },
+  stories: NewsItem[],
+): string {
+  const verb = move.changePercent >= 0 ? "rose" : "fell";
+  const size = `${Math.abs(move.changePercent).toFixed(1)}%`;
+  const when = dayLabel(move.time);
+
+  return stories.length === 0
+    ? `${name} ${verb} ${size} on ${when}, with nothing published that day to account for it.`
+    : `${name} ${verb} ${size} on ${when}: ${quote(stories)}.`;
 }
 
 /**
  * The explanation, assembled rather than written — what runs when there is no
  * model key.
  *
- * It says only what the numbers and the headlines actually show, and it is
- * careful about the difference between the two: the sharpest day is a fact,
- * and the story published alongside it is *what the news was that day*, never
- * "the reason", because nothing here can establish that it caused anything.
+ * The shape is the reader's own question: which days actually moved this
+ * stock, and what was in the news on those days. Everything else it might say
+ * — what the month's coverage was "mostly about", how many stories mentioned
+ * earnings — is the kind of summary that is true of any month and answers
+ * nothing, so it is kept for the case where no day stands out at all.
  *
- * The benchmark is what makes this genuinely useful rather than a list of
- * facts. A reader asking why a stock fell is usually asking whether it was
- * this company or everything at once, and comparing the two answers that
- * outright — something the model cannot do, since it only ever sees
- * headlines.
+ * It is careful about the one thing it cannot know. A story published beside a
+ * move is *that day's news*, never "the reason": the sentence puts them next
+ * to each other and leaves the reader to draw the line, because nothing here
+ * can establish cause.
+ *
+ * The benchmark is what makes this more than a list of days. A reader asking
+ * why a stock fell is usually asking whether it was this company or everything
+ * at once, and comparing the two answers that outright.
  */
-function composeExplanation(input: {
+async function composeExplanation(input: {
   symbol: string;
   name: string;
   period: string;
@@ -383,58 +481,46 @@ function composeExplanation(input: {
   points: CandlePoint[];
   headlines: NewsItem[];
   benchmark?: Benchmark;
-}): string {
+}): Promise<string> {
   const sentences: string[] = [];
   const name = spoken(input.name);
-  const move = Math.abs(input.changePercent);
-  const sharpest = sharpestDay(input.points);
+  const days = daysToExplain(dailyMoves(input.points));
 
-  // Worth singling out only when the day carried a real share of the window's
-  // move; otherwise the price drifted and no one session explains it.
-  const standsOut =
-    sharpest !== null &&
-    (Math.abs(sharpest.changePercent) >= 2 ||
-      Math.abs(sharpest.changePercent) >= move * 0.5);
-
-  if (sharpest && standsOut) {
-    const story = headlineNear(
-      input.headlines,
-      sharpest.time,
-      input.symbol,
-      input.name,
-    );
-    const day = `${percent(sharpest.changePercent)} on ${dayLabel(sharpest.time)}`;
-    sentences.push(
-      story
-        ? `The sharpest single day was ${day}, and that day's news was "${story.headline}" (${story.source}).`
-        : coverageReaches(input.headlines, sharpest.time)
-          ? `The sharpest single day was ${day}, with no company news published around it.`
-          : `The sharpest single day was ${day}, which is further back than the news here reaches.`,
-    );
-  } else if (input.direction === "flat") {
-    sentences.push(
-      `${name} ended ${input.period} close to where it started, with no single session moving it far.`,
-    );
+  if (days.length > 0) {
+    // The larger day carries two stories, a second day one — enough to show a
+    // month with two separate causes without turning into a list.
+    const [first, ...others] = days;
+    const lines = await Promise.all([
+      storiesAround(input, first.time, first.changePercent >= 0, 2).then(
+        (stories) => dayLine(name, first, stories),
+      ),
+      ...others.map((move) =>
+        storiesAround(input, move.time, move.changePercent >= 0, 1).then(
+          (stories) => dayLine(name, move, stories),
+        ),
+      ),
+    ]);
+    sentences.push(...lines);
   } else {
     sentences.push(
-      `No single day accounts for this — the move built up gradually across ${input.period}.`,
+      input.direction === "flat"
+        ? `${name} ended ${input.period} close to where it started, with no single session moving it far.`
+        : `No single day accounts for this — the move built up gradually across ${input.period}.`,
     );
-  }
 
-  const topics = newsTopics(input.headlines);
-  if (topics.length > 0) {
-    const covered = coverageWords(input.headlines, input.period);
-    sentences.push(
-      `Coverage over ${covered} was mostly about ${topics.join(", and ")}.`,
-    );
-  } else if (input.headlines.length === 0) {
-    sentences.push(
-      `No company news was published over ${input.period}, so nothing ${name} announced accounts for it.`,
-    );
+    // Nothing to point at, so the honest fallback is what the period's news was
+    // about at all.
+    const topics = newsTopics(input.headlines);
+    if (topics.length > 0) {
+      sentences.push(
+        `Recent coverage has been mostly about ${topics.join(", and ")}.`,
+      );
+    }
   }
 
   const benchmark = input.benchmark;
   if (benchmark) {
+    const move = Math.abs(input.changePercent);
     const sameWay =
       Math.sign(benchmark.changePercent) === Math.sign(input.changePercent);
     const marketMove = Math.abs(benchmark.changePercent);
@@ -495,7 +581,7 @@ export async function explainMove(input: {
 
   const reason =
     fromClaude ??
-    composeExplanation({
+    (await composeExplanation({
       symbol: input.symbol,
       name: input.name,
       period,
@@ -504,7 +590,7 @@ export async function explainMove(input: {
       points: input.points ?? [],
       headlines: input.headlines,
       ...(input.benchmark ? { benchmark: input.benchmark } : {}),
-    });
+    }));
 
   return {
     reason,

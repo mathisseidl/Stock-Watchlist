@@ -81,6 +81,61 @@ const CLICKBAIT_PATTERNS = [
 ];
 
 /**
+ * Outlets that republish, aggregate or auto-generate rather than report. A web
+ * search for a company on any given day returns more of these than of the
+ * desks that broke the story, and quoting one at a reader is worse than
+ * quoting nothing.
+ */
+const LOW_VALUE_SOURCES = [
+  "marketbeat",
+  "kalkine",
+  "tipranks",
+  "defense world",
+  "defenseworld",
+  "etf daily news",
+  "american banking news",
+  "ad hoc news",
+  "quiver",
+  "stocktwits",
+  "newser",
+  "invezz",
+  "simply wall st",
+  "simplywall",
+  "gurufocus",
+  "zolmax",
+  "modern readers",
+  "the cerbat gem",
+  "ticker report",
+  "mayfield recorder",
+];
+
+/**
+ * Filings churn: "Fund X Cuts Position in Y", "Shares Sold by Z". Thousands
+ * are generated from 13F filings every quarter, they mention the company in
+ * the headline, and not one of them explains why a share price moved.
+ */
+const FILINGS_CHURN =
+  /\b(cuts?|trims?|lowers?|raises?|boosts?|lifts?|buys?|sells?|acquires?|takes?|grows?|reduces?)\b[^.]{0,40}\b(position|stake|holdings?|shares)\b|\bshares? (sold|bought|purchased|acquired) by\b|\bposition (in|of)\b[^.]{0,30}\bby\b|\b13[fF]\b|\bshort interest\b|\bhas \$[\d.]+ (million|billion) (position|stake|holdings)\b/;
+
+/**
+ * Copy that names a company without reporting anything about it: the five-
+ * ticker roundup, the "if you had invested $1,000 at the IPO" perennial, the
+ * congressional-trade filler. They rank respectably — real outlets publish
+ * them, and the company is right there in the headline — and not one is an
+ * answer to why a share price moved on a given day.
+ */
+const FILLER_PATTERNS = [
+  /\b\d+\s+(trending|top|best|hot|popular|hottest)\s+stocks?\b/i,
+  /stocks?\s+(are|is)\s+on\s+(investors'?|traders'?)\s+radars?/i,
+  /^(?:[A-Z]{1,5},\s*){2,}[A-Z]{1,5}\b/,
+  /\bif you (had )?invested\b/i,
+  /here'?s how much you'?d have/i,
+  /\b(congressman|congresswoman|senator|lawmakers?|pelosi)\b/i,
+  /\bstocks? to watch\b/i,
+  /\b(pre-?market|after-?hours) movers\b/i,
+];
+
+/**
  * Pundit commentary ("X Says…", "Y Predicts…"). Still readable, just ranked
  * below actual reporting rather than excluded.
  */
@@ -116,6 +171,20 @@ function trustScore(source: string): number {
   const normalized = normalize(source);
   const tier = SOURCE_TRUST.find((entry) => normalized.includes(entry.match));
   return tier ? tier.score : 12;
+}
+
+/** Whether this outlet is one the trust table actually knows. */
+export function isTrustedSource(source: string): boolean {
+  return trustScore(source) > 12;
+}
+
+function isLowValue(item: NewsItem): boolean {
+  const source = normalize(item.source);
+  return (
+    LOW_VALUE_SOURCES.some((blocked) => source.includes(blocked)) ||
+    FILINGS_CHURN.test(item.headline) ||
+    FILLER_PATTERNS.some((pattern) => pattern.test(item.headline))
+  );
 }
 
 function isPaywalled(source: string, url: string): boolean {
@@ -327,8 +396,9 @@ export function newsTopics(items: NewsItem[], limit = 2): string[] {
  *
  * Unlike `curateNews` this applies no freshness window, because the caller is
  * reading a whole month rather than today — but it drops paywalled stories the
- * same way, since a source the reader cannot open cannot be quoted at them,
- * and it pushes down the headlines that report nothing.
+ * same way, since a source the reader cannot open cannot be quoted at them.
+ * Aggregators and filings churn are dropped outright, and the headlines that
+ * report nothing are pushed down.
  */
 export function rankHeadlines(
   items: NewsItem[],
@@ -338,7 +408,7 @@ export function rankHeadlines(
   const tokens = companyTokens(companyName);
 
   return items
-    .filter((item) => !isPaywalled(item.source, item.url))
+    .filter((item) => !isPaywalled(item.source, item.url) && !isLowValue(item))
     .map((item) => {
       const clickbait = CLICKBAIT_PATTERNS.some((pattern) =>
         pattern.test(item.headline),
