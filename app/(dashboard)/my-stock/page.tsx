@@ -20,12 +20,7 @@ export default function MyStockPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">My Stocks</h1>
-        <p className="text-sm text-muted-foreground">
-          Your watchlist — search any stock and add it here.
-        </p>
-      </div>
+      <h1 className="text-2xl font-semibold">My Stocks</h1>
 
       {error && (
         <div className="rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">

@@ -40,6 +40,9 @@ const proExtras = [
  * beside the form. Persistence and Community, not Pro features.
  */
 const guestUnlocks: Feature[] = [
+  // Bold, like "Everything in Free" below: it heads the list rather than
+  // reading as one more bullet.
+  { text: "Everything in guest mode", bold: true },
   "Add friends and compare watchlists",
   "Your watchlist saved to your account",
   "Notifications, number-format and chart-range preferences saved",
