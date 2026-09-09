@@ -2,17 +2,13 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { HelpCircle, Loader2 } from "lucide-react";
+import { HelpCircle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type ErrorBody = { error?: string; empty?: boolean };
 
-type Description = {
-  description: string;
-  /** Present when the words are someone else's and must be credited. */
-  source?: { name: string; url: string };
-};
+type Description = { description: string };
 
 /**
  * "What does it do?" — one or two lines on the business behind a ticker,
@@ -57,9 +53,19 @@ export function CompanyExplainer({ symbol }: { symbol: string }) {
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <p className="text-xs font-medium text-muted-foreground">
-        What {symbol} does
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-medium text-muted-foreground">
+          What {symbol} does
+        </p>
+        <button
+          type="button"
+          onClick={() => setAsked(false)}
+          aria-label="Close"
+          className="-mt-1 -mr-1 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
       {isLoading ? (
         <div className="mt-2 flex flex-col gap-2">
           <Skeleton className="h-3.5 w-full" />
@@ -70,24 +76,7 @@ export function CompanyExplainer({ symbol }: { symbol: string }) {
           {(error as Error).message}
         </p>
       ) : (
-        <>
-          <p className="mt-1.5 text-sm leading-relaxed">{data?.description}</p>
-          {/* Wikipedia's text is CC BY-SA: shown, it has to be credited. */}
-          {data?.source && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              From{" "}
-              <a
-                href={data.source.url}
-                target="_blank"
-                rel="noreferrer"
-                className="underline underline-offset-2 hover:text-foreground"
-              >
-                {data.source.name}
-              </a>
-              , CC BY-SA
-            </p>
-          )}
-        </>
+        <p className="mt-1.5 text-sm leading-relaxed">{data?.description}</p>
       )}
       {isLoading && (
         <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
