@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CalendarCheck, RefreshCw, RotateCcw, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -31,44 +30,18 @@ import type { SubscriptionResponse } from "@/app/api/subscription/route";
  * Cancelling asks for confirmation. Resuming does not — nothing is lost by
  * turning billing back on, and a confirm step there would only be friction.
  */
-export function SubscriptionCard({
-  initialExpiresAt,
-}: {
-  initialExpiresAt: string | null;
-}) {
+export function SubscriptionCard({ initial }: { initial: SubscriptionResponse }) {
   const { settings } = useUserSettings();
-  const [plan, setPlan] = useState<SubscriptionResponse | null>(null);
+  // The page that renders this card has already read the plan — and already
+  // refreshed it from Stripe if the period was nearly up. Asking the server
+  // again on mount only repeated that work and made the card start as a
+  // skeleton it never needed to show.
+  const [plan, setPlan] = useState<SubscriptionResponse>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/subscription")
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("failed"))))
-      .then((data: SubscriptionResponse) => {
-        if (active) setPlan(data);
-      })
-      .catch(() => {
-        // Fall back to what the server already rendered rather than showing
-        // an empty card.
-        if (active) {
-          setPlan({
-            isPaid: Boolean(initialExpiresAt),
-            proExpiresAt: initialExpiresAt,
-            autoRenew: false,
-            status: null,
-            hasSubscription: false,
-          });
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [initialExpiresAt]);
-
   async function setAutoRenew(next: boolean) {
-    if (!plan) return;
     const previous = plan;
     setPlan({ ...plan, autoRenew: next });
     setSaving(true);
@@ -93,16 +66,6 @@ export function SubscriptionCard({
     } finally {
       setSaving(false);
     }
-  }
-
-  if (!plan) {
-    return (
-      <Card className="gap-3 p-6">
-        <Skeleton className="h-4 w-48" />
-        <Skeleton className="h-3 w-64" />
-        <Skeleton className="h-10 w-full rounded-xl" />
-      </Card>
-    );
   }
 
   if (!plan.isPaid) return null;

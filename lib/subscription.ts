@@ -29,10 +29,20 @@ export type SubscriptionState = {
   hasSubscription: boolean;
 };
 
-type ProfileRow = ProProfile & {
+export type ProfileRow = ProProfile & {
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
 };
+
+/**
+ * The profile columns the plan is read from.
+ *
+ * Exported so a page that already reads the profile row for its own reasons
+ * can ask for these in the same query and hand the row to `accountFromProfile`
+ * — one round trip instead of reading the same row twice.
+ */
+export const SUBSCRIPTION_COLUMNS =
+  "is_paid, pro_expires_at, auto_renew, subscription_status, stripe_customer_id, stripe_subscription_id";
 
 /**
  * Stripe moved the billing period onto the subscription *item* in the 2025
@@ -136,26 +146,17 @@ export type AccountSubscription = SubscriptionState & {
 };
 
 /**
- * The signed-in user's plan, refreshed from Stripe when the recorded period is
- * about to lapse. Returns null for guests.
+ * The plan for a profile row the caller has already read, refreshed from
+ * Stripe when the recorded period is about to lapse.
+ *
+ * Split out from `getAccountSubscription` so the account page — which reads
+ * the same row for the username and logo — doesn't pay for a second lookup of
+ * the user and a second read of the row.
  */
-export async function getAccountSubscription(): Promise<AccountSubscription | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from("profiles")
-    .select(
-      "is_paid, pro_expires_at, auto_renew, subscription_status, stripe_customer_id, stripe_subscription_id",
-    )
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const profile = (data ?? null) as ProfileRow | null;
+export async function accountFromProfile(
+  user: { id: string; email?: string | null },
+  profile: ProfileRow | null,
+): Promise<AccountSubscription> {
   let state = stateFromProfile(profile);
 
   if (needsSync(profile) && profile?.stripe_subscription_id) {
@@ -173,6 +174,27 @@ export async function getAccountSubscription(): Promise<AccountSubscription | nu
     customerId: profile?.stripe_customer_id ?? null,
     subscriptionId: profile?.stripe_subscription_id ?? null,
   };
+}
+
+/**
+ * The signed-in user's plan, refreshed from Stripe when the recorded period is
+ * about to lapse. Returns null for guests.
+ */
+export async function getAccountSubscription(): Promise<AccountSubscription | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("profiles")
+    .select(SUBSCRIPTION_COLUMNS)
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return accountFromProfile(user, (data ?? null) as ProfileRow | null);
 }
 
 /** Convenience gate for API routes that are Pro-only. */

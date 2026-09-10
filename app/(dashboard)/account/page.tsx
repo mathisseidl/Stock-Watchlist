@@ -6,7 +6,12 @@ import { SubscriptionCard } from "@/components/account/subscription-card";
 import { InviteCard } from "@/components/account/invite-card";
 import { LogoEditor } from "@/components/account/logo-editor";
 import { createClient } from "@/lib/supabase/server";
-import { getAccountSubscription } from "@/lib/subscription";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  accountFromProfile,
+  SUBSCRIPTION_COLUMNS,
+  type ProfileRow,
+} from "@/lib/subscription";
 import { proDaysRemaining } from "@/lib/pro";
 import { resolveLogo } from "@/lib/logo";
 import { cn } from "@/lib/utils";
@@ -150,19 +155,34 @@ export default async function AccountPage() {
     );
   }
 
-  const { data: profile } = await supabase
+  // One read for everything this page needs from the profile — who they are
+  // and what they pay. Two separate queries here (and a second lookup of the
+  // user inside the plan helper) were most of the wait before anything drew.
+  const { data } = await createAdminClient()
     .from("profiles")
-    .select("username, created_at, logo_text, logo_color, logo_shape")
+    .select(
+      `username, created_at, logo_text, logo_color, logo_shape, ${SUBSCRIPTION_COLUMNS}`,
+    )
     .eq("id", user.id)
     .maybeSingle();
 
+  const profile = (data ?? null) as
+    | (ProfileRow & {
+        username?: string | null;
+        created_at?: string | null;
+        logo_text?: string | null;
+        logo_color?: string | null;
+        logo_shape?: string | null;
+      })
+    | null;
+
   // Reads the plan through Stripe when the paid period is nearly up, so a
   // renewal that just landed is already reflected here.
-  const account = await getAccountSubscription();
-  const isPaid = account?.isPaid ?? false;
-  const proExpiresAt = account?.proExpiresAt ?? null;
-  const autoRenew = account?.autoRenew ?? false;
-  const isTrialing = account?.status === "trialing";
+  const account = await accountFromProfile(user, profile);
+  const isPaid = account.isPaid;
+  const proExpiresAt = account.proExpiresAt;
+  const autoRenew = account.autoRenew;
+  const isTrialing = account.status === "trialing";
   const daysLeft = proDaysRemaining(proExpiresAt);
 
   const username = profile?.username ?? null;
@@ -203,7 +223,15 @@ export default async function AccountPage() {
         </div>
       </Card>
 
-      <SubscriptionCard initialExpiresAt={proExpiresAt} />
+      <SubscriptionCard
+        initial={{
+          isPaid,
+          proExpiresAt,
+          autoRenew,
+          status: account.status,
+          hasSubscription: account.hasSubscription,
+        }}
+      />
 
       {/* ---- Plans --------------------------------------------------- */}
       <div id="plans" className="flex flex-col gap-3 scroll-mt-6">
