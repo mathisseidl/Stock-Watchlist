@@ -235,7 +235,7 @@ export default async function AccountPage() {
       <div id="plans" className="flex flex-col gap-3 scroll-mt-6">
         <h2 className="text-lg font-semibold">Plans</h2>
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="gap-5 p-6">
+          <Card className={cn("gap-5 p-6", !isPaid && "plan-glow")}>
             <div>
               <h3 className="text-lg font-semibold">Free</h3>
               <p className="num mt-1 text-3xl font-semibold">
@@ -256,7 +256,7 @@ export default async function AccountPage() {
             </div>
           </Card>
 
-          <Card className="pro-glow gap-5 p-6">
+          <Card className={cn("gap-5 p-6", isPaid && "plan-glow")}>
             <div>
               <h3 className="text-lg font-semibold">Pro</h3>
               <p className="num mt-1 text-3xl font-semibold">

@@ -194,7 +194,7 @@ html[data-gradient] {
   font-weight: 600;
 }
 
-@keyframes pro-glow-breathe {
+@keyframes plan-glow-breathe {
   0%,
   100% {
     box-shadow:
@@ -209,14 +209,16 @@ html[data-gradient] {
 }
 
 /**
- * The Pro plan card's tell: a fixed purple border whose ambient shadow
- * slowly brightens and settles, so it reads as "alive" without anything
- * visibly moving. `prefers-reduced-motion` freezes it via the
- * animation-duration override below, same as everything else on the page.
+ * The current plan's tell on the Plans grid: a fixed purple border whose
+ * ambient shadow slowly brightens and settles, so it reads as "alive"
+ * without anything visibly moving. Goes on whichever card — Free or Pro —
+ * matches the plan the member is actually on, never a fixed one of them.
+ * `prefers-reduced-motion` freezes it via the animation-duration override
+ * below, same as everything else on the page.
  */
-@utility pro-glow {
+@utility plan-glow {
   border: 1px solid var(--primary);
-  animation: pro-glow-breathe 3.6s ease-in-out infinite;
+  animation: plan-glow-breathe 3.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
