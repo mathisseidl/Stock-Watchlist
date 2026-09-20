@@ -322,13 +322,7 @@ export function ForecastResultView({
 
       {/* ---- 4. Where it has actually been ----------------------------- */}
       <Card className="gap-4 p-6">
-        <div>
-          <h3 className="text-base font-semibold">{forecast.name} up to now</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            The real price history the simulation was built from — the same
-            chart as on the stock&rsquo;s own page.
-          </p>
-        </div>
+        <h3 className="text-base font-semibold">{forecast.name} up to now</h3>
         <PriceHistory symbol={forecast.symbol} />
       </Card>
 

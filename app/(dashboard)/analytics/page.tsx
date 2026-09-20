@@ -1,21 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { TrendingUp, Lock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { PriceChart } from "@/components/stock/price-chart";
 import { RangeSelector } from "@/components/stock/range-selector";
 import { SymbolCombobox } from "@/components/search/symbol-combobox";
 import { DataDisclaimer } from "@/components/layout/data-disclaimer";
+import { ProUpsellCta } from "@/components/pricing/pro-upsell-cta";
 import { useCandles } from "@/hooks/use-candles";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
 import { RANGES, RANGE_SECONDS } from "@/lib/ranges";
-import { cn } from "@/lib/utils";
 import type {
   CandleRange,
   CandlePoint,
@@ -294,18 +293,7 @@ export default function AnalyticsPage() {
               Unlimited past-investment analysis is a Pro feature
             </p>
           </div>
-          <Link
-            href="/account#plans"
-            className={cn(
-              buttonVariants(),
-              "w-full rounded-full sm:w-auto sm:self-start",
-            )}
-          >
-            Start your 7-day free trial
-          </Link>
-          <p className="text-sm text-muted-foreground">
-            Cancel any time before the trial ends and you won&apos;t be charged.
-          </p>
+          <ProUpsellCta className="w-full rounded-full sm:w-auto sm:self-start" />
         </Card>
       )}
 

@@ -1,8 +1,6 @@
-import Link from "next/link";
-import { ArrowUpRight, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { ProUpsellCta } from "@/components/pricing/pro-upsell-cta";
 
 export function PotentialUpsell() {
   return (
@@ -14,20 +12,10 @@ export function PotentialUpsell() {
         </h2>
       </div>
 
-      <Link
-        href="/account#plans"
-        className={cn(
-          buttonVariants(),
-          "w-full rounded-full sm:w-auto sm:self-start",
-        )}
-      >
-        Start your 7-day free trial
-        <ArrowUpRight className="size-4" />
-      </Link>
-
-      <p className="text-sm text-muted-foreground">
-        Cancel any time before the trial ends and you won&apos;t be charged.
-      </p>
+      <ProUpsellCta
+        className="w-full rounded-full sm:w-auto sm:self-start"
+        arrow
+      />
     </Card>
   );
 }

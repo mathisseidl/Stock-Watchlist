@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
+import { UpgradeButton } from "@/components/pricing/upgrade-button";
 import { localeFor } from "@/lib/format";
 import { proDaysRemaining } from "@/lib/pro";
 import type { SubscriptionResponse } from "@/app/api/subscription/route";
@@ -105,8 +106,15 @@ export function SubscriptionCard({ initial }: { initial: SubscriptionResponse })
                     · {daysLeft} {daysLeft === 1 ? "day" : "days"} left
                   </span>
                 )}
-                . The first <span className="num">$1.99</span> charge lands then,
-                unless you cancel before.
+                .{" "}
+                {plan.hasSubscription ? (
+                  <>
+                    The first <span className="num">$1.99</span> charge lands
+                    then, unless you cancel before.
+                  </>
+                ) : (
+                  <>No bank card needed — pay any time before then to keep Pro.</>
+                )}
               </>
             ) : (
               <>
@@ -122,6 +130,17 @@ export function SubscriptionCard({ initial }: { initial: SubscriptionResponse })
               </>
             )}
           </p>
+        </div>
+      )}
+
+      {isTrialing && !plan.hasSubscription && (
+        // No card on file and nothing to cancel — the only action available
+        // during the free trial is choosing to pay for Pro early.
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            Ready now? Pay for Pro and skip the rest of the trial.
+          </p>
+          <UpgradeButton />
         </div>
       )}
 

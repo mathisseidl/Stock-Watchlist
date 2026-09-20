@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Menu } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { StockSearch } from "@/components/search/stock-search";
 import { MarketStatus } from "@/components/stock/market-status";
 import { useBackground } from "@/components/settings/background-provider";
+import { useProStatus } from "@/hooks/use-pro";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 
 /** Horizontal travel that counts as a swipe rather than a tap or a scroll. */
 const SWIPE_DISTANCE = 70;
@@ -36,22 +36,9 @@ function startedInScroller(target: EventTarget | null): boolean {
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isPaid, setIsPaid] = useState(false);
+  const { isPaid } = useProStatus();
   const { activeId: gradient } = useBackground();
   const swipe = useRef<{ x: number; y: number; eligible: boolean } | null>(null);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
-      const { data } = await supabase
-        .from("profiles")
-        .select("is_paid")
-        .eq("id", user.id)
-        .maybeSingle();
-      setIsPaid(Boolean(data?.is_paid));
-    });
-  }, []);
 
   return (
     <div className="flex h-full min-h-screen w-full">

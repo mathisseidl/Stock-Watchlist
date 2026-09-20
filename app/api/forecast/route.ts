@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json(
       {
-        error: `Pick a date between a week and ten years from today.`,
+        error: `Pick a date between a week and five years from today.`,
       },
       { status: 400 },
     );

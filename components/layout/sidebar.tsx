@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { BackgroundPicker } from "@/components/settings/background-picker";
+import { useProStatus } from "@/hooks/use-pro";
 
 const nav = [
   { href: "/my-stock", label: "My Stocks", icon: LayoutGrid },
@@ -40,7 +41,7 @@ export function Sidebar({
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
-  const [isPaid, setIsPaid] = useState(false);
+  const { isPaid } = useProStatus();
   const swipe = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -54,7 +55,6 @@ export function Sidebar({
       } = await supabase.auth.getUser();
       if (!user) {
         setPendingRequests(0);
-        setIsPaid(false);
         return;
       }
       const { count } = await supabase
@@ -63,13 +63,6 @@ export function Sidebar({
         .eq("recipient_id", user.id)
         .eq("status", "pending");
       setPendingRequests(count ?? 0);
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_paid")
-        .eq("id", user.id)
-        .maybeSingle();
-      setIsPaid(Boolean(profile?.is_paid));
     }
     loadStatus();
   }, [pathname]);

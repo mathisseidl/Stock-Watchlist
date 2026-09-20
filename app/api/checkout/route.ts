@@ -6,20 +6,22 @@ import {
   PRO_PRICE_CENTS,
   PRO_PRODUCT_DESCRIPTION,
   PRO_PRODUCT_NAME,
-  PRO_TRIAL_DAYS,
 } from "@/lib/stripe";
 
 /**
  * Starts Stripe Checkout for the monthly Pro subscription.
  *
+ * There is no trial here — the free week happens before this route is ever
+ * called (see `isTrialActive` in lib/pro.ts), without a card. Reaching
+ * checkout means the member is choosing to pay right now, so this always
+ * takes a card and bills immediately: `mode: "subscription"` with no
+ * `trial_period_days`. That first charge is also the only moment a Stripe
+ * subscription — the thing that renews itself automatically — gets created.
+ *
  * `mode: "subscription"` means Stripe keeps the card on file and raises the
  * next invoice itself when the paid month runs out — that renewal is the
  * product's recurring charge, and cancelling before it lands stops it, even
  * with hours to spare.
- *
- * First-time members get a free trial (see PRO_TRIAL_DAYS): the card is still
- * taken at checkout, but the first charge only lands when the trial ends, so
- * cancelling before then costs nothing.
  *
  * An existing customer id is reused so a returning user's payments all sit
  * under one Stripe customer rather than a new one per checkout.
@@ -50,10 +52,6 @@ export async function POST(request: Request) {
 
     const customerId = profile?.stripe_customer_id ?? null;
 
-    // The free trial is for first-time members. Anyone Stripe has seen before —
-    // a past customer or a lapsed subscription — subscribes straight away.
-    const offerTrial = !customerId && !profile?.stripe_subscription_id;
-
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -66,7 +64,6 @@ export async function POST(request: Request) {
       // lookup can map it back to an account without the session.
       subscription_data: {
         metadata: { userId: user.id },
-        ...(offerTrial ? { trial_period_days: PRO_TRIAL_DAYS } : {}),
       },
       line_items: [
         {

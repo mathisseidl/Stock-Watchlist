@@ -1,16 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, ExternalLink, Lock } from "lucide-react";
+import { ExternalLink, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { buttonVariants } from "@/components/ui/button";
+import { ProUpsellCta } from "@/components/pricing/pro-upsell-cta";
 import { useProStatus } from "@/hooks/use-pro";
 import { SourceLogo } from "@/components/stock/source-logo";
 import { cn } from "@/lib/utils";
@@ -138,17 +137,7 @@ function ProPitch() {
         </p>
       </div>
 
-      <Link
-        href="/account#plans"
-        className={cn(buttonVariants(), "w-full rounded-full")}
-      >
-        Start your 7-day free trial
-        <ArrowUpRight className="size-4" />
-      </Link>
-
-      <p className="text-sm text-muted-foreground">
-        Cancel any time before the trial ends and you won&apos;t be charged.
-      </p>
+      <ProUpsellCta className="w-full rounded-full" arrow />
     </div>
   );
 }

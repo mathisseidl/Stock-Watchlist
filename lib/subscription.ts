@@ -2,17 +2,19 @@ import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
-import { isProActive, type ProProfile } from "@/lib/pro";
+import { isProActive, isTrialActive, trialEndsAt, type ProProfile } from "@/lib/pro";
 
 /**
- * Pro is a real Stripe subscription. Stripe owns the schedule and the money;
- * these columns are a local mirror so a page render never has to wait on a
- * Stripe round-trip.
+ * Pro is a real Stripe subscription once someone pays. Before that, a member
+ * can be on the free trial instead — tracked locally from `created_at`, no
+ * Stripe involved, since the trial never asks for a card.
  *
- * The mirror is refreshed lazily — whenever the period we recorded is close to
- * running out or has already passed. That is exactly the moment Stripe bills
- * the next month, so by the time a user looks at their account after a
- * renewal, the date they see has already rolled forward.
+ * For a paid account, Stripe owns the schedule and the money; these columns
+ * are a local mirror so a page render never has to wait on a Stripe
+ * round-trip. The mirror is refreshed lazily — whenever the period we
+ * recorded is close to running out or has already passed. That is exactly the
+ * moment Stripe bills the next month, so by the time a user looks at their
+ * account after a renewal, the date they see has already rolled forward.
  */
 
 /** Refresh from Stripe once the recorded period is inside this window. */
@@ -42,7 +44,7 @@ export type ProfileRow = ProProfile & {
  * — one round trip instead of reading the same row twice.
  */
 export const SUBSCRIPTION_COLUMNS =
-  "is_paid, pro_expires_at, auto_renew, subscription_status, stripe_customer_id, stripe_subscription_id";
+  "created_at, is_paid, pro_expires_at, auto_renew, subscription_status, stripe_customer_id, stripe_subscription_id";
 
 /**
  * Stripe moved the billing period onto the subscription *item* in the 2025
@@ -67,6 +69,18 @@ function grantsAccess(status: Stripe.Subscription.Status): boolean {
 }
 
 function stateFromProfile(profile: ProfileRow | null): SubscriptionState {
+  // No Stripe subscription and still inside the free week from signup: Pro is
+  // open, no card was ever taken, and there is nothing to renew or cancel.
+  if (isTrialActive(profile)) {
+    return {
+      isPaid: true,
+      proExpiresAt: trialEndsAt(profile?.created_at)?.toISOString() ?? null,
+      autoRenew: false,
+      status: "trialing",
+      hasSubscription: false,
+    };
+  }
+
   return {
     isPaid: isProActive(profile),
     proExpiresAt: profile?.pro_expires_at ?? null,

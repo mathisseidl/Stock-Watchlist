@@ -1,16 +1,16 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowUpRight, Lock, Sparkles } from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { SymbolCombobox } from "@/components/search/symbol-combobox";
 import { ForecastLoader, THINK_MS } from "@/components/forecast/forecast-loader";
 import { ForecastResultView } from "@/components/forecast/forecast-result";
 import { DataDisclaimer } from "@/components/layout/data-disclaimer";
+import { ProUpsellCta } from "@/components/pricing/pro-upsell-cta";
 import { useProStatus } from "@/hooks/use-pro";
 import { useWatchlist } from "@/components/watchlist/watchlist-provider";
 import { useUserSettings } from "@/components/settings/user-settings-provider";
@@ -118,7 +118,7 @@ function ForecastPageBody() {
       return;
     }
     if (!horizonValid) {
-      setError("Pick a date between a week and ten years from today.");
+      setError("Pick a date between a week and five years from today.");
       return;
     }
 
@@ -382,22 +382,22 @@ function EngineFacts() {
     {
       emoji: "🎲",
       value: SIMULATIONS_PER_RUN.toLocaleString(),
-      label: "simulated futures, every time you press the button",
+      label: "simulated futures",
     },
     {
       emoji: "📈",
       value: HISTORY_TRADING_DAYS.toLocaleString(),
-      label: "real trading days of price history behind each one",
+      label: "trading days of price history",
     },
     {
       emoji: "🧮",
       value: String(FORECAST_METHODS.length),
-      label: "named methods, all printed under the result",
+      label: "named Methods",
     },
     {
       emoji: "⏳",
       value: `${Math.round(MAX_HORIZON_DAYS / 365.25)} yrs`,
-      label: "the furthest ahead you can look, to any date you pick",
+      label: "the furthest ahead you can look",
     },
   ];
 
@@ -435,17 +435,10 @@ function ForecastUpsell({ hasRun }: { hasRun: boolean }) {
         </h2>
       </div>
 
-      <Link
-        href="/account#plans"
-        className={cn(buttonVariants(), "w-full rounded-full sm:w-auto sm:self-start")}
-      >
-        Start your 7-day free trial
-        <ArrowUpRight className="size-4" />
-      </Link>
-
-      <p className="text-sm text-muted-foreground">
-        Cancel any time before the trial ends and you won&apos;t be charged.
-      </p>
+      <ProUpsellCta
+        className="w-full rounded-full sm:w-auto sm:self-start"
+        arrow
+      />
     </Card>
   );
 }

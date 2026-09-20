@@ -62,7 +62,7 @@ import {
 export type { ForecastCalibration } from "./backtest";
 
 /** Longest horizon we'll simulate. Beyond a decade the bands are meaningless. */
-export const MAX_HORIZON_DAYS = 3653; // ~10 years
+export const MAX_HORIZON_DAYS = 1826; // ~5 years
 export const MIN_HORIZON_DAYS = 7;
 
 /**

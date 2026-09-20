@@ -160,16 +160,13 @@ export default async function AccountPage() {
   // user inside the plan helper) were most of the wait before anything drew.
   const { data } = await createAdminClient()
     .from("profiles")
-    .select(
-      `username, created_at, logo_text, logo_color, logo_shape, ${SUBSCRIPTION_COLUMNS}`,
-    )
+    .select(`username, logo_text, logo_color, logo_shape, ${SUBSCRIPTION_COLUMNS}`)
     .eq("id", user.id)
     .maybeSingle();
 
   const profile = (data ?? null) as
     | (ProfileRow & {
         username?: string | null;
-        created_at?: string | null;
         logo_text?: string | null;
         logo_color?: string | null;
         logo_shape?: string | null;
@@ -308,9 +305,11 @@ export default async function AccountPage() {
                   <p className="num text-xs text-gain/80">
                     {daysLeft !== null ? `${daysLeft} days left · ` : ""}
                     {isTrialing
-                      ? autoRenew
-                        ? "first charge then"
-                        : "cancelled — ends free"
+                      ? account.hasSubscription
+                        ? autoRenew
+                          ? "first charge then"
+                          : "cancelled — ends free"
+                        : "no card on file"
                       : autoRenew
                         ? "renews automatically"
                         : "will not renew"}

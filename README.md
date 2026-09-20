@@ -14,7 +14,7 @@ investment calculations, and connect with friends to share watchlists.
 - **Top news** — the day's three most relevant watchlist news stories, with any outsized price move surfaced alongside
 - **Lookback** — "what if you'd invested $X on date Y" calculator (free plan: 3/day; Pro: no limit)
 - **Community** — find friends by username, send/accept friend requests, view each other's watchlists
-- **Payments** — $1.99/month Stripe subscription. First-time members get a 7-day free trial (card taken up front, first charge only when the trial ends). An auto-pay switch sets `cancel_at_period_end`, so you can cancel right up to the day before the next charge — or before the trial ends — and keep the days you've paid for
+- **Payments** — $1.99/month Stripe subscription. Every new member gets Pro free for 7 days starting at signup, tracked locally from `created_at` — no card, no Stripe involved, and nothing to cancel. Checkout (and the recurring Stripe subscription it creates) only happens when a member actually chooses to pay, whether that's during the trial or after it lapses. An auto-pay switch on a real subscription sets `cancel_at_period_end`, so you can cancel right up to the day before the next charge and keep the days you've paid for
 
 ## Tech stack
 
