@@ -11,6 +11,9 @@ const GUEST: ProStatus = {
   autoRenew: false,
   status: null,
   hasSubscription: false,
+  // A guest hasn't started a trial yet — signing in is what makes that click
+  // possible, so the upsell still invites them to start one.
+  trialEligible: true,
   isGuest: true,
 };
 
@@ -49,6 +52,8 @@ export function useProStatus() {
     isGuest: plan.isGuest,
     /** On the free trial: Pro is open, but the first charge hasn't landed yet. */
     isTrialing: plan.status === "trialing",
+    /** Whether this account can still click to start the free trial. */
+    trialEligible: plan.trialEligible,
     /**
      * False until the plan is actually known. Callers must wait on this before
      * showing an upsell — `plan` falls back to GUEST while loading, so acting

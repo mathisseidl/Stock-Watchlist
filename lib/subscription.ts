@@ -2,12 +2,19 @@ import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
-import { isProActive, isTrialActive, trialEndsAt, type ProProfile } from "@/lib/pro";
+import {
+  isProActive,
+  isTrialActive,
+  canStartTrial,
+  trialEndsAt,
+  type ProProfile,
+} from "@/lib/pro";
 
 /**
  * Pro is a real Stripe subscription once someone pays. Before that, a member
- * can be on the free trial instead — tracked locally from `created_at`, no
- * Stripe involved, since the trial never asks for a card.
+ * can click to start the free trial instead — tracked locally from
+ * `trial_started_at`, no Stripe involved, since the trial never asks for a
+ * card.
  *
  * For a paid account, Stripe owns the schedule and the money; these columns
  * are a local mirror so a page render never has to wait on a Stripe
@@ -29,6 +36,8 @@ export type SubscriptionState = {
   /** Stripe's own status: active, past_due, canceled, … */
   status: string | null;
   hasSubscription: boolean;
+  /** Whether this account can still click to start the free trial. */
+  trialEligible: boolean;
 };
 
 export type ProfileRow = ProProfile & {
@@ -44,7 +53,7 @@ export type ProfileRow = ProProfile & {
  * — one round trip instead of reading the same row twice.
  */
 export const SUBSCRIPTION_COLUMNS =
-  "created_at, is_paid, pro_expires_at, auto_renew, subscription_status, stripe_customer_id, stripe_subscription_id";
+  "created_at, trial_started_at, is_paid, pro_expires_at, auto_renew, subscription_status, stripe_customer_id, stripe_subscription_id";
 
 /**
  * Stripe moved the billing period onto the subscription *item* in the 2025
@@ -69,15 +78,16 @@ function grantsAccess(status: Stripe.Subscription.Status): boolean {
 }
 
 function stateFromProfile(profile: ProfileRow | null): SubscriptionState {
-  // No Stripe subscription and still inside the free week from signup: Pro is
-  // open, no card was ever taken, and there is nothing to renew or cancel.
+  // The trial was clicked and hasn't run out: Pro is open, no card was ever
+  // taken, and there is nothing to renew or cancel.
   if (isTrialActive(profile)) {
     return {
       isPaid: true,
-      proExpiresAt: trialEndsAt(profile?.created_at)?.toISOString() ?? null,
+      proExpiresAt: trialEndsAt(profile?.trial_started_at)?.toISOString() ?? null,
       autoRenew: false,
       status: "trialing",
       hasSubscription: false,
+      trialEligible: false,
     };
   }
 
@@ -92,6 +102,7 @@ function stateFromProfile(profile: ProfileRow | null): SubscriptionState {
       : false,
     status: profile?.subscription_status ?? null,
     hasSubscription: Boolean(profile?.stripe_subscription_id),
+    trialEligible: canStartTrial(profile),
   };
 }
 
@@ -149,6 +160,9 @@ export async function syncSubscriptionFromStripe(
     autoRenew,
     status: subscription.status,
     hasSubscription: true,
+    // A real Stripe subscription now exists, so there is no trial left to
+    // start — even if this one lapses, it's an upgrade next time, not a trial.
+    trialEligible: false,
   };
 }
 

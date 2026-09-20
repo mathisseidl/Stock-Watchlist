@@ -12,6 +12,7 @@ export type SubscriptionResponse = {
   autoRenew: boolean;
   status: string | null;
   hasSubscription: boolean;
+  trialEligible: boolean;
 };
 
 /** Current plan state, refreshed from Stripe when the period is nearly up. */
@@ -27,6 +28,7 @@ export async function GET() {
     autoRenew: account.autoRenew,
     status: account.status,
     hasSubscription: account.hasSubscription,
+    trialEligible: account.trialEligible,
   };
   return NextResponse.json(body);
 }
@@ -102,6 +104,7 @@ export async function PATCH(request: Request) {
       autoRenew,
       status: account.status,
       hasSubscription: true,
+      trialEligible: account.trialEligible,
     } satisfies SubscriptionResponse);
   }
 

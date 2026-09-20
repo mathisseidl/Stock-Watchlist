@@ -10,10 +10,10 @@ import { cn } from "@/lib/utils";
 /**
  * The "go to Pro" link shown under a locked feature, plus the line under it.
  *
- * A guest hasn't started the free trial yet — signing up does that
- * automatically, no card involved — so they get invited to start it. A
- * signed-in reader seeing this has already had their trial week (Pro is open
- * automatically until it runs out), so this is a straight upgrade for them.
+ * Anyone who hasn't clicked to start the free trial yet — a guest, or a
+ * signed-in member who never started one — gets invited to start it on the
+ * Account page. Once that trial has run out (or already been used), this is
+ * a straight upgrade instead.
  */
 export function ProUpsellCta({
   className,
@@ -22,19 +22,19 @@ export function ProUpsellCta({
   className?: string;
   arrow?: boolean;
 }) {
-  const { isGuest } = useProStatus();
+  const { trialEligible } = useProStatus();
 
   return (
     <>
       <Link href="/account#plans" className={cn(buttonVariants(), className)}>
-        {isGuest
+        {trialEligible
           ? `Start your ${PRO_TRIAL_DAYS}-day free trial`
           : "Upgrade to Pro — $1.99/month"}
         {arrow && <ArrowUpRight className="size-4" />}
       </Link>
 
       <p className="text-sm text-muted-foreground">
-        {isGuest
+        {trialEligible
           ? "No bank card needed for the free trial."
           : "Billed $1.99/month. Cancel any time."}
       </p>

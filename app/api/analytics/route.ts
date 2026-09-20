@@ -1,38 +1,31 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isProActive } from "@/lib/pro";
+import { getAccountSubscription } from "@/lib/subscription";
 
 const FREE_DAILY_LIMIT = 3;
 
 async function getContext() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // Goes through the same trial-aware plan check as every other Pro route
+  // (see requirePro in lib/subscription.ts) — reading `is_paid` off the
+  // profile directly here previously missed the free trial entirely, since
+  // that column stays false for as long as no card has ever been taken.
+  const account = await getAccountSubscription();
+  if (!account) return null;
 
   const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("is_paid, pro_expires_at")
-    .eq("id", user.id)
-    .maybeSingle();
-
   const today = new Date().toISOString().slice(0, 10);
   const { data: usage } = await admin
     .from("analytics_usage")
     .select("count")
-    .eq("user_id", user.id)
+    .eq("user_id", account.userId)
     .eq("day", today)
     .maybeSingle();
 
   return {
     admin,
-    userId: user.id,
-    // Pro lapses on its expiry date; the flag alone is not enough.
-    isPaid: isProActive(profile),
-    proExpiresAt: profile?.pro_expires_at ?? null,
+    userId: account.userId,
+    isPaid: account.isPaid,
+    proExpiresAt: account.proExpiresAt,
     used: usage?.count ?? 0,
     today,
   };

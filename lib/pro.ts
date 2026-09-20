@@ -2,8 +2,9 @@
 export const PRO_TERM_MONTHS = 1;
 
 /**
- * Every new member gets Pro free for this many days, starting the moment they
- * sign up — no card, no checkout, nothing to cancel. See `isTrialActive`.
+ * A member who clicks "Start your free trial" gets Pro free for this many
+ * days — no card, no checkout, nothing to cancel. See `isTrialActive`. Nobody
+ * is enrolled automatically; the trial only ever starts on that click.
  */
 export const PRO_TRIAL_DAYS = 7;
 
@@ -12,8 +13,11 @@ export type ProProfile = {
   pro_expires_at?: string | null;
   auto_renew?: boolean | null;
   subscription_status?: string | null;
-  /** When the account was created — the free trial's clock starts here. */
+  /** When the account was created. Just for display ("member since") — the
+   *  trial's clock is `trial_started_at`, not this. */
   created_at?: string | null;
+  /** When the member clicked to start the free trial, or null if never. */
+  trial_started_at?: string | null;
   /** A Stripe subscription means the member has already paid at least once. */
   stripe_subscription_id?: string | null;
 };
@@ -44,12 +48,12 @@ export function proExpiryFrom(start: Date = new Date()): Date {
   return expires;
 }
 
-/** When the free trial that started at signup runs out, or null if unknown. */
+/** When a trial that started at this moment runs out, or null if it never started. */
 export function trialEndsAt(
-  createdAt: string | null | undefined,
+  trialStartedAt: string | null | undefined,
 ): Date | null {
-  if (!createdAt) return null;
-  const start = new Date(createdAt);
+  if (!trialStartedAt) return null;
+  const start = new Date(trialStartedAt);
   if (Number.isNaN(start.getTime())) return null;
   const ends = new Date(start);
   ends.setDate(ends.getDate() + PRO_TRIAL_DAYS);
@@ -57,18 +61,29 @@ export function trialEndsAt(
 }
 
 /**
- * On the no-card trial: never paid (no Stripe subscription, ever) and still
- * inside the window that opened at signup. Once a member has a Stripe
+ * On the no-card trial: it was started (someone clicked) and is still inside
+ * the week that opened from that click. Once a member has a Stripe
  * subscription, Stripe's own status — not this — decides access, so a lapsed
- * subscriber doesn't get a second trial just because their account is young.
+ * subscriber doesn't fall back to a trial just because one was once started.
  */
 export function isTrialActive(
   profile: ProProfile | null | undefined,
   now: Date = new Date(),
 ): boolean {
   if (profile?.stripe_subscription_id) return false;
-  const ends = trialEndsAt(profile?.created_at);
+  const ends = trialEndsAt(profile?.trial_started_at);
   return ends !== null && ends.getTime() > now.getTime();
+}
+
+/**
+ * Whether this account can still click to start the free trial: never
+ * started one, and never had a Stripe subscription (a lapsed subscriber
+ * upgrades again rather than getting a second free week).
+ */
+export function canStartTrial(
+  profile: ProProfile | null | undefined,
+): boolean {
+  return !profile?.trial_started_at && !profile?.stripe_subscription_id;
 }
 
 /** Whole days left, floored at zero. */

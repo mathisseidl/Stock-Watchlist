@@ -227,6 +227,7 @@ export default async function AccountPage() {
           autoRenew,
           status: account.status,
           hasSubscription: account.hasSubscription,
+          trialEligible: account.trialEligible,
         }}
       />
 
