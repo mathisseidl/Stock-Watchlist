@@ -199,12 +199,12 @@ html[data-gradient] {
   100% {
     box-shadow:
       0 0 0 1px color-mix(in oklch, var(--primary) 25%, transparent),
-      0 8px 22px -10px color-mix(in oklch, var(--primary) 25%, transparent);
+      0 0 22px 2px color-mix(in oklch, var(--primary) 22%, transparent);
   }
   50% {
     box-shadow:
       0 0 0 1px color-mix(in oklch, var(--primary) 55%, transparent),
-      0 14px 32px -8px color-mix(in oklch, var(--primary) 45%, transparent);
+      0 0 32px 6px color-mix(in oklch, var(--primary) 40%, transparent);
   }
 }
 
