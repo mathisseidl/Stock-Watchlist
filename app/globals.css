@@ -194,6 +194,31 @@ html[data-gradient] {
   font-weight: 600;
 }
 
+@keyframes pro-glow-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--primary) 25%, transparent),
+      0 8px 22px -10px color-mix(in oklch, var(--primary) 25%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px color-mix(in oklch, var(--primary) 55%, transparent),
+      0 14px 32px -8px color-mix(in oklch, var(--primary) 45%, transparent);
+  }
+}
+
+/**
+ * The Pro plan card's tell: a fixed purple border whose ambient shadow
+ * slowly brightens and settles, so it reads as "alive" without anything
+ * visibly moving. `prefers-reduced-motion` freezes it via the
+ * animation-duration override below, same as everything else on the page.
+ */
+@utility pro-glow {
+  border: 1px solid var(--primary);
+  animation: pro-glow-breathe 3.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

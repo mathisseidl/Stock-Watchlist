@@ -256,7 +256,7 @@ export default async function AccountPage() {
             </div>
           </Card>
 
-          <Card className="gap-5 border-primary p-6 ring-1 ring-primary/30">
+          <Card className="pro-glow gap-5 p-6">
             <div>
               <h3 className="text-lg font-semibold">Pro</h3>
               <p className="num mt-1 text-3xl font-semibold">
