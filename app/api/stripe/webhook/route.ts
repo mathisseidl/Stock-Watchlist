@@ -16,7 +16,7 @@ import { syncSubscriptionFromStripe } from "@/lib/subscription";
  */
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = process.env.STRIPE_WEBHOOK_KEY;
   if (!signature || !secret) {
     console.error("Stripe webhook received without a signature or secret configured");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
