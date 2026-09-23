@@ -8,6 +8,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { syncSubscriptionFromStripe } from "@/lib/subscription";
 import { proExpiryFrom } from "@/lib/pro";
+import { SeedProStatus } from "@/components/pricing/seed-pro-status";
+import type { SubscriptionResponse } from "@/app/api/subscription/route";
 
 export default async function CheckoutSuccessPage({
   searchParams,
@@ -23,6 +25,7 @@ export default async function CheckoutSuccessPage({
 
   let paid = false;
   let renewsOn: string | null = null;
+  let plan: SubscriptionResponse | null = null;
 
   if (sessionId && user) {
     try {
@@ -51,6 +54,7 @@ export default async function CheckoutSuccessPage({
           );
           paid = state?.isPaid ?? true;
           renewsOn = state?.proExpiresAt ?? null;
+          if (state) plan = state;
         } else {
           // Defensive: a session with no subscription attached still paid, so
           // grant the month rather than stranding them.
@@ -62,6 +66,14 @@ export default async function CheckoutSuccessPage({
             .eq("id", user.id);
           paid = true;
           renewsOn = expires;
+          plan = {
+            isPaid: true,
+            proExpiresAt: expires,
+            autoRenew: false,
+            status: null,
+            hasSubscription: false,
+            trialEligible: false,
+          };
         }
       }
     } catch (error) {
@@ -71,13 +83,15 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
+      {plan && <SeedProStatus data={plan} />}
       <Card className="w-full max-w-md items-center gap-4 p-8 text-center">
         {paid ? (
           <>
             <CheckCircle2 className="size-12 text-gain" />
             <h1 className="text-xl font-semibold">You&apos;re Pro.</h1>
             <p className="text-sm text-muted-foreground">
-              Forecasts, news briefings and unlimited analysis are open now.
+              News briefings, unlimited forecast and lookback analysis, and
+              the Weekly 6 are now open.
               {renewsOn && (
                 <>
                   {" "}
