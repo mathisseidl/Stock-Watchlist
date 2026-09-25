@@ -68,12 +68,18 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    // Sign-in fires several auth events at once, so loads overlap. Only the
+    // newest one may touch state — an older one failing mid-handoff (a 401
+    // while the session settles) used to leave the error up over a list that
+    // had in fact loaded.
+    let latest = 0;
 
-    async function load() {
+    async function load(attempt = 0) {
+      const run = ++latest;
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!active) return;
+      if (!active || run !== latest) return;
 
       if (!user) {
         // Guests keep their list on this device, and start with nothing in it
@@ -81,6 +87,7 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
         // page's own empty state sends the reader to the search box.
         setUserId(null);
         setIsGuest(true);
+        setError(null);
         setItems(readGuestWatchlist() ?? []);
         setReady(true);
         return;
@@ -93,11 +100,19 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
         .select("symbol, name, position")
         .eq("user_id", user.id)
         .order("position", { ascending: true });
-      if (!active) return;
+      if (!active || run !== latest) return;
 
       if (loadError) {
+        // One quiet retry covers the token handoff right after sign-in.
+        if (attempt === 0) {
+          setTimeout(() => {
+            if (active && run === latest) load(1);
+          }, 800);
+          return;
+        }
         setError("Couldn't load your watchlist. Try reloading the page.");
       } else {
+        setError(null);
         setItems(
           (data ?? []).map((row) => ({ symbol: row.symbol, name: row.name })),
         );
@@ -113,7 +128,11 @@ export function WatchlistProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      load();
+      // Supabase holds its auth lock while this callback runs; querying from
+      // inside it can use a half-updated session. Step outside first.
+      setTimeout(() => {
+        if (active) load();
+      }, 0);
     });
 
     return () => {
